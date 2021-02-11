@@ -9,7 +9,7 @@
   <arg name="motion_th_n2"                     default="0.01"/>
   <arg name="sensor_range_no_obj"              default="0.0"/>
   <arg name="sensor_std_dev"                   default="0.01"/>
-  <arg name="sensor_weight_new_obj_decay_rate" default="0.1"/>
+  <arg name="sensor_weight_new_obj_decay_rate" default="0.5"/>
   <arg name="sensor_weight_no_obj"             default="25.0"/>
   <arg name="sensor_weight_new_obj"            default="15.0"/>
   <arg name="sensor_weight_map_obj"            default="55.0"/>

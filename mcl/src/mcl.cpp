@@ -45,8 +45,8 @@ void MCL::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   // ROS_INFO("MCL: sensorCb()");
   std::lock_guard<std::mutex> lock(sensor_mtx_);
 
-  sensor_model_.apply(msg->ranges,
-                      particles_,
-                      weights_
-                     );
+  // sensor_model_.apply(msg->ranges,
+  //                     particles_,
+  //                     weights_
+  //                    );
 }
