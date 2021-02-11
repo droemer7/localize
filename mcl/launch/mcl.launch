@@ -1,0 +1,36 @@
+<launch>
+  <arg name="car_name"                         default="/car"/>
+  <arg name="num_particles"                    default="1000"/>
+  <arg name="motion_lin_vel_n1"                default="0.01"/>
+  <arg name="motion_lin_vel_n2"                default="0.01"/>
+  <arg name="motion_ang_vel_n1"                default="0.01"/>
+  <arg name="motion_ang_vel_n2"                default="0.01"/>
+  <arg name="motion_th_n1"                     default="0.01"/>
+  <arg name="motion_th_n2"                     default="0.01"/>
+  <arg name="sensor_range_no_obj"              default="0.0"/>
+  <arg name="sensor_std_dev"                   default="0.01"/>
+  <arg name="sensor_weight_new_obj_decay_rate" default="0.1"/>
+  <arg name="sensor_weight_no_obj"             default="25.0"/>
+  <arg name="sensor_weight_new_obj"            default="15.0"/>
+  <arg name="sensor_weight_map_obj"            default="55.0"/>
+  <arg name="sensor_weight_rand_effect"        default="5.0"/>
+
+  <group ns="$(arg car_name)">
+    <node name="localizer" pkg="mcl" type="mcl" output="screen">
+      <param name="num_particles"                    type="int"    value="$(arg num_particles)"/>
+      <param name="motion_lin_vel_n1"                type="double" value="$(arg motion_lin_vel_n1)"/>
+      <param name="motion_lin_vel_n2"                type="double" value="$(arg motion_lin_vel_n2)"/>
+      <param name="motion_ang_vel_n1"                type="double" value="$(arg motion_ang_vel_n1)"/>
+      <param name="motion_ang_vel_n2"                type="double" value="$(arg motion_ang_vel_n2)"/>
+      <param name="motion_th_n1"                     type="double" value="$(arg motion_th_n1)"/>
+      <param name="motion_th_n2"                     type="double" value="$(arg motion_th_n2)"/>
+      <param name="sensor_range_no_obj"              type="double" value="$(arg sensor_range_no_obj)"/>
+      <param name="sensor_std_dev"                   type="double" value="$(arg sensor_std_dev)"/>
+      <param name="sensor_weight_new_obj_decay_rate" type="double" value="$(arg sensor_weight_new_obj_decay_rate)"/>
+      <param name="sensor_weight_no_obj"             type="double" value="$(arg sensor_weight_no_obj)"/>
+      <param name="sensor_weight_new_obj"            type="double" value="$(arg sensor_weight_new_obj)"/>
+      <param name="sensor_weight_map_obj"            type="double" value="$(arg sensor_weight_map_obj)"/>
+      <param name="sensor_weight_rand_effect"        type="double" value="$(arg sensor_weight_rand_effect)"/>
+    </node>
+  </group>
+</launch>
