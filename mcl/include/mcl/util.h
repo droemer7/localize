@@ -10,6 +10,7 @@
 
 namespace localize
 {
+  // A particle with 2D location and heading
   struct Particle
   {
     explicit Particle(const double x = 0.0,
@@ -27,6 +28,7 @@ namespace localize
 
   }; // struct Particle
 
+  // Generate random samples from a normal distribution
   class NormalDistributionSampler
   {
   public:
@@ -44,35 +46,37 @@ namespace localize
 
     // Generates a random sample from a normal distribution
     // Algorithm 5.4 in Probabilistic Robotics (Thrun 2006, page 124)
-    double operator()(const double std_dev, const double mean = 0.0)
+    double gen(const double std_dev, const double mean = 0.0)
     {
       // Generate a uniform distribution within the range [-sigma, sigma]
       std::uniform_real_distribution<double> rng_dist(-std_dev, std::nextafter(std_dev, DBL_MAX));
       double sum = 0.0;
-      for (unsigned int i = 0; i < 12; ++i)
-      {
+
+      for (unsigned int i = 0; i < 12; ++i) {
         sum += rng_dist(rng_gen_);
       }
       return (sum / 2) + mean;
-    }
+
+    } // function gen()
 
   private:
-    std::mt19937 rng_gen_;
+    std::mt19937 rng_gen_;  // Generator for random numbers
 
-  }; // NormalDistributionSampler
+  }; // class NormalDistributionSampler
 
+  // Retrieves the desired parameter value from the ROS parameter server
   template <class T>
   bool getParam(const ros::NodeHandle& nh, std::string name, T& var)
   {
     bool result = true;
-    if (!nh.getParam(name, var))
-    {
+
+    if (!nh.getParam(name, var)) {
       ROS_FATAL("MCL: Parameter '%s' not found", name.c_str());
       result = false;
     }
     return result;
 
-  }; // getParam
+  }; // function getParam()
 
 } // namespace localize
 

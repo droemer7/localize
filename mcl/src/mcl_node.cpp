@@ -62,12 +62,9 @@ int main(int argc, char** argv)
      || !getParam(nh, "localizer/sensor_weight_new_obj", sensor_weight_new_obj)
      || !getParam(nh, "localizer/sensor_weight_map_obj", sensor_weight_map_obj)
      || !getParam(nh, "localizer/sensor_weight_rand_effect", sensor_weight_rand_effect)
-    )
-  {
+    ) {
     return 1;
   }
-
-  // Motion Model
 
   // Create localizer
   MCL mcl(num_particles,

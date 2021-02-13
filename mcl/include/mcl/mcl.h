@@ -15,6 +15,14 @@
 
 namespace localize
 {
+  // Monte-Carlo Localization
+  // The basis of the implementation in this class is the _particle filter_,
+  // a recursive Bayes filter which approximates the robot pose distribution
+  // by a set of random samples drawn from its probability distribution.
+  // The probability distribution is calculated by applying the motion model -
+  // propagating particles forward in time based on control input(s) - and the
+  // sensor model - determining the likelihood of a given particle based on the
+  // sensor measurements obtained.
   class MCL
   {
   public:

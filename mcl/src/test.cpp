@@ -29,7 +29,7 @@ void testSampleNormalDist(const unsigned int num_samples,
   int count = 0;
   for (int i = 0; i < num_samples; ++i)
   {
-    val = sampler(std_dev);
+    val = sampler.gen(std_dev);
     if (std::abs(val) > std_dev * num_std_devs)
     {
       ++count;

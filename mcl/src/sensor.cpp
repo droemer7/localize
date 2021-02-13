@@ -44,19 +44,15 @@ void BeamModel::apply(const std::vector<float>& ranges_obs,
                      )
 {
   double prob = 0.0;
-  for (size_t i = 0; i < particles.size(); ++i)
-  {
+
+  for (size_t i = 0; i < particles.size(); ++i) {
     prob = 1.0;
-    for (size_t j = 0; j < ranges_obs.size(); ++j)
-    {
+
+    for (size_t j = 0; j < ranges_obs.size(); ++j) {
       // Compute range_map using raycast() function
       prob *= (  weight_no_obj_  * probNoObj(ranges_obs[j])
-               + weight_new_obj_ * probNewObj(ranges_obs[j],
-                                                     ranges_obs[j] // TBD ranges_map_[i]
-                                                    )
-               + weight_map_obj_ * probMapObj(ranges_obs[j],
-                                                   ranges_obs[j] // TBD ranges_map_[i]
-                                                  )
+               + weight_new_obj_ * probNewObj(ranges_obs[j], ranges_obs[j]) // TBD range_map
+               + weight_map_obj_ * probMapObj(ranges_obs[j], ranges_obs[j]) // TBD range_map
                + weight_rand_effect_ * probRandEffect(ranges_obs[j])
               );
     }
@@ -75,14 +71,12 @@ inline double BeamModel::probNewObj(const double range_obs,
 {
   if (   range_obs >= range_min_
       && range_obs <= range_map
-     )
-  {
+     ) {
     return (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
             / (1 - new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_map))
            );
   }
-  else
-  {
+  else {
     return 0.0;
   }
 }
@@ -100,12 +94,10 @@ inline double BeamModel::probRandEffect(const double range_obs)
 {
   if (   range_obs >= range_min_
       && range_obs <= range_max_
-     )
-  {
+     ) {
     return 1.0 / range_max_;
   }
-  else
-  {
+  else {
     return 0.0;
   }
 }
@@ -113,10 +105,9 @@ inline double BeamModel::probRandEffect(const double range_obs)
 void BeamModel::save(const std::string filename)
 {
   std::ofstream output(filename, std::ofstream::trunc);
-  for (std::vector<double> row : table)
-  {
-    for (double val : row)
-    {
+
+  for (std::vector<double> row : table) {
+    for (double val : row) {
       output << std::fixed << std::setprecision(16) << val << ",";
     }
     output << "\n";
@@ -131,14 +122,12 @@ void BeamModel::load()
   double weighted_prob_rand_effect = 0.0;
   double step = range_max_ / table_size_;
 
-  for (size_t i = 0; i < table_size_; ++i)
-  {
+  for (size_t i = 0; i < table_size_; ++i) {
     range_obs = i * step;
     weighted_prob_no_obj = weight_no_obj_ * probNoObj(range_obs);
     weighted_prob_rand_effect = weight_rand_effect_ * probRandEffect(range_obs);
 
-    for (size_t j = 0; j < table_size_; ++j)
-    {
+    for (size_t j = 0; j < table_size_; ++j) {
       range_map = j * step;
       table[i][j] = (  (  weighted_prob_no_obj
                         + weight_new_obj_ * probNewObj(range_obs, range_map)

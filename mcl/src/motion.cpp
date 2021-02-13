@@ -47,14 +47,12 @@ void VelModel::apply(const double motor_erpm,
 
   if (   lin_vel_sq > DBL_EPSILON
       || ang_vel_sq > DBL_EPSILON
-     )
-  {
-    for (Particle& particle : particles)
-    {
+     ) {
+    for (Particle& particle : particles) {
       // Calculate noise for velocities and rotation
-      lin_vel_noise = sampler_(std::sqrt(lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq));
-      ang_vel_noise = sampler_(std::sqrt(ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq));
-      th_noise = sampler_(std::sqrt(th_n1_ * lin_vel_sq + th_n2_ * ang_vel_sq));
+      lin_vel_noise = sampler_.gen(std::sqrt(lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq));
+      ang_vel_noise = sampler_.gen(std::sqrt(ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq));
+      th_noise = sampler_.gen(std::sqrt(th_n1_ * lin_vel_sq + th_n2_ * ang_vel_sq));
 
       // Add noise to velocities
       lin_vel_adj = lin_vel + lin_vel_noise;

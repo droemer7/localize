@@ -7,6 +7,17 @@
 
 namespace localize
 {
+  // Beam-based probabilistic model for a range sensor
+  //
+  // The model is comprised of four superimposed probability distributions:
+  // 1) A probability for detecting nothing
+  // 2) A probability for detecting a new, unmapped object
+  // 3) A probability for detecting a known, mapped object
+  // 4) A probability for an unexplainable, random result
+  // These are evaluated for the range observed vs. the range expected from the
+  // map to determine the probability p(ranges[t] | pose[t], map)
+  //
+  // Ref: Probabilistic Robotics (Thrun 2006)
   class BeamModel
   {
   public:
@@ -66,8 +77,8 @@ namespace localize
   private:
     // Loads the model lookup table by applying the model to a discretized set
     // of ranges
-    // First axis is indexed in increments of ranges observed from the sensor
-    // Second axis is indexed in increments of ranges calculated from the map
+    // First axis is incremented by ranges observed from the sensor
+    // Second axis is incremented by ranges calculated from the map
     void load();
 
   private:
@@ -85,8 +96,8 @@ namespace localize
     const size_t table_size_;   // Model table size
 
     // Discretized model lookup table
-    // First axis is indexed in increments of ranges observed from the sensor
-    // Second axis is indexed in increments of ranges calculated from the map
+    // First axis is incremented by ranges observed from the sensor
+    // Second axis is incremented by ranges calculated from the map
     // The weight that would be calculated by the model can be looked from this
     // table by passing the range observed and range calculated from the map
     // as indexes; e.g. model_table[<range observed>, <range calculated>]
