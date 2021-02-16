@@ -3,10 +3,6 @@
 using namespace localize;
 
 VelModel::VelModel(const double car_length,
-                   const double speed_to_erpm_gain,
-                   const double speed_to_erpm_offset,
-                   const double steering_angle_to_servo_gain,
-                   const double steering_angle_to_servo_offset,
                    const double lin_vel_n1,
                    const double lin_vel_n2,
                    const double ang_vel_n1,
@@ -15,10 +11,6 @@ VelModel::VelModel(const double car_length,
                    const double th_n2
                   ) :
   car_length_(car_length),
-  speed_to_erpm_gain_(speed_to_erpm_gain),
-  speed_to_erpm_offset_(speed_to_erpm_offset),
-  steering_angle_to_servo_gain_(steering_angle_to_servo_gain),
-  steering_angle_to_servo_offset_(steering_angle_to_servo_offset),
   lin_vel_n1_(lin_vel_n1),
   lin_vel_n2_(lin_vel_n2),
   ang_vel_n1_(ang_vel_n1),
@@ -27,15 +19,12 @@ VelModel::VelModel(const double car_length,
   th_n2_(th_n2)
 {}
 
-void VelModel::apply(const double motor_erpm,
-                     const double servo_pos,
+void VelModel::apply(const double lin_vel,
+                     const double steering_angle,
                      const double dt,
-                     std::vector<Particle>& particles
+                     std::vector<Pose>& particles
                     )
 {
-  double lin_vel = (motor_erpm - speed_to_erpm_offset_) / speed_to_erpm_gain_;
-  double steering_angle = (servo_pos - steering_angle_to_servo_offset_) / steering_angle_to_servo_gain_;
-
   double ang_vel = (lin_vel / car_length_) * std::tan(steering_angle);
   double lin_vel_sq = lin_vel * lin_vel;
   double ang_vel_sq = ang_vel * ang_vel;
@@ -48,7 +37,7 @@ void VelModel::apply(const double motor_erpm,
   if (   lin_vel_sq > DBL_EPSILON
       || ang_vel_sq > DBL_EPSILON
      ) {
-    for (Particle& particle : particles) {
+    for (Pose& particle : particles) {
       // Calculate noise for velocities and rotation
       lin_vel_noise = sampler_.gen(std::sqrt(lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq));
       ang_vel_noise = sampler_.gen(std::sqrt(ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq));

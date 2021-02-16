@@ -34,16 +34,25 @@ BeamModel::BeamModel(const double range_min,
   table_size_(table_size + 1),
   table(table_size + 1, std::vector<double>(table_size + 1))
 {
-  load();
+  precompute();
 }
 
 void BeamModel::apply(const std::vector<float>& ranges_obs,
-                      const std::vector<Particle>& particles,
-                      // TBD const OMap& map,
+                      const std::vector<Pose>& particles,
+                      const Map& map,
                       std::vector<double>& weights
                      )
 {
-  double prob = 0.0;
+
+}
+
+void BeamModel::eval(const std::vector<float>& ranges_obs,
+                     const std::vector<Pose>& particles,
+                     const Map& map,
+                     std::vector<double>& weights
+                    )
+{
+  double prob = 1.0;
 
   for (size_t i = 0; i < particles.size(); ++i) {
     prob = 1.0;
@@ -58,6 +67,25 @@ void BeamModel::apply(const std::vector<float>& ranges_obs,
     }
     weights[i] = prob;
   }
+}
+
+void BeamModel::eval(const std::vector<float>& ranges_obs,
+                     const Pose& particle,
+                     const Map& map,
+                     double& weight
+                    )
+{
+  double prob = 1.0;
+
+  for (size_t i = 0; i < ranges_obs.size(); ++i) {
+      // Compute range_map using raycast() function
+      prob *= (  weight_no_obj_  * probNoObj(ranges_obs[i])
+               + weight_new_obj_ * probNewObj(ranges_obs[i], ranges_obs[i]) // TBD range_map
+               + weight_map_obj_ * probMapObj(ranges_obs[i], ranges_obs[i]) // TBD range_map
+               + weight_rand_effect_ * probRandEffect(ranges_obs[i])
+              );
+  }
+  weight = prob;
 }
 
 inline double BeamModel::probNoObj(const double range_obs)
@@ -114,7 +142,7 @@ void BeamModel::save(const std::string filename)
   }
 }
 
-void BeamModel::load()
+void BeamModel::precompute()
 {
   double range_obs = 0.0;
   double range_map = 0.0;

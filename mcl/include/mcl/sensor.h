@@ -22,25 +22,41 @@ namespace localize
   {
   public:
     // Constructor
-    BeamModel(const double range_min,
-              const double range_max,
-              const double range_no_obj,
-              const double range_std_dev,
-              const double new_obj_decay_rate,
-              const double weight_no_obj,
-              const double weight_new_obj,
-              const double weight_map_obj,
-              const double weight_rand_effect,
-              const size_t table_size = 1000
+    BeamModel(const double range_min,           // Sensor min range in meters
+              const double range_max,           // Sensor max range in meters
+              const double range_no_obj,        // Range reported by the sensor when nothing is detected
+              const double range_std_dev,       // Sensor standard deviation
+              const double new_obj_decay_rate,  // Decay rate for unexpected object probability
+              const double weight_no_obj,       // Model weight for no object detected probability
+              const double weight_new_obj,      // Model weight for new (unexpected) object probability
+              const double weight_map_obj,      // Model weight for map (expected) object probability
+              const double weight_rand_effect,  // Model weight for random effect probability
+              const size_t table_size = 1000    // Model table size
              );
 
-    // Applies the sensor model to calculate p(ranges[t] | pose[t], map)
+    // Applies the sensor model to calculate particle importance weights from
+    // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
     void apply(const std::vector<float>& ranges_obs,
-               const std::vector<Particle>& particles,
-               // TBD const OMap& map,
+               const std::vector<Pose>& particles,
+               const Map& map,
                std::vector<double>& weights
               );
+
+    // Evaluates the sensor model to calculate particle importance weights from
+    // p(ranges[t] | pose[t], map)
+    // Does NOT use lookup table
+    void eval(const std::vector<float>& ranges_obs,
+              const std::vector<Pose>& particles,
+              const Map& map,
+              std::vector<double>& weights
+             );
+
+    void eval(const std::vector<float>& ranges_obs,
+              const Pose& particle,
+              const Map& map,
+              double& weight
+             );
 
     // Calculates the probability the observed range occurred due to the
     // sensor failing to detect an object. This may occur due to reflections
@@ -75,24 +91,24 @@ namespace localize
     void save(const std::string filename);
 
   private:
-    // Loads the model lookup table by applying the model to a discretized set
-    // of ranges
+    // Precompute the model for a discrete set of ranges and loads this into
+    // the model lookup table
     // First axis is incremented by ranges observed from the sensor
     // Second axis is incremented by ranges calculated from the map
-    void load();
+    void precompute();
 
   private:
     // Model parameters
-    double range_min_;          // Sensor max range in meters
+    double range_min_;          // Sensor min range in meters
     double range_max_;          // Sensor max range in meters
     double range_no_obj_;       // Range reported by the sensor when nothing is detected
     double range_std_dev_;      // Sensor standard deviation
     double new_obj_decay_rate_; // Decay rate for unexpected object probability
-    double weight_no_obj_;      // Sensor weight for no object detected probability
-    double weight_new_obj_;     // Sensor weight for new (unexpected) object probability
-    double weight_map_obj_;     // Sensor weight for map (expected) object probability
-    double weight_rand_effect_; // Sensor weight for random effect probability
-    double weights_sum_;        // Sensor weights sum
+    double weight_no_obj_;      // Model weight for no object detected probability
+    double weight_new_obj_;     // Model weight for new (unexpected) object probability
+    double weight_map_obj_;     // Model weight for map (expected) object probability
+    double weight_rand_effect_; // Model weight for random effect probability
+    double weights_sum_;        // Model weights sum
     const size_t table_size_;   // Model table size
 
     // Discretized model lookup table
@@ -102,8 +118,7 @@ namespace localize
     // table by passing the range observed and range calculated from the map
     // as indexes; e.g. model_table[<range observed>, <range calculated>]
     std::vector<std::vector<double>> table;
-
-  }; // class BeamModel
+  };
 
 } // namespace localize
 

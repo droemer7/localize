@@ -4,6 +4,8 @@
 #include "mcl/sensor.h"
 #include "mcl/util.h"
 
+#include "includes/RangeLib.h"
+
 static const double SENSOR_RANGE_MIN = 0.0;
 static const double SENSOR_RANGE_MAX = 10.0;
 static const double SENSOR_RANGE_NO_OBJ = 0.0;
@@ -102,19 +104,19 @@ void testArray(float * ins, int num_ins)
 
 int main(int argc, char** argv)
 {
-  // unsigned int num_std_devs = 2;
-  // unsigned int num_samples = std::pow(10.0, static_cast<double>(num_std_devs + 3));
-  // double std_dev = 1.0;
-  // testSampleNormalDist(num_samples,
-  //                      num_std_devs,
-  //                      std_dev
-  //                     );
+  unsigned int num_std_devs = 2;
+  unsigned int num_samples = std::pow(10.0, static_cast<double>(num_std_devs + 3));
+  double std_dev = 1.0;
+  testSampleNormalDist(num_samples,
+                       num_std_devs,
+                       std_dev
+                      );
 
-  // std::vector<float> ranges = {0.0, FLT_MIN, 1.0, 2.0, 5.00023125, 9.999999, 10.0};
-  // for (size_t i = 0; i < ranges.size(); ++i)
-  // {
-  //   testProbRandEffect(ranges);
-  // }
+  std::vector<float> ranges = {0.0, FLT_MIN, 1.0, 2.0, 5.00023125, 9.999999, 10.0};
+  for (size_t i = 0; i < ranges.size(); ++i)
+  {
+    testProbRandEffect(ranges);
+  }
 
   std::string filename = "/home/dane/doc/sensor_model.csv";
   printf("Loading sensor model ... ");

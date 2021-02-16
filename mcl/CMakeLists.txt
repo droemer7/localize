@@ -17,13 +17,14 @@ catkin_package(
 )
 
 include_directories(
-  /home/dane/sw/lib/range_libc/includes
+  /home/dane/sw/lib/range_libc
   include
   ${catkin_INCLUDE_DIRS}
 )
 
 # MCL executable
-add_executable(mcl src/mcl_node.cpp
+add_executable(mcl src/mcl_main.cpp
+                   src/mcl_node.cpp
                    src/mcl.cpp
                    src/motion.cpp
                    src/sensor.cpp
