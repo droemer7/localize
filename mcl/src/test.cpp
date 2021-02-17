@@ -57,7 +57,8 @@ void testProbExpectedObj(const double std_dev,
                         SENSOR_WEIGHT_NEW_OBJ,
                         SENSOR_WEIGHT_MAP_OBJ,
                         SENSOR_WEIGHT_RAND_EFFECT,
-                        SENSOR_TABLE_SIZE
+                        SENSOR_TABLE_SIZE,
+                        Map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10))
                        );
   std::vector<double> error_levels = {0.0, 0.0001, 0.1, 1, 2, 3, 5.25, 10.98};
   for (double& error_level : error_levels)
@@ -80,7 +81,8 @@ void testProbRandEffect(std::vector<float> ranges)
                         SENSOR_WEIGHT_NEW_OBJ,
                         SENSOR_WEIGHT_MAP_OBJ,
                         SENSOR_WEIGHT_RAND_EFFECT,
-                        SENSOR_TABLE_SIZE
+                        SENSOR_TABLE_SIZE,
+                        Map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10))
                        );
   std::vector<double> probs = std::vector<double>(ranges.size(), 0.0);
 
@@ -104,6 +106,8 @@ void testArray(float * ins, int num_ins)
 
 int main(int argc, char** argv)
 {
+  // Test NormalDistributionSampler
+  /*
   unsigned int num_std_devs = 2;
   unsigned int num_samples = std::pow(10.0, static_cast<double>(num_std_devs + 3));
   double std_dev = 1.0;
@@ -111,13 +115,19 @@ int main(int argc, char** argv)
                        num_std_devs,
                        std_dev
                       );
+  */
 
+  // Test BeamModel::probRandEffect()
+  /*
   std::vector<float> ranges = {0.0, FLT_MIN, 1.0, 2.0, 5.00023125, 9.999999, 10.0};
   for (size_t i = 0; i < ranges.size(); ++i)
   {
     testProbRandEffect(ranges);
   }
+  */
 
+  // Test BeamModel::save()
+  /*
   std::string filename = "/home/dane/doc/sensor_model.csv";
   printf("Loading sensor model ... ");
   BeamModel sensorModel(SENSOR_RANGE_MIN,
@@ -135,6 +145,14 @@ int main(int argc, char** argv)
   printf("Saving sensor model to '%s' ... ", filename.c_str());
   sensorModel.save(filename);
   printf("done\n");
+  */
+
+  double test_d = 980.123456789123456789;
+  float test_f = 980.123456789123456789;
+  printf("double = %.20f\n", test_d);
+  printf("float = %.20f\n", test_f);
+  printf("comparison = %d\n", std::abs((float)0.10001f - (double)0.1) <= FLT_EPSILON);
+  printf("FLT_EPSILON = %.20f\n", FLT_EPSILON);
 
   return 0;
 }

@@ -23,15 +23,28 @@ MCL::MCL(const unsigned int num_particles,
          const double sensor_weight_new_obj,
          const double sensor_weight_map_obj,
          const double sensor_weight_rand_effect,
-         const size_t sensor_table_size,
-         const uint32_t map_height,
-         const uint32_t map_width,
+         const unsigned int sensor_table_size,
+         const unsigned int map_width,
+         const unsigned int map_height,
          const float map_m_per_pxl,
          const double map_th,
          const double map_origin_x,
          const double map_origin_y,
          const std::vector<int8_t> map_occ_data
         ) :
+  particles_(num_particles),
+  weights_(num_particles),
+  x_uni_dist_(0.0, std::nextafter(map_width, UINT32_MAX)),
+  y_uni_dist_(0.0, std::nextafter(map_height, UINT32_MAX)),
+  th_uni_dist_(-M_PI, M_PI),
+  map_(map_width,
+       map_height,
+       map_m_per_pxl,
+       map_th,
+       map_origin_x,
+       map_origin_y,
+       map_occ_data
+      ),
   motion_model_(car_length,
                 motion_lin_vel_n1,
                 motion_lin_vel_n2,
@@ -49,19 +62,12 @@ MCL::MCL(const unsigned int num_particles,
                 sensor_weight_new_obj,
                 sensor_weight_map_obj,
                 sensor_weight_rand_effect,
-                sensor_table_size
-               ),
-  map_(map_height,
-       map_width,
-       map_m_per_pxl,
-       map_th,
-       map_origin_x,
-       map_origin_y,
-       map_occ_data
-      ),
-  particles_(num_particles),
-  weights_(num_particles)
-{}
+                sensor_table_size,
+                map_
+               )
+{
+  reset();
+}
 
 void MCL::motionUpdate(const double vel,
                        const double steering_angle,
@@ -76,26 +82,38 @@ void MCL::motionUpdate(const double vel,
                      );
 }
 
-void MCL::sensorUpdate(const std::vector<float>& ranges_obs)
+void MCL::sensorUpdate(const std::vector<float>& ranges_obs,
+                       const float ranges_angle_inc
+                      )
 {
+  // TBD downsample
   std::lock_guard<std::mutex> lock(particle_mtx_);
   sensor_model_.apply(ranges_obs,
+                      ranges_angle_inc,
                       particles_,
-                      map_,
                       weights_
                      );
   // TBD resample after sensor model when appropriate
 }
 
-// void MCL::reset()
-// {
-//   // Generate a uniform distribution within the range [-sigma, sigma]
-//   std::uniform_real_distribution<double> xy_dist(0, std::nextafter(, DBL_MAX));
-//   std::uniform_real_distribution<double> th_dist(-M_PI)
-//   double val = 0.0;
+void MCL::reset()
+{
+  bool occupied = true;
+  double x = 0.0;
+  double y = 0.0;
+  double th = 0.0;
 
-//   for (Pose & particle : particles_) {
-//     particle.x_ = int_dist()
-//   }
+  for (Pose & particle : particles_) {
+    occupied = true;
 
-// }
+    // Regenerate x & y until free space is found
+    while (occupied) {
+      particle.x_ = x_uni_dist_(rng_.engine());
+      particle.y_ = y_uni_dist_(rng_.engine());
+      occupied = map_.isOccupied(particle.x_,
+                                 particle.y_
+                                );
+    }
+    particle.th_ = th_uni_dist_(rng_.engine());
+  }
+}

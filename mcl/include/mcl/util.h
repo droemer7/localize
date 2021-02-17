@@ -29,17 +29,21 @@ namespace localize
     double th_;
   };
 
-  struct Map : ranges::OMap
+  // Map class constructed with ROS coordinate space conversion parameters
+  // Used by RangeLib
+  class Map : public ranges::OMap
   {
-    Map(const uint32_t map_height,              // Map height
-        const uint32_t map_width,               // Map width
+  public:
+    // Constructor
+    Map(const unsigned int map_width,           // Map width
+        const unsigned int map_height,          // Map height
         const float map_m_per_pxl,              // Map resolution (meters per pixel)
         const double map_th,                    // Map angle
         const double map_origin_x,              // Map origin x position
         const double map_origin_y,              // Map origin y position
         const std::vector<int8_t> map_occ_data  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        ) :
-      ranges::OMap(height, width)
+      ranges::OMap(map_height, map_width) // Swap width and height because OMap uses a different coordinate space
     {
       for (int i = 0; i < map_height; ++i) {
         for (int j = 0; j < map_width; ++j) {
@@ -55,8 +59,12 @@ namespace localize
       world_sin_angle = std::sin(-map_th);
       world_cos_angle = std::cos(-map_th);
     }
+
+    bool isOccupied(int x, int y) const
+    { return ranges::OMap::isOccupiedNT(y, x); }
   };
 
+  // RNG wrapper to seed properly
   class RNG
   {
   public:
@@ -108,17 +116,36 @@ namespace localize
   // Retrieves the desired parameter value from the ROS parameter server
   template <class T>
   inline bool getParam(const ros::NodeHandle& nh,
-                       std::string name, T& var
+                       std::string name,
+                       T& value
                       )
   {
     bool result = true;
 
-    if (!nh.getParam(name, var)) {
+    if (!nh.getParam(name, value)) {
       ROS_FATAL("MCL: Parameter '%s' not found", name.c_str());
       result = false;
     }
     return result;
-  };
+  }
+
+  // Wrap an angle to (-pi, pi] (angle of -pi should convert to +pi)
+  inline double wrapAngle(double angle)
+  {
+    if (angle > M_PI) {
+      angle = std::fmod(angle, M_2PI);
+      if (angle > M_PI) {
+        angle -= M_2PI;
+      }
+    }
+    else if (angle <= -M_PI) {
+      angle = std::fmod(angle, -M_2PI);
+      if (angle <= -M_PI) {
+        angle += M_2PI;
+      }
+    }
+    return angle;
+  }
 
 } // namespace localize
 

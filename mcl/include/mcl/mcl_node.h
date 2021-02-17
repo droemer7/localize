@@ -1,6 +1,7 @@
 #ifndef MCL_NODE_H
 #define MCL_NODE_H
 
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -20,14 +21,11 @@ namespace localize
   class MCLNode
   {
   public:
-    MCLNode(const std::string& motor_topic,
-            const std::string& servo_topic,
-            const std::string& sensor_topic,
-            const std::string& map_topic
+    MCLNode(const std::string& motor_topic,   // Motor topic name
+            const std::string& servo_topic,   // Steering servo topic name
+            const std::string& sensor_topic,  // Sensor topic name
+            const std::string& map_topic      // Map topic name
            );
-
-    // MCL
-    MCL & mcl();
 
     // Motor state callback
     void motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg);
@@ -52,40 +50,41 @@ namespace localize
     ros::AsyncSpinner motor_spinner_;
     ros::AsyncSpinner servo_spinner_;
     ros::AsyncSpinner sensor_spinner_;
-    ros::Time curr_t_;
     ros::Time prev_t_;
     std::mutex servo_mtx_;
 
     // MCL
+    std::unique_ptr<MCL> mcl_ptr_;
     double num_particles_;  // Number of particles
-    // Motion model
+
+    // Motion model parameters
     double car_length_;                           // Car length
-    double motor_speed_to_erpm_gain_;             // Gain for converting from velocity to electrical RPM (ERPM)
-    double motor_speed_to_erpm_offset_;           // Bias for converting from velocity to electrical RPM (ERPM)
-    double motor_steering_angle_to_servo_gain_;   // Gain for converting from steering angle to Servo position
-    double motor_steering_angle_to_servo_offset_; // Bias for converting from steering angle to Servo position
+    double motor_speed_to_erpm_gain_;             // Gain for converting motor velocity to electrical RPM (ERPM)
+    double motor_speed_to_erpm_offset_;           // Bias for converting motor velocity to electrical RPM (ERPM)
+    double motor_steering_angle_to_servo_gain_;   // Gain for converting steering angle to servo position
+    double motor_steering_angle_to_servo_offset_; // Bias for converting steering angle to servo position
     double servo_pos_;                            // Steering servo position
-    double motion_lin_vel_n1_;                    // Linear velocity noise coefficient 1
-    double motion_lin_vel_n2_;                    // Linear velocity noise coefficient 2
-    double motion_ang_vel_n1_;                    // Angular velocity noise coefficient 1
-    double motion_ang_vel_n2_;                    // Angular velocity noise coefficient 2
-    double motion_th_n1_;                         // Final rotation noise coefficient 1
-    double motion_th_n2_;                         // Final rotation noise coefficient 2
+    double motion_lin_vel_n1_;                    // Motion model linear velocity noise coefficient 1
+    double motion_lin_vel_n2_;                    // Motion model linear velocity noise coefficient 2
+    double motion_ang_vel_n1_;                    // Motion model angular velocity noise coefficient 1
+    double motion_ang_vel_n2_;                    // Motion model angular velocity noise coefficient 2
+    double motion_th_n1_;                         // Motion model final rotation noise coefficient 1
+    double motion_th_n2_;                         // Motion model final rotation noise coefficient 2
 
-    // Sensor model
-    double sensor_range_min_;           // Sensor max range in meters
+    // Sensor model parameters
+    double sensor_range_min_;           // Sensor min range in meters
     double sensor_range_max_;           // Sensor max range in meters
-    double sensor_range_no_obj_;        // Range reported by the sensor when nothing is detected
+    double sensor_range_no_obj_;        // Sensor range reported when nothing is detected
     double sensor_range_std_dev_;       // Sensor standard deviation
-    double sensor_new_obj_decay_rate_;  // Decay rate for unexpected object probability
-    double sensor_weight_no_obj_;       // Sensor weight for no object detected probability
-    double sensor_weight_new_obj_;      // Sensor weight for new (unexpected) object probability
-    double sensor_weight_map_obj_;      // Sensor weight for map (expected) object probability
-    double sensor_weight_rand_effect_;  // Sensor weight for random effect probability
+    double sensor_new_obj_decay_rate_;  // Sensor model decay rate for unexpected object probability
+    double sensor_weight_no_obj_;       // Sensor model weight for no object detected probability
+    double sensor_weight_new_obj_;      // Sensor model weight for new (unexpected) object probability
+    double sensor_weight_map_obj_;      // Sensor model weight for map (expected) object probability
+    double sensor_weight_rand_effect_;  // Sensor model weight for random effect probability
 
-    // Map
-    uint32_t map_height_;               // Map height
-    uint32_t map_width_;                // Map width
+    // Map parameters
+    unsigned int map_width_;            // Map width
+    unsigned int map_height_;           // Map height
     float map_m_per_pxl_;               // Map resolution (meters per pixel)
     double map_th_;                     // Map angle
     double map_origin_x_;               // Map origin x position

@@ -24,22 +24,23 @@ namespace localize
     // Constructor
     BeamModel(const double range_min,           // Sensor min range in meters
               const double range_max,           // Sensor max range in meters
-              const double range_no_obj,        // Range reported by the sensor when nothing is detected
+              const double range_no_obj,        // Sensor range reported when nothing is detected
               const double range_std_dev,       // Sensor standard deviation
-              const double new_obj_decay_rate,  // Decay rate for unexpected object probability
+              const double new_obj_decay_rate,  // Model decay rate for unexpected object probability
               const double weight_no_obj,       // Model weight for no object detected probability
               const double weight_new_obj,      // Model weight for new (unexpected) object probability
               const double weight_map_obj,      // Model weight for map (expected) object probability
               const double weight_rand_effect,  // Model weight for random effect probability
-              const size_t table_size = 1000    // Model table size
+              const unsigned int table_size,    // Model table size
+              const Map map                     // Map (currently, raycaster assumes map is static)
              );
 
     // Applies the sensor model to calculate particle importance weights from
     // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
     void apply(const std::vector<float>& ranges_obs,
+               const float ranges_angle_inc,
                const std::vector<Pose>& particles,
-               const Map& map,
                std::vector<double>& weights
               );
 
@@ -48,13 +49,11 @@ namespace localize
     // Does NOT use lookup table
     void eval(const std::vector<float>& ranges_obs,
               const std::vector<Pose>& particles,
-              const Map& map,
               std::vector<double>& weights
              );
 
     void eval(const std::vector<float>& ranges_obs,
               const Pose& particle,
-              const Map& map,
               double& weight
              );
 
@@ -91,8 +90,8 @@ namespace localize
     void save(const std::string filename);
 
   private:
-    // Precompute the model for a discrete set of ranges and loads this into
-    // the model lookup table
+    // Precomputes weights given by the model for a discrete set of ranges and
+    // loads this into the model lookup table
     // First axis is incremented by ranges observed from the sensor
     // Second axis is incremented by ranges calculated from the map
     void precompute();
@@ -101,23 +100,25 @@ namespace localize
     // Model parameters
     double range_min_;          // Sensor min range in meters
     double range_max_;          // Sensor max range in meters
-    double range_no_obj_;       // Range reported by the sensor when nothing is detected
+    double range_no_obj_;       // Sensor range reported hen nothing is detected
     double range_std_dev_;      // Sensor standard deviation
-    double new_obj_decay_rate_; // Decay rate for unexpected object probability
+    double new_obj_decay_rate_; // Model decay rate for unexpected object probability
     double weight_no_obj_;      // Model weight for no object detected probability
     double weight_new_obj_;     // Model weight for new (unexpected) object probability
     double weight_map_obj_;     // Model weight for map (expected) object probability
     double weight_rand_effect_; // Model weight for random effect probability
     double weights_sum_;        // Model weights sum
-    const size_t table_size_;   // Model table size
 
     // Discretized model lookup table
     // First axis is incremented by ranges observed from the sensor
     // Second axis is incremented by ranges calculated from the map
-    // The weight that would be calculated by the model can be looked from this
-    // table by passing the range observed and range calculated from the map
-    // as indexes; e.g. model_table[<range observed>, <range calculated>]
-    std::vector<std::vector<double>> table;
+    // Values are weights that would be given by the model given ranges
+    // observed by the sensor and ranges calculated by raycasting on the map
+    std::vector<std::vector<double>> table_;  // Discretized model lookup table
+    const unsigned int table_size_;           // Model table size
+    const double table_inc_;                  // Model table increment (step size)
+
+    ranges::CDDTCast raycaster_;  // Range calculator
   };
 
 } // namespace localize
