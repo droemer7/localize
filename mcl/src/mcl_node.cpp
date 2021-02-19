@@ -48,7 +48,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
   }
   // ROS parameters: map
   nav_msgs::GetMap get_map_msg;
-  if (   !ros::service::waitForService(map_topic, ros::Duration(30))
+  if (   !ros::service::waitForService(map_topic, ros::Duration(10))
       || !ros::service::call(map_topic, get_map_msg)
      ) {
     throw std::runtime_error(std::string("MCL: Failed to retrieve map from ") + map_topic);
@@ -171,4 +171,57 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   mcl_ptr_->sensorUpdate(msg->ranges,
                          msg->angle_increment
                         );
+}
+
+template <class T>
+bool MCLNode::getParam(const ros::NodeHandle& nh,
+                       std::string name,
+                       T& value
+                      )
+{
+  bool result = true;
+
+  if (!nh.getParam(name, value)) {
+    ROS_FATAL("MCL: Parameter '%s' not found", name.c_str());
+    result = false;
+  }
+  return result;
+}
+
+void MCLNode::printMotionParams()
+{
+  ROS_INFO("MCL: car_length_ = %f", car_length_);
+  ROS_INFO("MCL: motor_speed_to_erpm_gain_ = %f", motor_speed_to_erpm_gain_);
+  ROS_INFO("MCL: motor_speed_to_erpm_offset_ = %f", motor_speed_to_erpm_offset_);
+  ROS_INFO("MCL: motor_steering_angle_to_servo_gain_ = %f", motor_steering_angle_to_servo_gain_);
+  ROS_INFO("MCL: motor_steering_angle_to_servo_offset_ = %f", motor_steering_angle_to_servo_offset_);
+  ROS_INFO("MCL: motion_lin_vel_n1_ = %f", motion_lin_vel_n1_);
+  ROS_INFO("MCL: motion_lin_vel_n2_ = %f", motion_lin_vel_n2_);
+  ROS_INFO("MCL: motion_ang_vel_n1_ = %f", motion_ang_vel_n1_);
+  ROS_INFO("MCL: motion_ang_vel_n2_ = %f", motion_ang_vel_n2_);
+  ROS_INFO("MCL: motion_th_n1_ = %f", motion_th_n1_);
+  ROS_INFO("MCL: motion_th_n2_ = %f", motion_th_n2_);
+}
+
+void MCLNode::printSensorParams()
+{
+  ROS_INFO("MCL: sensor_range_min_ = %f", sensor_range_min_);
+  ROS_INFO("MCL: sensor_range_max_ = %f", sensor_range_max_);
+  ROS_INFO("MCL: sensor_range_no_obj_ = %f", sensor_range_no_obj_);
+  ROS_INFO("MCL: sensor_range_std_dev_ = %f", sensor_range_std_dev_);
+  ROS_INFO("MCL: sensor_new_obj_decay_rate_ = %f", sensor_new_obj_decay_rate_);
+  ROS_INFO("MCL: sensor_weight_no_obj_ = %f", sensor_weight_no_obj_);
+  ROS_INFO("MCL: sensor_weight_new_obj_ = %f", sensor_weight_new_obj_);
+  ROS_INFO("MCL: sensor_weight_map_obj_ = %f", sensor_weight_map_obj_);
+  ROS_INFO("MCL: sensor_weight_rand_effect_ = %f", sensor_weight_rand_effect_);
+}
+
+void MCLNode::printMapParams()
+{
+  ROS_INFO("MCL: map_width_ = %d", map_width_);
+  ROS_INFO("MCL: map_height_ = %d", map_height_);
+  ROS_INFO("MCL: map_m_per_pxl_ = %f", map_m_per_pxl_);
+  ROS_INFO("MCL: map_th_ = %f", map_th_);
+  ROS_INFO("MCL: map_origin_x_ = %f", map_origin_x_);
+  ROS_INFO("MCL: map_origin_y_ = %f", map_origin_y_);
 }

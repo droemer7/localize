@@ -5,6 +5,8 @@
 
 #include "mcl/util.h"
 
+#include "includes/RangeLib.h"
+
 namespace localize
 {
   // Beam-based probabilistic model for a range sensor
@@ -32,7 +34,7 @@ namespace localize
               const double weight_map_obj,      // Model weight for map (expected) object probability
               const double weight_rand_effect,  // Model weight for random effect probability
               const unsigned int table_size,    // Model table size
-              const Map map                     // Map (currently, raycaster assumes map is static)
+              const Map map                     // Map
              );
 
     // Applies the sensor model to calculate particle importance weights from
@@ -46,15 +48,18 @@ namespace localize
 
     // Evaluates the sensor model to calculate particle importance weights from
     // p(ranges[t] | pose[t], map)
-    // Does NOT use lookup table
+    // *** Does NOT use lookup table ***
     void eval(const std::vector<float>& ranges_obs,
               const std::vector<Pose>& particles,
               std::vector<double>& weights
              );
 
+    // Evaluates the sensor model to calculate a single particle importance
+    // weight from p(ranges[t] | pose[t], map)
+    // *** Does NOT use lookup table ***
     void eval(const std::vector<float>& ranges_obs,
-              const Pose& particle,
-              double& weight
+              const Pose particle,
+              double weight
              );
 
     // Calculates the probability the observed range occurred due to the
@@ -86,8 +91,9 @@ namespace localize
     // sensor's min and max range.
     double probRandEffect(const double range_obs);
 
-    // Saves the sensor model lookup table to CSV
-    void save(const std::string filename);
+    // Converts NaN, negative ranges and any range beyond the configured max
+    // to the range reported when nothing is detected by the sensor
+    double convertToValidRange(const double range);
 
   private:
     // Precomputes weights given by the model for a discrete set of ranges and
@@ -100,7 +106,7 @@ namespace localize
     // Model parameters
     double range_min_;          // Sensor min range in meters
     double range_max_;          // Sensor max range in meters
-    double range_no_obj_;       // Sensor range reported hen nothing is detected
+    double range_no_obj_;       // Sensor range reported when nothing is detected
     double range_std_dev_;      // Sensor standard deviation
     double new_obj_decay_rate_; // Model decay rate for unexpected object probability
     double weight_no_obj_;      // Model weight for no object detected probability

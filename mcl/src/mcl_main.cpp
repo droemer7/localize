@@ -18,8 +18,8 @@ int main(int argc, char** argv)
     // Run node until ROS is shutdown
     ros::waitForShutdown();
   }
-  catch (std::runtime_error & error) {
-    ROS_FATAL("%s", error.what());
+  catch (std::runtime_error error) {
+    printf("%s\n", error.what());
   }
 
   return 0;

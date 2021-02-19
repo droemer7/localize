@@ -36,6 +36,22 @@ namespace localize
     // Sensor scan callback
     void sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg);
 
+    // Retrieves the desired parameter value from the ROS parameter server
+    template <class T>
+    bool getParam(const ros::NodeHandle& nh,
+                  std::string name,
+                  T& value
+                 );
+
+    // Diagnostics - print Motion Model parameters
+    void printMotionParams();
+
+    // Diagnostics - print Sensor Model parameters
+    void printSensorParams();
+
+    // Diagnostics - print Map parameters
+    void printMapParams();
+
   private:
     // ROS interface
     ros::NodeHandle motor_nh_;
@@ -51,13 +67,12 @@ namespace localize
     ros::AsyncSpinner servo_spinner_;
     ros::AsyncSpinner sensor_spinner_;
     ros::Time prev_t_;
-    std::mutex servo_mtx_;
 
     // MCL
     std::unique_ptr<MCL> mcl_ptr_;
     double num_particles_;  // Number of particles
 
-    // Motion model parameters
+    // Motion Model parameters
     double car_length_;                           // Car length
     double motor_speed_to_erpm_gain_;             // Gain for converting motor velocity to electrical RPM (ERPM)
     double motor_speed_to_erpm_offset_;           // Bias for converting motor velocity to electrical RPM (ERPM)
@@ -71,7 +86,7 @@ namespace localize
     double motion_th_n1_;                         // Motion model final rotation noise coefficient 1
     double motion_th_n2_;                         // Motion model final rotation noise coefficient 2
 
-    // Sensor model parameters
+    // Sensor Model parameters
     double sensor_range_min_;           // Sensor min range in meters
     double sensor_range_max_;           // Sensor max range in meters
     double sensor_range_no_obj_;        // Sensor range reported when nothing is detected
@@ -90,6 +105,8 @@ namespace localize
     double map_origin_x_;               // Map origin x position
     double map_origin_y_;               // Map origin y position
     std::vector<int8_t> map_occ_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+
+    std::mutex servo_mtx_;
   };
 
 } // namespace localize

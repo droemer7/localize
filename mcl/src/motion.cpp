@@ -1,3 +1,5 @@
+#include <float.h>
+
 #include "mcl/motion.h"
 
 using namespace localize;

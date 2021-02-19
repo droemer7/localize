@@ -1,13 +1,13 @@
 #ifndef MCL_H
 #define MCL_H
 
+#include <mutex>
 #include <vector>
+#include <random>
 
 #include "mcl/motion.h"
 #include "mcl/sensor.h"
 #include "mcl/util.h"
-
-#include "includes/RangeLib.h"
 
 namespace localize
 {
@@ -73,7 +73,7 @@ namespace localize
     std::uniform_real_distribution<double> y_uni_dist_;   // Real distribution [0, map height]
     std::uniform_real_distribution<double> th_uni_dist_;  // Real distribution [-pi, +pi)
 
-    const Map map_;           // Map (currently, raycaster assumes map is static)
+    const Map map_;           // Map
     VelModel motion_model_;   // Motion model
     BeamModel sensor_model_;  // Sensor model
 

@@ -1,6 +1,4 @@
-#include <iomanip>
-#include <float.h>
-#include <fstream>
+#include <cmath>
 
 #include "mcl/sensor.h"
 
@@ -36,10 +34,11 @@ BeamModel::BeamModel(const double range_min,
   table_size_(table_size + 1),
   table_inc_(range_max / table_size),
   raycaster_(map,
-             range_max,
-             500  // TBD th_discretization
+             range_max / map.world_scale,
+             656  // TBD th_discretization
             )
 {
+  // TBD check parameters are valid here?
   precompute();
 }
 
@@ -53,35 +52,45 @@ void BeamModel::apply(const std::vector<float>& ranges_obs,
   float range_obs = 0.0;
   int range_obs_table_idx = 0;
   int range_map_table_idx = 0;
-  double weight = 1.0;
+  double prob = 1.0;
   for (size_t i = 0; i < particles.size(); ++i) {
-    weight = 1.0;
+    prob = 1.0;
+    /*
+    printf("MCL: particles[%d] = (%f, %f, %f)\n",
+           static_cast<int>(i),
+           particles[i].x_, particles[i].y_, particles[i].th_
+          );
+    */
+
     for (size_t j = 0; j < ranges_obs.size(); ++j) {
       // Compute range from the map
-      range_map = raycaster_.calc_range(particles[i].x_,
-                                        particles[i].y_,
-                                        wrapAngle(particles[i].th_ + ranges_angle_inc * j)
-                                       ); // TBD scale range returned?
+      range_map = raycaster_.calc_range(-0.035,// particles[i].x_,
+                                        0.0,   // particles[i].y_,
+                                        0.0    // particles[i].th_ + ranges_angle_inc * j
+                                       );
 
-      // Convert ranges to lookup table indexes
-      range_obs = std::signbit(ranges_obs[j]) ? 0.0 : ranges_obs[j];
-      range_map = std::signbit(range_map) ? 0.0 : range_map;
+      // Make sure ranges are valid numbers in the expected range
+      range_obs = convertToValidRange(ranges_obs[j]);
+      range_map = convertToValidRange(range_map);
+
+      // Calculate the index to lookup in the sensor model table
       range_obs_table_idx = ranges_obs[j] / table_inc_;
       range_map_table_idx = range_map / table_inc_;
-      range_obs_table_idx = std::min(range_obs_table_idx, static_cast<int>(table_size_) - 1);
-      range_map_table_idx = std::min(range_map_table_idx, static_cast<int>(table_size_) - 1);
-      printf("MCL: particles[%d] = (%f, %f, %f)\n", i, particles[i].x_, particles[i].y_, particles[i].th_);
+      range_obs_table_idx = std::min(std::max(0, range_obs_table_idx), static_cast<int>(table_size_) - 1);
+      range_map_table_idx = std::min(std::max(0, range_map_table_idx), static_cast<int>(table_size_) - 1);
 
+      /*
+      printf("MCL: Angle index (j) = %lu\n", j);
       printf("MCL: range_obs = %f\n", range_obs);
       printf("MCL: range_map = %f\n", range_map);
-
       printf("MCL: range_obs_table_idx = %d\n", range_obs_table_idx);
       printf("MCL: range_map_table_idx = %d\n", range_map_table_idx);
+      */
 
       // Update weight
-      weight *= table_[range_obs_table_idx][range_map_table_idx];
+      prob *= table_[range_obs_table_idx][range_map_table_idx];
     }
-    weights[i] = weight;
+    weights[i] = prob;
   }
   printf("MCL: Sensor model lookup\n");
 }
@@ -109,8 +118,8 @@ void BeamModel::eval(const std::vector<float>& ranges_obs,
 }
 
 void BeamModel::eval(const std::vector<float>& ranges_obs,
-                     const Pose& particle,
-                     double& weight
+                     const Pose particle,
+                     double weight
                     )
 {
   double prob = 1.0;
@@ -126,16 +135,16 @@ void BeamModel::eval(const std::vector<float>& ranges_obs,
   weight = prob;
 }
 
-inline double BeamModel::probNoObj(const double range_obs)
+double BeamModel::probNoObj(const double range_obs)
 {
-  return std::abs(range_obs - range_no_obj_) <= FLT_EPSILON;
+  return equal(range_obs, range_no_obj_);
 }
 
-inline double BeamModel::probNewObj(const double range_obs,
-                                    const double range_map
-                                   )
+double BeamModel::probNewObj(const double range_obs,
+                             const double range_map
+                            )
 {
-  if (   range_obs >= range_min_
+  if (   !equal(range_obs, range_no_obj_)
       && range_obs <= range_map
      ) {
     return (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
@@ -147,20 +156,23 @@ inline double BeamModel::probNewObj(const double range_obs,
   }
 }
 
-inline double BeamModel::probMapObj(const double range_obs,
-                                    const double range_map
-                                   )
+double BeamModel::probMapObj(const double range_obs,
+                             const double range_map
+                            )
 {
-  return std::exp(  -(range_obs - range_map) * (range_obs - range_map)
-                  / (2 * range_std_dev_ * range_std_dev_)
-                 );
+  if (!equal(range_obs, range_no_obj_)) {
+    return std::exp(  -(range_obs - range_map) * (range_obs - range_map)
+                    / (2 * range_std_dev_ * range_std_dev_)
+                   );
+  }
+  else {
+    return 0.0;
+  }
 }
 
-inline double BeamModel::probRandEffect(const double range_obs)
+double BeamModel::probRandEffect(const double range_obs)
 {
-  if (   range_obs >= range_min_
-      && range_obs <= range_max_
-     ) {
+  if (!equal(range_obs, range_no_obj_)) {
     return 1.0 / range_max_;
   }
   else {
@@ -168,16 +180,13 @@ inline double BeamModel::probRandEffect(const double range_obs)
   }
 }
 
-void BeamModel::save(const std::string filename)
+double BeamModel::convertToValidRange(double range)
 {
-  std::ofstream output(filename, std::ofstream::trunc);
-
-  for (std::vector<double> row : table_) {
-    for (double val : row) {
-      output << std::fixed << std::setprecision(16) << val << ",";
-    }
-    output << "\n";
-  }
+  return (   range > range_max_
+          || std::signbit(range)
+          || std::isnan(range)
+         ) ?
+         range_no_obj_ : range;
 }
 
 void BeamModel::precompute()
