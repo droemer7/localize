@@ -14,11 +14,13 @@ static const double SENSOR_RANGE_MIN = 0.0;
 static const double SENSOR_RANGE_MAX = 10.0;
 static const double SENSOR_RANGE_NO_OBJ = 0.0;
 static const double SENSOR_RANGE_STD_DEV = 0.01;
+static const double SENSOR_ANGLE_SAMPLE_INC = 45 * M_PI / 180.0;
 static const double SENSOR_NEW_OBJ_DECAY_RATE = 0.5;
 static const double SENSOR_WEIGHT_NO_OBJ = 25.0;
 static const double SENSOR_WEIGHT_NEW_OBJ = 15.0;
 static const double SENSOR_WEIGHT_MAP_OBJ = 55.0;
 static const double SENSOR_WEIGHT_RAND_EFFECT = 5.0;
+static const double SENSOR_UNCERTAINTY_FACTOR = 0.95;
 static const size_t SENSOR_TABLE_SIZE = 1000;
 
 using namespace localize;
@@ -56,11 +58,13 @@ void testProbExpectedObj(const double std_dev,
                         SENSOR_RANGE_MAX,
                         SENSOR_RANGE_NO_OBJ,
                         SENSOR_RANGE_STD_DEV,
+                        SENSOR_ANGLE_SAMPLE_INC,
                         SENSOR_NEW_OBJ_DECAY_RATE,
                         SENSOR_WEIGHT_NO_OBJ,
                         SENSOR_WEIGHT_NEW_OBJ,
                         SENSOR_WEIGHT_MAP_OBJ,
                         SENSOR_WEIGHT_RAND_EFFECT,
+                        SENSOR_UNCERTAINTY_FACTOR,
                         SENSOR_TABLE_SIZE,
                         Map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10))
                        );
@@ -68,7 +72,7 @@ void testProbExpectedObj(const double std_dev,
   for (double& error_level : error_levels)
   {
     double error = std_dev * error_level;
-    printf("p(error = %f-sigma) = %f\n", error_level, sensorModel.probMapObj(error + mean, mean));
+    printf("p(error = %f-sigma) = %f\n", error_level, sensorModel.calcProbMapObj(error + mean, mean));
   }
   printf("--- Test complete ---\n");
 }
@@ -80,11 +84,13 @@ void testProbRandEffect(std::vector<float> ranges)
                         SENSOR_RANGE_MAX,
                         SENSOR_RANGE_NO_OBJ,
                         SENSOR_RANGE_STD_DEV,
+                        SENSOR_ANGLE_SAMPLE_INC,
                         SENSOR_NEW_OBJ_DECAY_RATE,
                         SENSOR_WEIGHT_NO_OBJ,
                         SENSOR_WEIGHT_NEW_OBJ,
                         SENSOR_WEIGHT_MAP_OBJ,
                         SENSOR_WEIGHT_RAND_EFFECT,
+                        SENSOR_UNCERTAINTY_FACTOR,
                         SENSOR_TABLE_SIZE,
                         Map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10))
                        );
@@ -92,7 +98,7 @@ void testProbRandEffect(std::vector<float> ranges)
 
   for (size_t i = 0; i < ranges.size(); ++i)
   {
-    probs[i] = sensorModel.probRandEffect(ranges[i]);
+    probs[i] = sensorModel.calcProbRandEffect(ranges[i]);
     printf("p(range = %f) = %.20f\n", ranges[i], probs[i]);
   }
   printf("--- Test complete ---\n");
@@ -321,13 +327,18 @@ int main(int argc, char** argv)
   printf("FLT_EPSILON = %.20f\n", FLT_EPSILON);
   */
 
-  // Test argument copy
+  // Test profiling functions
   // testSensorFunctionCopyVal(100000, 1);
   // testSensorFunctionCopyRef(100000, 1);
   // testSingleCopyVal(100000);
   // testSingleCopyRef(100000);
+  // testIfElse(1000000);
 
-  testIfElse(1000000);
+  printf("Size after rounding = %.10f (float), %d (int)\n",
+         std::round(M_2PI / SENSOR_ANGLE_SAMPLE_INC),
+         static_cast<int>(std::round(M_2PI / SENSOR_ANGLE_SAMPLE_INC))
+        );
+  printf("7 * angle increment =  %.10f", 7.0 * SENSOR_ANGLE_SAMPLE_INC * 180.0 / M_PI);
 
   return 0;
 }

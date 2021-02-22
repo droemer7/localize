@@ -38,13 +38,15 @@ MCLNode::MCLNode(const std::string& motor_topic,
       || !getParam(nh, "laser/range_max", sensor_range_max_)
       || !getParam(nh, "localizer/sensor_range_no_obj", sensor_range_no_obj_)
       || !getParam(nh, "localizer/sensor_std_dev", sensor_range_std_dev_)
+      || !getParam(nh, "localizer/sensor_angle_sample_inc", sensor_angle_sample_inc_)
       || !getParam(nh, "localizer/sensor_weight_new_obj_decay_rate", sensor_new_obj_decay_rate_)
       || !getParam(nh, "localizer/sensor_weight_no_obj", sensor_weight_no_obj_)
       || !getParam(nh, "localizer/sensor_weight_new_obj", sensor_weight_new_obj_)
       || !getParam(nh, "localizer/sensor_weight_map_obj", sensor_weight_map_obj_)
       || !getParam(nh, "localizer/sensor_weight_rand_effect", sensor_weight_rand_effect_)
+      || !getParam(nh, "localizer/sensor_uncertainty_factor", sensor_uncertainty_factor_)
      ) {
-    //throw std::runtime_error("MCL: Missing required parameters");
+    throw std::runtime_error("MCL: Missing required parameters");
   }
   // ROS parameters: map
   nav_msgs::GetMap get_map_msg;
@@ -81,11 +83,13 @@ MCLNode::MCLNode(const std::string& motor_topic,
                                    sensor_range_max_,
                                    sensor_range_no_obj_,
                                    sensor_range_std_dev_,
+                                   sensor_angle_sample_inc_,
                                    sensor_new_obj_decay_rate_,
                                    sensor_weight_no_obj_,
                                    sensor_weight_new_obj_,
                                    sensor_weight_map_obj_,
                                    sensor_weight_rand_effect_,
+                                   sensor_uncertainty_factor_,
                                    1000,
                                    map_width_,
                                    map_height_,
@@ -132,7 +136,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
 
 void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
 {
-  ROS_INFO("MCL: motorCb()");
+  // ROS_INFO("MCL: motorCb()");
   // Convert motor ERPM and steering servo position
   double motor_erpm = msg->state.speed;
   double lin_vel = (  (motor_erpm - motor_speed_to_erpm_offset_)
@@ -159,18 +163,25 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
 
 void MCLNode::servoCb(const std_msgs::Float64::ConstPtr& msg)
 {
-  ROS_INFO("MCL: servoCb()");
+  // ROS_INFO("MCL: servoCb()");
   std::lock_guard<std::mutex> lock(servo_mtx_);
   servo_pos_ = msg->data;
 }
 
 void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
-  ROS_INFO("MCL: sensorCb()");
+  // ROS_INFO("MCL: sensorCb()");
+  // Parse sensor data
+  size_t range_count = msg->ranges.size();
+  std::vector<Ray> rays(range_count);
+
+  for (size_t i = 0; i < range_count; ++i) {
+    rays[i].range_ = msg->ranges[i];
+    rays[i].angle_ = msg->angle_min + msg->angle_increment * i;
+  }
+
   // Perform sensor update
-  mcl_ptr_->sensorUpdate(msg->ranges,
-                         msg->angle_increment
-                        );
+  mcl_ptr_->sensorUpdate(rays);
 }
 
 template <class T>

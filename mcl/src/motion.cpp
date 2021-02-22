@@ -24,7 +24,7 @@ VelModel::VelModel(const double car_length,
 void VelModel::apply(const double lin_vel,
                      const double steering_angle,
                      const double dt,
-                     std::vector<Pose>& particles
+                     std::vector<PoseWithWeight>& particles
                     )
 {
   double ang_vel = (lin_vel / car_length_) * std::tan(steering_angle);

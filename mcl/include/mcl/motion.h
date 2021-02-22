@@ -37,7 +37,7 @@ namespace localize
     void apply(const double lin_vel,
                const double steering_angle,
                const double dt,
-               std::vector<Pose>& particles
+               std::vector<PoseWithWeight>& particles
               );
 
   private:

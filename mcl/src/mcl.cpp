@@ -18,11 +18,13 @@ MCL::MCL(const unsigned int num_particles,
          const double sensor_range_max,
          const double sensor_range_no_obj,
          const double sensor_range_std_dev,
+         const double sensor_angle_sample_inc,
          const double sensor_new_obj_decay_rate,
          const double sensor_weight_no_obj,
          const double sensor_weight_new_obj,
          const double sensor_weight_map_obj,
          const double sensor_weight_rand_effect,
+         const double sensor_uncertainty_factor,
          const unsigned int sensor_table_size,
          const unsigned int map_width,
          const unsigned int map_height,
@@ -33,7 +35,6 @@ MCL::MCL(const unsigned int num_particles,
          const std::vector<int8_t> map_occ_data
         ) :
   particles_(num_particles),
-  weights_(num_particles),
   x_uni_dist_(0.0, std::nextafter(map_width, UINT32_MAX)),
   y_uni_dist_(0.0, std::nextafter(map_height, UINT32_MAX)),
   th_uni_dist_(-M_PI, M_PI),
@@ -57,11 +58,13 @@ MCL::MCL(const unsigned int num_particles,
                 sensor_range_max,
                 sensor_range_no_obj,
                 sensor_range_std_dev,
+                sensor_angle_sample_inc,
                 sensor_new_obj_decay_rate,
                 sensor_weight_no_obj,
                 sensor_weight_new_obj,
                 sensor_weight_map_obj,
                 sensor_weight_rand_effect,
+                sensor_uncertainty_factor,
                 sensor_table_size,
                 map_
                )
@@ -82,18 +85,13 @@ void MCL::motionUpdate(const double vel,
                      );
 }
 
-void MCL::sensorUpdate(const std::vector<float>& ranges_obs,
-                       const float ranges_angle_inc
-                      )
+void MCL::sensorUpdate(const std::vector<Ray>& rays)
 {
-  // TBD downsample
   std::lock_guard<std::mutex> lock(particle_mtx_);
-  sensor_model_.apply(ranges_obs,
-                      ranges_angle_inc,
-                      particles_,
-                      weights_
-                     );
-  // TBD resample after sensor model when appropriate
+  sensor_model_.applyLookup(rays,
+                            particles_
+                           );
+  throw std::runtime_error("Sample complete");
 }
 
 void MCL::reset()
@@ -103,7 +101,7 @@ void MCL::reset()
   double y = 0.0;
   double th = 0.0;
 
-  for (Pose & particle : particles_) {
+  for (PoseWithWeight & particle : particles_) {
     occupied = true;
 
     // Regenerate x & y until free space is found
@@ -115,5 +113,6 @@ void MCL::reset()
                                 );
     }
     particle.th_ = th_uni_dist_(rng_.engine());
+    particle.weight_ = 0.0;
   }
 }

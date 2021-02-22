@@ -22,21 +22,23 @@ namespace localize
     // Constructors
     MCL(const unsigned int num_particles,       // Number of particles
         const double car_length,                // Car length
-        const double motion_lin_vel_n1,         // Linear velocity noise coefficient 1
-        const double motion_lin_vel_n2,         // Linear velocity noise coefficient 2
-        const double motion_ang_vel_n1,         // Angular velocity noise coefficient 1
-        const double motion_ang_vel_n2,         // Angular velocity noise coefficient 2
-        const double motion_th_n1,              // Final rotation noise coefficient 1
-        const double motion_th_n2,              // Final rotation noise coefficient 2
+        const double motion_lin_vel_n1,         // Motion model linear velocity noise coefficient 1
+        const double motion_lin_vel_n2,         // Motion model linear velocity noise coefficient 2
+        const double motion_ang_vel_n1,         // Motion model angular velocity noise coefficient 1
+        const double motion_ang_vel_n2,         // Motion model angular velocity noise coefficient 2
+        const double motion_th_n1,              // Motion model final rotation noise coefficient 1
+        const double motion_th_n2,              // Motion model final rotation noise coefficient 2
         const double sensor_range_min,          // Sensor min range in meters
         const double sensor_range_max,          // Sensor max range in meters
         const double sensor_range_no_obj,       // Sensor range reported when nothing is detected
-        const double sensor_range_std_dev,      // Sensor standard deviation
-        const double sensor_new_obj_decay_rate, // Sensor decay rate for unexpected object probability
-        const double sensor_weight_no_obj,      // Sensor weight for no object detected probability
-        const double sensor_weight_new_obj,     // Sensor weight for new (unexpected) object probability
-        const double sensor_weight_map_obj,     // Sensor weight for map (expected) object probability
-        const double sensor_weight_rand_effect, // Sensor weight for random effect probability
+        const double sensor_range_std_dev,      // Sensor range standard deviation
+        const double sensor_angle_sample_inc,   // Sensor angle increment at which to sample observations (rad / sample)
+        const double sensor_new_obj_decay_rate, // Sensor model decay rate for unexpected object probability
+        const double sensor_weight_no_obj,      // Sensor model weight for no object detected probability
+        const double sensor_weight_new_obj,     // Sensor model weight for new (unexpected) object probability
+        const double sensor_weight_map_obj,     // Sensor model weight for map (expected) object probability
+        const double sensor_weight_rand_effect, // Sensor model weight for random effect probability
+        const double sensor_uncertainty_factor, // Sensor model uncertainty factor - extra noise added to calculation
         const unsigned int sensor_table_size,   // Sensor model lookup table size
         const unsigned int map_width,           // Map width
         const unsigned int map_height,          // Map height
@@ -56,17 +58,14 @@ namespace localize
 
     // Applies the sensor model to calculate particle importance weights from
     // p(ranges[t] | pose[t], map)
-    void sensorUpdate(const std::vector<float>& ranges_obs,
-                      const float ranges_angle_inc
-                     );
+    void sensorUpdate(const std::vector<Ray>& rays);
 
     // Resets particle distribution, randomizing each particle's pose using a
     // uniform distribution across free space
     void reset();
 
   private:
-    std::vector<Pose> particles_; // Particle distribution
-    std::vector<double> weights_; // Particle importance weights
+    std::vector<PoseWithWeight> particles_; // Particle distribution
 
     RNG rng_;  // Random number engine
     std::uniform_real_distribution<double> x_uni_dist_;   // Real distribution [0, map width]
