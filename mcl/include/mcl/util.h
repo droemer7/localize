@@ -114,10 +114,12 @@ namespace localize
   template <class T>
   void save(const std::vector<std::vector<T>>& matrix,
             const std::string filename,
+            const unsigned int precision = 0,
             const bool overwrite = true
            )
   {
     std::ios_base::openmode mode;
+
     if (overwrite) {
       mode = std::ofstream::trunc;
     }
@@ -128,11 +130,50 @@ namespace localize
 
     for (const std::vector<T>& row : matrix) {
       for (const T& val : row) {
-        output << std::fixed << std::setprecision(16) << val << ",";
+        if (precision > 0) {
+          output << std::fixed << std::setprecision(precision) << static_cast<double>(val) << ",";
+        }
+        else {
+          output << static_cast<double>(val) << ",";
+        }
       }
       output << "\n";
     }
     output.close();
+  }
+
+  template <class T>
+  void save(const std::vector<T>& vector,
+            const std::string filename,
+            size_t num_cols = 0,
+            const unsigned int precision = 0,
+            const bool overwrite = true
+           )
+  {
+    size_t num_rows;
+
+    if (num_cols > 0) {
+      num_rows = std::ceil(vector.size() / num_cols);
+    }
+    else {
+      num_rows = 1;
+      num_cols = vector.size();
+    }
+    std::vector<std::vector<T>> matrix;
+
+    for (size_t r = 0; r < num_rows; ++r) {
+      std::vector<T> row;
+
+      for (size_t c = 0; c < num_cols; ++c) {
+        row.push_back(vector[r * num_cols + c]);
+      }
+      matrix.push_back(row);
+    }
+    save(matrix,
+         filename,
+         precision,
+         overwrite
+        );
   }
 
 } // namespace localize
