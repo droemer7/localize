@@ -5,6 +5,8 @@
 
 using namespace localize;
 
+const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
+
 Pose::Pose(const double x,
            const double y,
            const double th

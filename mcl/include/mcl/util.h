@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include <cmath>
+#include <iomanip>
 #include <float.h>
 #include <fstream>
 #include <random>
@@ -12,6 +13,8 @@
 
 namespace localize
 {
+  extern const std::string DATA_PATH;
+
   // A particle with 2D location and heading
   struct Pose
   {

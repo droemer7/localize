@@ -1,2 +1,5 @@
+# Data folder for logging and debugging
+data
+
 # VS Code
 .vscode

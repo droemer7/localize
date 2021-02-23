@@ -91,7 +91,7 @@ void MCL::sensorUpdate(const std::vector<Ray>& rays)
   sensor_model_.applyLookup(rays,
                             particles_
                            );
-  throw std::runtime_error("Sample complete");
+  throw std::runtime_error("\nSensor update complete\n"); // TBD remove
 }
 
 void MCL::reset()

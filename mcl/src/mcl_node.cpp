@@ -70,10 +70,6 @@ MCLNode::MCLNode(const std::string& motor_topic,
   map_origin_y_ = map_msg.info.origin.position.y;
   map_occ_data_ = map_msg.data;
 
-  /*
-  save(map_msg.data, "/home/dane/sw/ros/master/src/mushr_sim/maps/occ_grid.csv", map_width_);
-  */
-
   // Construct the localizer with retrieved parameters before starting threads
   std::unique_ptr<MCL> ptr(new MCL(num_particles_,
                                    car_length_,

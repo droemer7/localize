@@ -123,6 +123,13 @@ namespace localize
     // Second axis is incremented by ranges calculated from the map
     void precalc();
 
+    // Debug function to save ray data to file
+    void save(const std::vector<Ray>& rays,
+              const std::string filename,
+              const unsigned int precision = 0,
+              const bool overwrite = true
+             );
+
   private:
     // Model parameters
     double range_min_;          // Sensor min range in meters

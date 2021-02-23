@@ -2,8 +2,6 @@
 
 #include "mcl/sensor.h"
 
-static const size_t ZERO = 0;
-
 using namespace localize;
 
 BeamModel::BeamModel(const double range_min,
@@ -71,19 +69,19 @@ BeamModel::BeamModel(const double range_min,
           );
     uncertainty_factor_ = 1.0;
   }
-  if (   range_min_ <= 0.0
-      || range_max_ <= 0.0
-      || range_no_obj_ <= 0.0
-      || range_std_dev_ <= 0.0
-      || angle_sample_inc_ <= 0.0
-      || new_obj_decay_rate_ <= 0.0
-      || weight_no_obj_ <= 0.0
-      || weight_new_obj_ <= 0.0
-      || weight_map_obj_ <= 0.0
-      || weight_rand_effect_ <= 0.0
-      || uncertainty_factor_ <= 0.0
+  if (   range_min_ < 0.0
+      || range_max_ < 0.0
+      || range_no_obj_ < 0.0
+      || range_std_dev_ < 0.0
+      || angle_sample_inc_ < 0.0
+      || new_obj_decay_rate_ < 0.0
+      || weight_no_obj_ < 0.0
+      || weight_new_obj_ < 0.0
+      || weight_map_obj_ < 0.0
+      || weight_rand_effect_ < 0.0
+      || uncertainty_factor_ < 0.0
      ) {
-    throw std::invalid_argument("BeamModel: Check configuration - parameters must be greater than zero");
+    throw std::invalid_argument("BeamModel: Check configuration - parameters must be >= zero");
   }
   precalc();
 }
@@ -155,8 +153,8 @@ double BeamModel::lookupProb(const float range_obs,
   size_t range_map_table_i = 0;
   range_obs_table_i = range_obs / table_inc_;
   range_map_table_i = range_map / table_inc_;
-  range_obs_table_i = std::min(std::max(ZERO, range_obs_table_i), table_size_ - 1);
-  range_map_table_i = std::min(std::max(ZERO, range_map_table_i), table_size_ - 1);
+  range_obs_table_i = std::min(std::max(static_cast<size_t>(0), range_obs_table_i), table_size_ - 1);
+  range_map_table_i = std::min(std::max(static_cast<size_t>(0), range_map_table_i), table_size_ - 1);
 
   // Lookup observed range probability
   return table_[range_obs_table_i][range_map_table_i];
@@ -173,25 +171,35 @@ float BeamModel::repairRange(float range)
 
 std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
 {
-  std::vector<Ray> rays_obs_sample;
   size_t rays_obs_size = rays_obs.size();
-  size_t rays_obs_sample_size = static_cast<size_t>(std::round(M_2PI / angle_sample_inc_));
+  size_t rays_obs_sample_size = static_cast<size_t>(M_2PI / angle_sample_inc_);
+  std::vector<Ray> rays_obs_sample(rays_obs_sample_size);
 
-  if (rays_obs_size > 1) {
+  // More than one observation
+  if (   rays_obs_size > 1
+      && rays_obs_sample_size > 0
+     ) {
     size_t o = 0;
     size_t s = 0;
-    double angle_obs_inc = (rays_obs.end()->angle_ - rays_obs.begin()->angle_) / (rays_obs_size - 1);
+    double angle_obs_inc = std::abs((++rays_obs.begin())->angle_ - rays_obs.begin()->angle_);
 
+    // Iterate through both arrays until we've either gone through all of the
+    // observations, or we've collected the desired amount of samples
     while (   o < rays_obs_size
            && s < rays_obs_sample_size
           ) {
-      rays_obs_sample.push_back(rays_obs[o]);
+      rays_obs_sample[s] = rays_obs[o];
       ++s;
       o = static_cast<size_t>(angle_sample_inc_ * s / angle_obs_inc);
     }
+    rays_obs_sample.resize(s);
   }
-  else if (rays_obs_size == 1) {
-    rays_obs_sample.push_back(rays_obs[0]);
+  // Only one observation
+  else if (   rays_obs_size == 1
+           && rays_obs_sample_size > 0
+          ) {
+    rays_obs_sample[0] = rays_obs[0];
+    rays_obs_sample.resize(1);
   }
   return rays_obs_sample;
 }
@@ -204,22 +212,25 @@ void BeamModel::applyCalc(const std::vector<Ray>& rays_obs,
   float range_obs = 0.0;
   float range_map = 0.0;
 
+  // Downsample the full ray list according to the angle sample increment
+  std::vector<Ray> rays_obs_sample = sample(rays_obs);
+
   for (size_t i = 0; i < particles.size(); ++i) {
     weight = 1.0;
 
-    for (size_t j = 0; j < rays_obs.size(); ++j) {
+    for (size_t j = 0; j < rays_obs_sample.size(); ++j) {
       // Compute range from the map
       range_map = raycaster_.calc_range(particles[i].x_,
                                         particles[i].y_,
-                                        particles[i].th_ + rays_obs[j].angle_
+                                        particles[i].th_ + rays_obs_sample[j].angle_
                                        );
       // Make sure ranges are valid and convert if necessary
       // (NaNs, negative values, etc)
-      range_obs = repairRange(rays_obs[j].range_);
+      range_obs = repairRange(rays_obs_sample[j].range_);
       range_map = repairRange(range_map);
 
       // Update partial weight with this measurement's probability
-      weight *= calcProb(rays_obs[j].range_, range_map);
+      weight *= calcProb(rays_obs_sample[j].range_, range_map);
     }
     // Update full weight, applying overall model uncertainty
     particles[i].weight_ = std::pow(weight, uncertainty_factor_);
@@ -230,11 +241,14 @@ void BeamModel::applyLookup(const std::vector<Ray>& rays_obs,
                             std::vector<PoseWithWeight>& particles
                            )
 {
-  size_t iterations = 1; //particles.size();  // TBD remove
+  size_t iterations = 1; // TBD remove and put 'particles.size()' in for loop
 
   double weight = 1.0;
   float range_obs = 0.0;
   float range_map = 0.0;
+
+  // Downsample the full ray list according to the angle sample increment
+  std::vector<Ray> rays_obs_sample = sample(rays_obs);
 
   for (size_t i = 0; i < iterations; ++i) {
     weight = 1.0;
@@ -244,20 +258,21 @@ void BeamModel::applyLookup(const std::vector<Ray>& rays_obs,
            particles[i].x_, particles[i].y_, particles[i].th_
           );
     */
-    for (size_t j = 0; j < rays_obs.size(); ++j) {
+    for (size_t j = 0; j < rays_obs_sample.size(); ++j) {
       // Compute range from the map
       range_map = raycaster_.calc_range(particles[i].x_,
                                         particles[i].y_,
-                                        particles[i].th_ + rays_obs[j].angle_
+                                        particles[i].th_ + rays_obs_sample[j].angle_
                                        );
       // Make sure ranges are valid and convert if necessary
       // (NaNs, negative values, etc)
-      range_obs = repairRange(rays_obs[j].range_);
+      range_obs = repairRange(rays_obs_sample[j].range_);
       range_map = repairRange(range_map);
 
       // Update partial weight with this measurement's probability
       weight *= lookupProb(range_obs, range_map);
       /*
+      // TBD remove
       printf("MCL: ray index (j) = %lu\n", j);
       printf("MCL: range_obs = %f\n", range_obs);
       printf("MCL: range_map = %f\n", range_map);
@@ -267,7 +282,7 @@ void BeamModel::applyLookup(const std::vector<Ray>& rays_obs,
       */
     }
     // Update full weight, applying overall model uncertainty
-    // printf("MCL: weight = %.20f\n", weight);
+    // printf("MCL: weight = %.20f\n", weight); // TBD remove
     particles[i].weight_ = std::pow(weight, uncertainty_factor_);
   }
 }
@@ -285,4 +300,21 @@ void BeamModel::precalc()
       table_[i][j] = calcProb(range_obs, range_map);
     }
   }
+}
+
+void BeamModel::save(const std::vector<Ray>& rays,
+                     const std::string filename,
+                     const unsigned int precision,
+                     const bool overwrite
+                    )
+{
+  std::vector<std::vector<float>> rays_matrix;
+
+  for (size_t i = 0; i < rays.size(); ++i) {
+    std::vector<float> ray(2);
+    ray[0] = rays[i].range_;
+    ray[1] = rays[i].angle_;
+    rays_matrix.push_back(ray);
+  }
+  localize::save(rays_matrix, filename, precision, overwrite);
 }
