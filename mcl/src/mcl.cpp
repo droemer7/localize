@@ -18,7 +18,7 @@ MCL::MCL(const unsigned int num_particles,
          const double sensor_range_max,
          const double sensor_range_no_obj,
          const double sensor_range_std_dev,
-         const double sensor_angle_sample_inc,
+         const double sensor_th_sample_inc,
          const double sensor_new_obj_decay_rate,
          const double sensor_weight_no_obj,
          const double sensor_weight_new_obj,
@@ -35,8 +35,8 @@ MCL::MCL(const unsigned int num_particles,
          const std::vector<int8_t> map_occ_data
         ) :
   particles_(num_particles),
-  x_uni_dist_(0.0, std::nextafter(map_width, UINT32_MAX)),
-  y_uni_dist_(0.0, std::nextafter(map_height, UINT32_MAX)),
+  x_uni_dist_(0.0, std::nextafter(map_width * map_m_per_pxl, UINT32_MAX)),
+  y_uni_dist_(0.0, std::nextafter(map_height * map_m_per_pxl, UINT32_MAX)),
   th_uni_dist_(-M_PI, M_PI),
   map_(map_width,
        map_height,
@@ -58,7 +58,7 @@ MCL::MCL(const unsigned int num_particles,
                 sensor_range_max,
                 sensor_range_no_obj,
                 sensor_range_std_dev,
-                sensor_angle_sample_inc,
+                sensor_th_sample_inc,
                 sensor_new_obj_decay_rate,
                 sensor_weight_no_obj,
                 sensor_weight_new_obj,
@@ -91,7 +91,6 @@ void MCL::sensorUpdate(const std::vector<Ray>& rays)
   sensor_model_.applyLookup(rays,
                             particles_
                            );
-  throw std::runtime_error("\nSensor update complete\n"); // TBD remove
 }
 
 void MCL::reset()

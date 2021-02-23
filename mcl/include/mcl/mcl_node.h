@@ -43,13 +43,13 @@ namespace localize
                   T& value
                  );
 
-    // Diagnostics - print Motion Model parameters
+    // Print Motion Model parameters
     void printMotionParams();
 
-    // Diagnostics - print Sensor Model parameters
+    // Print Sensor Model parameters
     void printSensorParams();
 
-    // Diagnostics - print Map parameters
+    // Print Map parameters
     void printMapParams();
 
   private:
@@ -91,7 +91,7 @@ namespace localize
     double sensor_range_max_;           // Sensor max range in meters
     double sensor_range_no_obj_;        // Sensor range reported when nothing is detected
     double sensor_range_std_dev_;       // Sensor range standard deviation
-    double sensor_angle_sample_inc_;    // Sensor angle increment at which to sample observations (rad / sample)
+    double sensor_th_sample_inc_;       // Sensor angle increment at which to sample observations (rad / sample)
     double sensor_new_obj_decay_rate_;  // Sensor model decay rate for unexpected object probability
     double sensor_weight_no_obj_;       // Sensor model weight for no object detected probability
     double sensor_weight_new_obj_;      // Sensor model weight for new (unexpected) object probability

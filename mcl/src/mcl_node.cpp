@@ -38,7 +38,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
       || !getParam(nh, "laser/range_max", sensor_range_max_)
       || !getParam(nh, "localizer/sensor_range_no_obj", sensor_range_no_obj_)
       || !getParam(nh, "localizer/sensor_std_dev", sensor_range_std_dev_)
-      || !getParam(nh, "localizer/sensor_angle_sample_inc", sensor_angle_sample_inc_)
+      || !getParam(nh, "localizer/sensor_th_sample_inc", sensor_th_sample_inc_)
       || !getParam(nh, "localizer/sensor_weight_new_obj_decay_rate", sensor_new_obj_decay_rate_)
       || !getParam(nh, "localizer/sensor_weight_no_obj", sensor_weight_no_obj_)
       || !getParam(nh, "localizer/sensor_weight_new_obj", sensor_weight_new_obj_)
@@ -83,7 +83,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
                                    sensor_range_max_,
                                    sensor_range_no_obj_,
                                    sensor_range_std_dev_,
-                                   sensor_angle_sample_inc_,
+                                   sensor_th_sample_inc_,
                                    sensor_new_obj_decay_rate_,
                                    sensor_weight_no_obj_,
                                    sensor_weight_new_obj_,
@@ -171,17 +171,23 @@ void MCLNode::servoCb(const std_msgs::Float64::ConstPtr& msg)
 void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
   // ROS_INFO("MCL: sensorCb()");
+  ros::Time start = ros::Time::now();
+
   // Parse sensor data
   size_t range_count = msg->ranges.size();
   std::vector<Ray> rays(range_count);
 
   for (size_t i = 0; i < range_count; ++i) {
     rays[i].range_ = msg->ranges[i];
-    rays[i].angle_ = msg->angle_min + msg->angle_increment * i;
+    rays[i].th_ = msg->angle_min + msg->angle_increment * i;
   }
-
   // Perform sensor update
   mcl_ptr_->sensorUpdate(rays);
+
+  // Print duration
+  ros::Time end = ros::Time::now();
+  double dur = (end - start).toSec();
+  ROS_INFO("MCL: Sensor update time = %.10f", dur);
 }
 
 template <class T>

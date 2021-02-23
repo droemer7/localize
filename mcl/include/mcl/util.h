@@ -42,6 +42,19 @@ namespace localize
     double weight_;
   };
 
+  struct Ray
+  {
+    explicit Ray(const float range = 0.0,
+                 const float th = 0.0
+                ) :
+      range_(range),
+      th_(th)
+    {}
+
+    float range_;
+    float th_;
+  };
+
   // Map class constructed with ROS coordinate space conversion parameters
   // Used by RangeLib
   class Map : public ranges::OMap
@@ -113,32 +126,24 @@ namespace localize
     return angle;
   }
 
-  // Saves a matrix as a CSV
+  // Saves a matrix to file in CSV format
   template <class T>
-  void save(const std::vector<std::vector<T>>& matrix,
+  void save(const std::vector<std::vector<T>>& data_matrix,
             const std::string filename,
             const unsigned int precision = 0,
             const bool overwrite = true
            )
   {
-    std::ios_base::openmode mode;
-
-    if (overwrite) {
-      mode = std::ofstream::trunc;
+    std::ofstream output(filename,
+                         overwrite ? std::ofstream::trunc :
+                                     std::ofstream::ate
+                        );
+    if (precision > 0) {
+      output << std::fixed << std::setprecision(precision);
     }
-    else {
-      mode = std::ofstream::ate;
-    }
-    std::ofstream output(filename, mode);
-
-    for (const std::vector<T>& row : matrix) {
+    for (const std::vector<T>& row : data_matrix) {
       for (const T& val : row) {
-        if (precision > 0) {
-          output << std::fixed << std::setprecision(precision) << static_cast<double>(val) << ",";
-        }
-        else {
-          output << static_cast<double>(val) << ",";
-        }
+        output << static_cast<double>(val) << ",";
       }
       output << "\n";
     }
@@ -146,7 +151,7 @@ namespace localize
   }
 
   template <class T>
-  void save(const std::vector<T>& vector,
+  void save(const std::vector<T>& data_vector,
             const std::string filename,
             size_t num_cols = 0,
             const unsigned int precision = 0,
@@ -156,28 +161,83 @@ namespace localize
     size_t num_rows;
 
     if (num_cols > 0) {
-      num_rows = std::ceil(vector.size() / num_cols);
+      num_rows = std::ceil(data_vector.size() / num_cols);
     }
     else {
       num_rows = 1;
-      num_cols = vector.size();
+      num_cols = data_vector.size();
     }
-    std::vector<std::vector<T>> matrix;
+    std::vector<std::vector<T>> data_matrix;
 
     for (size_t r = 0; r < num_rows; ++r) {
       std::vector<T> row;
 
       for (size_t c = 0; c < num_cols; ++c) {
-        row.push_back(vector[r * num_cols + c]);
+        row.push_back(data_vector[r * num_cols + c]);
       }
-      matrix.push_back(row);
+      data_matrix.push_back(row);
     }
-    save(matrix,
+    save(data_matrix,
          filename,
          precision,
          overwrite
         );
   }
+
+  inline void save(const std::vector<PoseWithWeight>& particles,
+                   const std::string filename,
+                   const unsigned int precision = 0,
+                   const bool overwrite = true
+                  )
+  {
+    std::ofstream output(filename,
+                         overwrite ? std::ofstream::trunc :
+                                     std::ofstream::ate
+                        );
+    if (precision > 0) {
+      output << std::fixed << std::setprecision(precision);
+    }
+    output << "Particles\n";
+    output << "x,y,theta (deg),weight\n";
+
+    for (const PoseWithWeight& particle : particles) {
+      output << particle.x_ << ","
+             << particle.y_ << ","
+             << particle.th_ * 180.0 / M_PI << ","
+             << particle.weight_ << ","
+             << "\n";
+    }
+    output.close();
+  }
+
+  inline void save(const std::vector<Ray>& rays,
+                   const std::string filename,
+                   const unsigned int precision = 0,
+                   const bool overwrite = true
+                  )
+  {
+    std::ofstream output(filename,
+                         overwrite ? std::ofstream::trunc :
+                                     std::ofstream::ate
+                        );
+    if (precision > 0) {
+      output << std::fixed << std::setprecision(precision);
+    }
+    output << "Rays\n";
+    output << "range,theta (deg)\n";
+    for (const Ray& ray : rays) {
+      output << ray.range_ << ","
+             << ray.th_ * 180.0 / M_PI << ","
+             << "\n";
+    }
+    output.close();
+  }
+
+  inline bool comp(PoseWithWeight p1, PoseWithWeight p2)
+  { return (p1.weight_ < p2.weight_); }
+
+  inline void sort(std::vector<PoseWithWeight>& particles)
+  { std::sort(particles.rbegin(), particles.rend(), comp); }
 
 } // namespace localize
 

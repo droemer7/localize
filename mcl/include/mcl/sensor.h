@@ -9,19 +9,6 @@
 
 namespace localize
 {
-  struct Ray
-  {
-    explicit Ray(const float range = 0.0,
-                 const float angle = 0.0
-                ) :
-      range_(range),
-      angle_(angle)
-    {}
-
-    float range_;
-    float angle_;
-  };
-
   // Beam-based probabilistic model for a range sensor
   //
   // The model is comprised of four superimposed probability distributions:
@@ -41,7 +28,7 @@ namespace localize
               const double range_max,           // Sensor max range in meters
               const double range_no_obj,        // Sensor range reported when nothing is detected
               const double range_std_dev,       // Sensor range standard deviation
-              const double angle_sample_inc,    // Sensor angle increment at which to sample observations (rad / sample)
+              const double th_sample_inc,       // Sensor angle increment at which to sample observations (rad / sample)
               const double new_obj_decay_rate,  // Model decay rate for unexpected object probability
               const double weight_no_obj,       // Model weight for no object detected probability
               const double weight_new_obj,      // Model weight for new (unexpected) object probability
@@ -123,20 +110,13 @@ namespace localize
     // Second axis is incremented by ranges calculated from the map
     void precalc();
 
-    // Debug function to save ray data to file
-    void save(const std::vector<Ray>& rays,
-              const std::string filename,
-              const unsigned int precision = 0,
-              const bool overwrite = true
-             );
-
   private:
     // Model parameters
     double range_min_;          // Sensor min range in meters
     double range_max_;          // Sensor max range in meters
     double range_no_obj_;       // Sensor range reported when nothing is detected
     double range_std_dev_;      // Sensor range standard deviation
-    double angle_sample_inc_;   // Sensor angle increment at which to sample observations (rad / sample)
+    double th_sample_inc_;      // Sensor angle increment at which to sample observations (rad / sample)
     double new_obj_decay_rate_; // Model decay rate for unexpected object probability
     double weight_no_obj_;      // Model weight for no object detected probability
     double weight_new_obj_;     // Model weight for new (unexpected) object probability

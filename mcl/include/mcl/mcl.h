@@ -32,7 +32,7 @@ namespace localize
         const double sensor_range_max,          // Sensor max range in meters
         const double sensor_range_no_obj,       // Sensor range reported when nothing is detected
         const double sensor_range_std_dev,      // Sensor range standard deviation
-        const double sensor_angle_sample_inc,   // Sensor angle increment at which to sample observations (rad / sample)
+        const double sensor_th_sample_inc,      // Sensor angle increment at which to sample observations (rad / sample)
         const double sensor_new_obj_decay_rate, // Sensor model decay rate for unexpected object probability
         const double sensor_weight_no_obj,      // Sensor model weight for no object detected probability
         const double sensor_weight_new_obj,     // Sensor model weight for new (unexpected) object probability

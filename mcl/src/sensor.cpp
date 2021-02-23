@@ -8,7 +8,7 @@ BeamModel::BeamModel(const double range_min,
                      const double range_max,
                      const double range_no_obj,
                      const double range_std_dev,
-                     const double angle_sample_inc,
+                     const double th_sample_inc,
                      const double new_obj_decay_rate,
                      const double weight_no_obj,
                      const double weight_new_obj,
@@ -22,7 +22,7 @@ BeamModel::BeamModel(const double range_min,
   range_max_(range_max),
   range_no_obj_(range_no_obj),
   range_std_dev_(range_std_dev),
-  angle_sample_inc_(angle_sample_inc),
+  th_sample_inc_(th_sample_inc),
   new_obj_decay_rate_(new_obj_decay_rate),
   weight_no_obj_(weight_no_obj),
   weight_new_obj_(weight_new_obj),
@@ -47,12 +47,12 @@ BeamModel::BeamModel(const double range_min,
     range_max_ = range_min_;
     range_min_ = prev_range_max;
   }
-  if (angle_sample_inc_ > M_2PI)
+  if (th_sample_inc_ > M_2PI)
   {
     printf("BeamModel: Warning - angle sample increment greater than 2pi, using 2pi. \
             Units are in radians, not degrees.\n"
           );
-    angle_sample_inc_ = M_2PI;
+    th_sample_inc_ = M_2PI;
   }
   if (uncertainty_factor_ > 1.0)
   {
@@ -73,7 +73,7 @@ BeamModel::BeamModel(const double range_min,
       || range_max_ < 0.0
       || range_no_obj_ < 0.0
       || range_std_dev_ < 0.0
-      || angle_sample_inc_ < 0.0
+      || th_sample_inc_ < 0.0
       || new_obj_decay_rate_ < 0.0
       || weight_no_obj_ < 0.0
       || weight_new_obj_ < 0.0
@@ -172,7 +172,7 @@ float BeamModel::repairRange(float range)
 std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
 {
   size_t rays_obs_size = rays_obs.size();
-  size_t rays_obs_sample_size = static_cast<size_t>(M_2PI / angle_sample_inc_);
+  size_t rays_obs_sample_size = static_cast<size_t>(M_2PI / th_sample_inc_);
   std::vector<Ray> rays_obs_sample(rays_obs_sample_size);
 
   // More than one observation
@@ -181,7 +181,7 @@ std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
      ) {
     size_t o = 0;
     size_t s = 0;
-    double angle_obs_inc = std::abs((++rays_obs.begin())->angle_ - rays_obs.begin()->angle_);
+    double th_obs_inc = std::abs((++rays_obs.begin())->th_ - rays_obs.begin()->th_);
 
     // Iterate through both arrays until we've either gone through all of the
     // observations, or we've collected the desired amount of samples
@@ -190,7 +190,7 @@ std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
           ) {
       rays_obs_sample[s] = rays_obs[o];
       ++s;
-      o = static_cast<size_t>(angle_sample_inc_ * s / angle_obs_inc);
+      o = static_cast<size_t>(th_sample_inc_ * s / th_obs_inc);
     }
     rays_obs_sample.resize(s);
   }
@@ -222,7 +222,7 @@ void BeamModel::applyCalc(const std::vector<Ray>& rays_obs,
       // Compute range from the map
       range_map = raycaster_.calc_range(particles[i].x_,
                                         particles[i].y_,
-                                        particles[i].th_ + rays_obs_sample[j].angle_
+                                        particles[i].th_ + rays_obs_sample[j].th_
                                        );
       // Make sure ranges are valid and convert if necessary
       // (NaNs, negative values, etc)
@@ -241,8 +241,6 @@ void BeamModel::applyLookup(const std::vector<Ray>& rays_obs,
                             std::vector<PoseWithWeight>& particles
                            )
 {
-  size_t iterations = 1; // TBD remove and put 'particles.size()' in for loop
-
   double weight = 1.0;
   float range_obs = 0.0;
   float range_map = 0.0;
@@ -250,19 +248,14 @@ void BeamModel::applyLookup(const std::vector<Ray>& rays_obs,
   // Downsample the full ray list according to the angle sample increment
   std::vector<Ray> rays_obs_sample = sample(rays_obs);
 
-  for (size_t i = 0; i < iterations; ++i) {
+  for (size_t i = 0; i < particles.size(); ++i) {
     weight = 1.0;
-    /*
-    printf("MCL: particles[%d] = (%f, %f, %f)\n",
-           static_cast<int>(i),
-           particles[i].x_, particles[i].y_, particles[i].th_
-          );
-    */
+
     for (size_t j = 0; j < rays_obs_sample.size(); ++j) {
       // Compute range from the map
       range_map = raycaster_.calc_range(particles[i].x_,
                                         particles[i].y_,
-                                        particles[i].th_ + rays_obs_sample[j].angle_
+                                        particles[i].th_ + rays_obs_sample[j].th_
                                        );
       // Make sure ranges are valid and convert if necessary
       // (NaNs, negative values, etc)
@@ -271,18 +264,8 @@ void BeamModel::applyLookup(const std::vector<Ray>& rays_obs,
 
       // Update partial weight with this measurement's probability
       weight *= lookupProb(range_obs, range_map);
-      /*
-      // TBD remove
-      printf("MCL: ray index (j) = %lu\n", j);
-      printf("MCL: range_obs = %f\n", range_obs);
-      printf("MCL: range_map = %f\n", range_map);
-      printf("MCL: range_obs_table_i = %d\n", range_obs_table_i);
-      printf("MCL: range_map_table_i = %d\n", range_map_table_i);
-      printf("MCL: partial weight = %.20f\n", weight);
-      */
     }
     // Update full weight, applying overall model uncertainty
-    // printf("MCL: weight = %.20f\n", weight); // TBD remove
     particles[i].weight_ = std::pow(weight, uncertainty_factor_);
   }
 }
@@ -300,21 +283,4 @@ void BeamModel::precalc()
       table_[i][j] = calcProb(range_obs, range_map);
     }
   }
-}
-
-void BeamModel::save(const std::vector<Ray>& rays,
-                     const std::string filename,
-                     const unsigned int precision,
-                     const bool overwrite
-                    )
-{
-  std::vector<std::vector<float>> rays_matrix;
-
-  for (size_t i = 0; i < rays.size(); ++i) {
-    std::vector<float> ray(2);
-    ray[0] = rays[i].range_;
-    ray[1] = rays[i].angle_;
-    rays_matrix.push_back(ray);
-  }
-  localize::save(rays_matrix, filename, precision, overwrite);
 }
