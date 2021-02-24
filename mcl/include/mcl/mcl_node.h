@@ -36,6 +36,11 @@ namespace localize
     // Sensor scan callback
     void sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg);
 
+    // Save distribution of particles to file in CSV format
+    void saveParticles(const std::string& filename,
+                       const bool overwrite = true
+                      );
+
     // Retrieves the desired parameter value from the ROS parameter server
     template <class T>
     bool getParam(const ros::NodeHandle& nh,
@@ -100,13 +105,13 @@ namespace localize
     double sensor_uncertainty_factor_;  // Sensor model uncertainty factor - extra noise added to calculation
 
     // Map parameters
-    unsigned int map_width_;            // Map width
-    unsigned int map_height_;           // Map height
-    float map_m_per_pxl_;               // Map resolution (meters per pixel)
-    double map_th_;                     // Map angle
-    double map_origin_x_;               // Map origin x position
-    double map_origin_y_;               // Map origin y position
-    std::vector<int8_t> map_occ_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+    unsigned int map_width_;        // Map number of pixels along x axis
+    unsigned int map_height_;       // Map number of pixels along y axis
+    float map_x_;                   // Map x translation of origin (cell 0,0) relative to world frame
+    float map_y_;                   // Map y translation of origin (cell 0,0) relative to world frame
+    float map_th_;                  // Map angle relative to world frame
+    float map_scale_;               // Map scale relative to world frame (meters per pixel)
+    std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
 
     std::mutex servo_mtx_;
   };

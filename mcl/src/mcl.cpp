@@ -28,27 +28,20 @@ MCL::MCL(const unsigned int num_particles,
          const unsigned int sensor_table_size,
          const unsigned int map_width,
          const unsigned int map_height,
-         const float map_m_per_pxl,
-         const double map_th,
-         const double map_origin_x,
-         const double map_origin_y,
-         const std::vector<int8_t> map_occ_data
+         const float map_x,
+         const float map_y,
+         const float map_th,
+         const float map_scale,
+         const std::vector<int8_t> map_data
         ) :
   particles_(num_particles),
-  x_uni_dist_(map_origin_x,
-              std::nextafter(map_width * map_m_per_pxl + map_origin_x, DBL_MAX)
-             ),
-  y_uni_dist_(map_origin_y,
-              std::nextafter(map_height * map_m_per_pxl + map_origin_y, DBL_MAX)
-             ),
-  th_uni_dist_(-M_PI, M_PI),
   map_(map_width,
        map_height,
-       map_m_per_pxl,
+       map_x,
+       map_y,
        map_th,
-       map_origin_x,
-       map_origin_y,
-       map_occ_data
+       map_scale,
+       map_data
       ),
   motion_model_(car_length,
                 motion_lin_vel_n1,
@@ -71,7 +64,10 @@ MCL::MCL(const unsigned int num_particles,
                 sensor_uncertainty_factor,
                 sensor_table_size,
                 map_
-               )
+               ),
+  x_uni_dist_(map_.x, std::nextafter(map_.width * map_.scale + map_.x, DBL_MAX)),
+  y_uni_dist_(map_.y, std::nextafter(map_.height * map_.scale + map_.y, DBL_MAX)),
+  th_uni_dist_(-M_PI, M_PI)
 {
   reset();
 }
@@ -81,7 +77,7 @@ void MCL::motionUpdate(const double vel,
                        const double dt
                       )
 {
-  std::lock_guard<std::mutex> lock(particle_mtx_);
+  std::lock_guard<std::mutex> lock(mtx_);
   motion_model_.apply(vel,
                       steering_angle,
                       dt,
@@ -91,7 +87,7 @@ void MCL::motionUpdate(const double vel,
 
 void MCL::sensorUpdate(const std::vector<Ray>& rays)
 {
-  std::lock_guard<std::mutex> lock(particle_mtx_);
+  std::lock_guard<std::mutex> lock(mtx_);
   sensor_model_.applyLookup(rays,
                             particles_
                            );
@@ -117,8 +113,8 @@ void MCL::reset()
                                 );
       // TBD remove
       if (occupied) {
-        cells_occ.push_back(PoseWithWeight((particle.x_ - map_.world_origin_x) / map_.world_scale,
-                                           (particle.y_ - map_.world_origin_y) / map_.world_scale
+        cells_occ.push_back(PoseWithWeight((particle.x_ - map_.x) / map_.scale,
+                                           (particle.y_ - map_.y) / map_.scale
                                           )
                            );
       }
@@ -126,11 +122,10 @@ void MCL::reset()
     particle.th_ = th_uni_dist_(rng_.engine());
     particle.weight_ = 0.0;
   }
+  // TBD remove
   particles_[0].x_ = -0.0352;
   particles_[0].y_ = 0.0;
   particles_[0].th_ = 0.0;
-
-  localize::save(cells_occ, "cells_occ.csv", 2);  // TBD remove
 }
 
 void MCL::save(const std::string filename,
@@ -138,7 +133,7 @@ void MCL::save(const std::string filename,
                const bool overwrite
               )
 {
-  std::lock_guard<std::mutex> lock(particle_mtx_);
+  std::lock_guard<std::mutex> lock(mtx_);
   sort(particles_, compWeight);
   localize::save(particles_,
                  filename,

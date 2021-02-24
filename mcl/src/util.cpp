@@ -17,29 +17,29 @@ Pose::Pose(const double x,
 {}
 
 // Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
-Map::Map(const unsigned int map_width,
-         const unsigned int map_height,
-         const float map_m_per_pxl,
-         const double map_th,
-         const double map_origin_x,
-         const double map_origin_y,
-         const std::vector<int8_t> map_occ_data
+Map::Map(const unsigned int width,
+         const unsigned int height,
+         const float x,
+         const float y,
+         const float th,
+         const float scale,
+         const std::vector<int8_t> data
         ) :
-  ranges::OMap(map_height, map_width)
+  ranges::OMap(height, width)
 {
-  for (int i = 0; i < map_height; ++i) {
-    for (int j = 0; j < map_width; ++j) {
-      if (map_occ_data[i * map_width + j] > 10) {
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      if (data[i * width + j] > 10) {
         grid[i][j] = true;
       }
     }
   }
-  world_scale = map_m_per_pxl;
-  world_angle = -map_th;
-  world_origin_x = map_origin_x;
-  world_origin_y = map_origin_y;
-  world_sin_angle = std::sin(-map_th);
-  world_cos_angle = std::cos(-map_th);
+  this->x = x;
+  this->y = y;
+  this->th = -th;
+  this->sin_th = std::sin(-th);
+  this->cos_th = std::cos(-th);
+  this->scale = scale;
 }
 
 RNG::RNG()

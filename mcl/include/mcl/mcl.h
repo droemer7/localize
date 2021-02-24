@@ -40,13 +40,13 @@ namespace localize
         const double sensor_weight_rand_effect, // Sensor model weight for random effect probability
         const double sensor_uncertainty_factor, // Sensor model uncertainty factor - extra noise added to calculation
         const unsigned int sensor_table_size,   // Sensor model lookup table size
-        const unsigned int map_width,           // Map width
-        const unsigned int map_height,          // Map height
-        const float map_m_per_pxl,              // Map resolution (meters per pixel)
-        const double map_th,                    // Map angle
-        const double map_origin_x,              // Map origin x position
-        const double map_origin_y,              // Map origin y position
-        const std::vector<int8_t> map_occ_data  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+        const unsigned int map_width,           // Map number of pixels along x axis
+        const unsigned int map_height,          // Map number of pixels along y axis
+        const float map_x,                      // Map x translation of origin (cell 0,0) relative to world frame
+        const float map_y,                      // Map y translation of origin (cell 0,0) relative to world frame
+        const float map_th,                     // Map angle relative to world frame
+        const float map_scale,                  // Map scale relative to world frame (meters per pixel)
+        const std::vector<int8_t> map_data      // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
     // Applies the motion model to generate new samples of particles from
@@ -72,17 +72,17 @@ namespace localize
 
   private:
     std::vector<PoseWithWeight> particles_; // Particle distribution
+    const Map map_;                         // Map
+    VelModel motion_model_;                 // Motion model
+    BeamModel sensor_model_;                // Sensor model
 
     RNG rng_;  // Random number engine
-    std::uniform_real_distribution<double> x_uni_dist_;   // Real distribution [0, map width]
-    std::uniform_real_distribution<double> y_uni_dist_;   // Real distribution [0, map height]
-    std::uniform_real_distribution<double> th_uni_dist_;  // Real distribution [-pi, +pi)
 
-    const Map map_;           // Map
-    VelModel motion_model_;   // Motion model
-    BeamModel sensor_model_;  // Sensor model
+    std::uniform_real_distribution<double> x_uni_dist_;   // Uniform real distribution [0, map width]
+    std::uniform_real_distribution<double> y_uni_dist_;   // Uniform real distribution [0, map height]
+    std::uniform_real_distribution<double> th_uni_dist_;  // Uniform real distribution [-pi, +pi)
 
-    std::mutex particle_mtx_; // Particle mutex
+    std::mutex mtx_; // Particle mutex
   };
 
 } // namespace localize

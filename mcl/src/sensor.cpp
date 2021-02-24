@@ -38,8 +38,8 @@ BeamModel::BeamModel(const double range_min,
   table_size_(table_size + 1),
   table_inc_(range_max / table_size),
   raycaster_(map,
-             range_max / map.world_scale,
-             656 // TBD th_discretization
+             range_max / map.scale,
+             500 // TBD th_discretization
             )
 {
   if (range_min_ >= range_max_) {

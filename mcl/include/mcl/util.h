@@ -61,13 +61,13 @@ namespace localize
   {
   public:
     // Constructor
-    Map(const unsigned int map_width,           // Map width
-        const unsigned int map_height,          // Map height
-        const float map_m_per_pxl,              // Map resolution (meters per pixel)
-        const double map_th,                    // Map angle
-        const double map_origin_x,              // Map origin x position
-        const double map_origin_y,              // Map origin y position
-        const std::vector<int8_t> map_occ_data  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+    Map(const unsigned int width,       // Number of pixels along x axis
+        const unsigned int height,      // Number of pixels along y axis
+        const float x,                  // X translation of origin (cell 0,0) relative to world frame
+        const float y,                  // Y translation of origin (cell 0,0) relative to world frame
+        const float th,                 // Angle relative to world frame
+        const float scale,              // Scale relative to world frame (meters per pixel)
+        const std::vector<int8_t> data  // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
     inline bool isOccupied(float x, float y) const

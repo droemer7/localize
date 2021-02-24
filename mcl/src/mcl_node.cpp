@@ -57,11 +57,11 @@ MCLNode::MCLNode(const std::string& motor_topic,
   const nav_msgs::OccupancyGrid& map_msg = get_map_msg.response.map;
   map_width_ = map_msg.info.width;
   map_height_ = map_msg.info.height;
-  map_m_per_pxl_ = map_msg.info.resolution;
+  map_x_ = map_msg.info.origin.position.x;
+  map_y_ = map_msg.info.origin.position.y;
   map_th_ = tf2::getYaw(map_msg.info.origin.orientation);
-  map_origin_x_ = map_msg.info.origin.position.x;
-  map_origin_y_ = map_msg.info.origin.position.y;
-  map_occ_data_ = map_msg.data;
+  map_scale_ = map_msg.info.resolution;
+  map_data_ = map_msg.data;
 
   // Construct the localizer with retrieved parameters before starting threads
   std::unique_ptr<MCL> ptr(new MCL(num_particles_,
@@ -86,11 +86,11 @@ MCLNode::MCLNode(const std::string& motor_topic,
                                    1000,
                                    map_width_,
                                    map_height_,
-                                   map_m_per_pxl_,
+                                   map_x_,
+                                   map_y_,
                                    map_th_,
-                                   map_origin_x_,
-                                   map_origin_y_,
-                                   map_occ_data_
+                                   map_scale_,
+                                   map_data_
                                   )
                           );
   mcl_ptr_ = std::move(ptr);
@@ -180,7 +180,16 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   // Print duration
   ros::Time end = ros::Time::now();
   double dur = (end - start).toSec();
-  ROS_INFO("MCL: Sensor update time = %.10f", dur);
+  ROS_INFO("MCL: Sensor update time = %.2f ms", dur * 1000.0);
+  saveParticles("particles.csv");
+  throw std::runtime_error("Saved particles");
+}
+
+void MCLNode::saveParticles(const std::string& filename,
+                            const bool overwrite
+                           )
+{
+  mcl_ptr_->save(filename, 0, overwrite);
 }
 
 template <class T>
@@ -230,8 +239,8 @@ void MCLNode::printMapParams()
 {
   ROS_INFO("MCL: map_width_ = %d", map_width_);
   ROS_INFO("MCL: map_height_ = %d", map_height_);
-  ROS_INFO("MCL: map_m_per_pxl_ = %f", map_m_per_pxl_);
+  ROS_INFO("MCL: map_x_ = %f", map_x_);
+  ROS_INFO("MCL: map_y_ = %f", map_y_);
   ROS_INFO("MCL: map_th_ = %f", map_th_);
-  ROS_INFO("MCL: map_origin_x_ = %f", map_origin_x_);
-  ROS_INFO("MCL: map_origin_y_ = %f", map_origin_y_);
+  ROS_INFO("MCL: map_scale_ = %f", map_scale_);
 }

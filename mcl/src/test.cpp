@@ -54,6 +54,7 @@ void testProbExpectedObj(const double std_dev,
                         )
 {
   printf("\nTesting BeamModel::probExpectedObj():\n");
+  Map map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10));
   BeamModel sensorModel(SENSOR_RANGE_MIN,
                         SENSOR_RANGE_MAX,
                         SENSOR_RANGE_NO_OBJ,
@@ -66,7 +67,7 @@ void testProbExpectedObj(const double std_dev,
                         SENSOR_WEIGHT_RAND_EFFECT,
                         SENSOR_UNCERTAINTY_FACTOR,
                         SENSOR_TABLE_SIZE,
-                        Map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10))
+                        map
                        );
   std::vector<double> error_levels = {0.0, 0.0001, 0.1, 1, 2, 3, 5.25, 10.98};
   for (double& error_level : error_levels)
@@ -80,6 +81,7 @@ void testProbExpectedObj(const double std_dev,
 void testProbRandEffect(std::vector<float> ranges)
 {
   printf("\nTesting BeamModel::probRandEffect():\n");
+  Map map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10));
   BeamModel sensorModel(SENSOR_RANGE_MIN,
                         SENSOR_RANGE_MAX,
                         SENSOR_RANGE_NO_OBJ,
@@ -92,7 +94,7 @@ void testProbRandEffect(std::vector<float> ranges)
                         SENSOR_WEIGHT_RAND_EFFECT,
                         SENSOR_UNCERTAINTY_FACTOR,
                         SENSOR_TABLE_SIZE,
-                        Map(10, 10, 0.1, 0.0, 0.0, 0.0, std::vector<int8_t>(10 * 10))
+                        map
                        );
   std::vector<double> probs = std::vector<double>(ranges.size(), 0.0);
 
