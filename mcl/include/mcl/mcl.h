@@ -64,6 +64,12 @@ namespace localize
     // uniform distribution across free space
     void reset();
 
+    // Saves particle distribution to file in CSV format
+    void save(const std::string filename,
+              const unsigned int precision = 0,
+              const bool overwrite = true
+             );
+
   private:
     std::vector<PoseWithWeight> particles_; // Particle distribution
 

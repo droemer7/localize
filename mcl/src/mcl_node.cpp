@@ -1,8 +1,7 @@
 #include <ros/service.h>
-#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/utils.h>
 
 #include <nav_msgs/GetMap.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include "mcl/mcl_node.h"
 #include "mcl/util.h"
@@ -55,17 +54,11 @@ MCLNode::MCLNode(const std::string& motor_topic,
      ) {
     throw std::runtime_error(std::string("MCL: Failed to retrieve map from ") + map_topic);
   }
-  nav_msgs::OccupancyGrid map_msg = get_map_msg.response.map;
-  tf2::Quaternion quat;
-  tf2::convert(map_msg.info.origin.orientation, quat);
-  tf2::Matrix3x3 matrix(quat);
-  double roll, pitch, yaw = 0.0;
-  matrix.getRPY(roll, pitch, yaw);
-
+  const nav_msgs::OccupancyGrid& map_msg = get_map_msg.response.map;
   map_width_ = map_msg.info.width;
   map_height_ = map_msg.info.height;
   map_m_per_pxl_ = map_msg.info.resolution;
-  map_th_ = yaw;
+  map_th_ = tf2::getYaw(map_msg.info.origin.orientation);
   map_origin_x_ = map_msg.info.origin.position.x;
   map_origin_y_ = map_msg.info.origin.position.y;
   map_occ_data_ = map_msg.data;

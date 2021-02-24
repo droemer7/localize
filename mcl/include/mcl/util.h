@@ -70,8 +70,11 @@ namespace localize
         const std::vector<int8_t> map_occ_data  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
-    inline bool isOccupied(int x, int y) const
-    { return ranges::OMap::isOccupiedNT(y, x); }
+    inline bool isOccupied(float x, float y) const
+    {
+      rosWorldToGrid(x, y);
+      return isOccupiedNT(x, y);
+    }
   };
 
   // RNG wrapper to seed properly
@@ -134,7 +137,7 @@ namespace localize
             const bool overwrite = true
            )
   {
-    std::ofstream output(filename,
+    std::ofstream output(DATA_PATH + filename,
                          overwrite ? std::ofstream::trunc :
                                      std::ofstream::ate
                         );
@@ -190,7 +193,7 @@ namespace localize
                    const bool overwrite = true
                   )
   {
-    std::ofstream output(filename,
+    std::ofstream output(DATA_PATH + filename,
                          overwrite ? std::ofstream::trunc :
                                      std::ofstream::ate
                         );
@@ -216,7 +219,7 @@ namespace localize
                    const bool overwrite = true
                   )
   {
-    std::ofstream output(filename,
+    std::ofstream output(DATA_PATH + filename,
                          overwrite ? std::ofstream::trunc :
                                      std::ofstream::ate
                         );
@@ -233,10 +236,29 @@ namespace localize
     output.close();
   }
 
-  inline bool comp(PoseWithWeight p1, PoseWithWeight p2)
-  { return (p1.weight_ < p2.weight_); }
+  inline bool compX(const PoseWithWeight& p1,
+                    const PoseWithWeight& p2
+                   )
+  { return (p1.x_ < p2.x_); };
 
-  inline void sort(std::vector<PoseWithWeight>& particles)
+  inline bool compY(const PoseWithWeight& p1,
+                    const PoseWithWeight& p2
+                   )
+  { return (p1.y_ < p2.y_); };
+
+  inline bool compTh(const PoseWithWeight& p1,
+                     const PoseWithWeight& p2
+                    )
+  { return (p1.th_ < p2.th_); };
+
+  inline bool compWeight(const PoseWithWeight& p1,
+                         const PoseWithWeight& p2
+                        )
+  { return (p1.weight_ < p2.weight_); };
+
+  inline void sort(std::vector<PoseWithWeight>& particles,
+                   bool (*comp)(const PoseWithWeight& p1, const PoseWithWeight& p2)
+                  )
   { std::sort(particles.rbegin(), particles.rend(), comp); }
 
 } // namespace localize

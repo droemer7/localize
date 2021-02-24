@@ -35,8 +35,12 @@ MCL::MCL(const unsigned int num_particles,
          const std::vector<int8_t> map_occ_data
         ) :
   particles_(num_particles),
-  x_uni_dist_(0.0, std::nextafter(map_width * map_m_per_pxl, UINT32_MAX)),
-  y_uni_dist_(0.0, std::nextafter(map_height * map_m_per_pxl, UINT32_MAX)),
+  x_uni_dist_(map_origin_x,
+              std::nextafter(map_width * map_m_per_pxl + map_origin_x, DBL_MAX)
+             ),
+  y_uni_dist_(map_origin_y,
+              std::nextafter(map_height * map_m_per_pxl + map_origin_y, DBL_MAX)
+             ),
   th_uni_dist_(-M_PI, M_PI),
   map_(map_width,
        map_height,
@@ -99,6 +103,7 @@ void MCL::reset()
   double x = 0.0;
   double y = 0.0;
   double th = 0.0;
+  std::vector<PoseWithWeight> cells_occ;  // TBD remove
 
   for (PoseWithWeight & particle : particles_) {
     occupied = true;
@@ -110,8 +115,34 @@ void MCL::reset()
       occupied = map_.isOccupied(particle.x_,
                                  particle.y_
                                 );
+      // TBD remove
+      if (occupied) {
+        cells_occ.push_back(PoseWithWeight((particle.x_ - map_.world_origin_x) / map_.world_scale,
+                                           (particle.y_ - map_.world_origin_y) / map_.world_scale
+                                          )
+                           );
+      }
     }
     particle.th_ = th_uni_dist_(rng_.engine());
     particle.weight_ = 0.0;
   }
+  particles_[0].x_ = -0.0352;
+  particles_[0].y_ = 0.0;
+  particles_[0].th_ = 0.0;
+
+  localize::save(cells_occ, "cells_occ.csv", 2);  // TBD remove
+}
+
+void MCL::save(const std::string filename,
+               const unsigned int precision,
+               const bool overwrite
+              )
+{
+  std::lock_guard<std::mutex> lock(particle_mtx_);
+  sort(particles_, compWeight);
+  localize::save(particles_,
+                 filename,
+                 precision,
+                 overwrite
+                );
 }

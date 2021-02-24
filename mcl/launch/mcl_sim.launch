@@ -1,5 +1,6 @@
 <launch>
   <include file="$(find mcl)/launch/mcl.launch">
     <arg name="sensor_range_no_obj" value="10.0"/>
+    <arg name="sensor_std_dev"      value="0.1"/>
   </include>
 </launch>
