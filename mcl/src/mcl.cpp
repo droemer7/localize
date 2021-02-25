@@ -99,7 +99,6 @@ void MCL::reset()
   double x = 0.0;
   double y = 0.0;
   double th = 0.0;
-  std::vector<PoseWithWeight> cells_occ;  // TBD remove
 
   for (PoseWithWeight & particle : particles_) {
     occupied = true;
@@ -111,14 +110,8 @@ void MCL::reset()
       occupied = map_.isOccupied(particle.x_,
                                  particle.y_
                                 );
-      // TBD remove
-      if (occupied) {
-        cells_occ.push_back(PoseWithWeight((particle.x_ - map_.x) / map_.scale,
-                                           (particle.y_ - map_.y) / map_.scale
-                                          )
-                           );
       }
-    }
+    // Any theta is allowed
     particle.th_ = th_uni_dist_(rng_.engine());
     particle.weight_ = 0.0;
   }

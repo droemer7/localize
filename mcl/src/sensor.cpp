@@ -39,13 +39,14 @@ BeamModel::BeamModel(const double range_min,
   table_inc_(range_max / table_size),
   raycaster_(map,
              range_max / map.scale,
-             500 // TBD th_discretization
+             200 // TBD th_discretization
             )
 {
-  if (range_min_ >= range_max_) {
+  if (range_min_ > range_max_) {
     double prev_range_max = range_max_;
     range_max_ = range_min_;
     range_min_ = prev_range_max;
+    printf("BeamModel: Warning - range min > range max, swapping.\n");
   }
   if (th_sample_inc_ > M_2PI)
   {
@@ -63,7 +64,8 @@ BeamModel::BeamModel(const double range_min,
   }
   if (equal(uncertainty_factor_, 0.0))
   {
-    printf("BeamModel: Warning - model uncertainty factor negative or too small (%f), using 1 (no uncertainty). \
+    printf("BeamModel: Warning - model uncertainty factor negative or too small (%f), \
+           using 1 (no additional uncertainty).                                       \
            Model uncertainty should be in the range (0, 1].\n",
            uncertainty_factor_
           );
@@ -149,12 +151,10 @@ double BeamModel::lookupProb(const float range_obs,
                             )
 {
   // Calculate sensor model table indexes for lookup
-  size_t range_obs_table_i = 0;
-  size_t range_map_table_i = 0;
-  range_obs_table_i = range_obs / table_inc_;
-  range_map_table_i = range_map / table_inc_;
-  range_obs_table_i = std::min(std::max(static_cast<size_t>(0), range_obs_table_i), table_size_ - 1);
-  range_map_table_i = std::min(std::max(static_cast<size_t>(0), range_map_table_i), table_size_ - 1);
+  size_t range_obs_table_i = std::min(std::max(0.0, range_obs / table_inc_),
+                                      static_cast<double>(table_size_ - 1));
+  size_t range_map_table_i = std::min(std::max(0.0, range_map / table_inc_),
+                                      static_cast<double>(table_size_ - 1));
 
   // Lookup observed range probability
   return table_[range_obs_table_i][range_map_table_i];

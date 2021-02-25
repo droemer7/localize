@@ -8,14 +8,14 @@
   <arg name="motion_th_n1"                     default="0.01"/>
   <arg name="motion_th_n2"                     default="0.01"/>
   <arg name="sensor_range_no_obj"              default="0.0"/>
-  <arg name="sensor_std_dev"                   default="0.01"/>
+  <arg name="sensor_std_dev"                   default="0.02"/>
   <arg name="sensor_th_sample_inc"             default="0.78539816339744830962"/> <!-- pi/4 -->
   <arg name="sensor_weight_new_obj_decay_rate" default="0.75"/>
-  <arg name="sensor_weight_no_obj"             default="10.0"/>
-  <arg name="sensor_weight_new_obj"            default="15.0"/>
-  <arg name="sensor_weight_map_obj"            default="70.0"/>
-  <arg name="sensor_weight_rand_effect"        default="5.0"/>
-  <arg name="sensor_uncertainty_factor"        default="0.98"/>
+  <arg name="sensor_weight_no_obj"             default="6.5"/>
+  <arg name="sensor_weight_new_obj"            default="12.5"/>
+  <arg name="sensor_weight_map_obj"            default="80.0"/>
+  <arg name="sensor_weight_rand_effect"        default="1.0"/>
+  <arg name="sensor_uncertainty_factor"        default="0.95"/>
 
   <group ns="$(arg car_name)">
     <node name="localizer" pkg="mcl" type="mcl" output="screen">

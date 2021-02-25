@@ -61,9 +61,4 @@ void VelModel::apply(const double lin_vel,
       particle.th_ += (ang_vel_adj + th_noise) * dt;
     }
   }
-
-  // ROS_INFO("MCL: dt = %f s", dt);
-  // ROS_INFO("MCL: x, y, theta = %f, %f, %f", particles_[0].x_, particles_[0].y_, particles_[0].rot_);
-  // ROS_INFO("MCL: Linear velocity = %f m/s", lin_vel_);
-  // ROS_INFO("MCL: Angular velocity = %f rad/s", rot_vel);
 }

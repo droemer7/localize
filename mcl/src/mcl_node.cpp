@@ -129,7 +129,9 @@ MCLNode::MCLNode(const std::string& motor_topic,
 
 void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
 {
-  // ROS_INFO("MCL: motorCb()");
+  // Start timer
+  ros::Time start = ros::Time::now();
+
   // Convert motor ERPM and steering servo position
   double motor_erpm = msg->state.speed;
   double lin_vel = (  (motor_erpm - motor_speed_to_erpm_offset_)
@@ -152,21 +154,24 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
                          steering_angle,
                          dt
                         );
+  // Print duration
+  ros::Time end = ros::Time::now();
+  double dur = (end - start).toSec();
+  ROS_INFO("MCL: Motion model time = %.2f ms", dur * 1000.0);
 }
 
 void MCLNode::servoCb(const std_msgs::Float64::ConstPtr& msg)
 {
-  // ROS_INFO("MCL: servoCb()");
   std::lock_guard<std::mutex> lock(servo_mtx_);
   servo_pos_ = msg->data;
 }
 
 void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
-  // ROS_INFO("MCL: sensorCb()");
+  // Start timer
   ros::Time start = ros::Time::now();
 
-  // Parse sensor data
+  // Convert laser data
   size_t range_count = msg->ranges.size();
   std::vector<Ray> rays(range_count);
 
@@ -180,9 +185,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   // Print duration
   ros::Time end = ros::Time::now();
   double dur = (end - start).toSec();
-  ROS_INFO("MCL: Sensor update time = %.2f ms", dur * 1000.0);
-  saveParticles("particles.csv");
-  throw std::runtime_error("Saved particles");
+  ROS_INFO("MCL: Sensor model time = %.2f ms", dur * 1000.0);
 }
 
 void MCLNode::saveParticles(const std::string& filename,
