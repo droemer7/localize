@@ -1,4 +1,5 @@
 <launch>
+  <include file="$(find mcl)/launch/map_server.launch"/>
   <include file="$(find mcl)/launch/mcl.launch">
     <arg name="sensor_range_no_obj" value="0.0"/>
   </include>

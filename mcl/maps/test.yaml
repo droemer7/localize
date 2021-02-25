@@ -1,0 +1,6 @@
+image: test_detailed_closed.png
+resolution: 0.1
+origin: [-5, -5, 0]
+occupied_thresh: 0.1
+free_thresh: 0.09
+negate: 0
