@@ -16,10 +16,14 @@ MCLNode::MCLNode(const std::string& motor_topic,
   motor_spinner_(1, &motor_cb_queue_),
   servo_spinner_(1, &servo_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
-  prev_t_(ros::Time::now()),
+  status_spinner_(1, &status_cb_queue_),
+  dur_1s_(1.0),
+  motion_t_prev_(ros::Time::now()),
+  motion_dur_last_(0.0),
+  sensor_dur_last_(0.0),
   servo_pos_(0.0)
 {
-  // ROS parameters: motion and sensor model
+  // Motion and sensor model parameters
   ros::NodeHandle nh;
   if (   !getParam(nh, "localizer/num_particles", num_particles_)
       || !getParam(nh, "vesc/chassis_length", car_length_)
@@ -47,7 +51,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
      ) {
     throw std::runtime_error("MCL: Missing required parameters");
   }
-  // ROS parameters: map
+  // Map parameters
   nav_msgs::GetMap get_map_msg;
   if (   !ros::service::waitForService(map_topic, ros::Duration(10))
       || !ros::service::call(map_topic, get_map_msg)
@@ -95,10 +99,11 @@ MCLNode::MCLNode(const std::string& motor_topic,
                           );
   mcl_ptr_ = std::move(ptr);
 
-  // Assign ROS callback queues for each topic
+  // Assign ROS callback queues
   motor_nh_.setCallbackQueue(&motor_cb_queue_);
   servo_nh_.setCallbackQueue(&servo_cb_queue_);
   sensor_nh_.setCallbackQueue(&sensor_cb_queue_);
+  status_nh_.setCallbackQueue(&status_cb_queue_);
 
   // Subscribe to topics for motor, steering servo and sensor data
   motor_sub_ = motor_nh_.subscribe(motor_topic,
@@ -119,12 +124,17 @@ MCLNode::MCLNode(const std::string& motor_topic,
                                      this,
                                      ros::TransportHints().tcpNoDelay()
                                     );
-
+  // Create timer to handle printing status info
+  status_timer_ = status_nh_.createTimer(dur_1s_,
+                                         &MCLNode::statusCb,
+                                         this
+                                        );
   // Start threads
   // Note: Callback queues were assigned to each thread in the initializer list
   motor_spinner_.start();
   servo_spinner_.start();
   sensor_spinner_.start();
+  status_spinner_.start();
 }
 
 void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
@@ -146,18 +156,16 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   }
 
   // Calculate time delta
-  double dt = (msg->header.stamp - prev_t_).toSec();
-  prev_t_ = msg->header.stamp;
+  double dt = (msg->header.stamp - motion_t_prev_).toSec();
+  motion_t_prev_ = msg->header.stamp;
 
   // Perform motion update
   mcl_ptr_->motionUpdate(lin_vel,
                          steering_angle,
                          dt
                         );
-  // Print duration
-  ros::Time end = ros::Time::now();
-  double dur = (end - start).toSec();
-  ROS_INFO("MCL: Motion model time = %.2f ms", dur * 1000.0);
+  // Save duration
+  motion_dur_last_ = (ros::Time::now() - start).toSec();
 }
 
 void MCLNode::servoCb(const std_msgs::Float64::ConstPtr& msg)
@@ -182,10 +190,8 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   // Perform sensor update
   mcl_ptr_->sensorUpdate(rays);
 
-  // Print duration
-  ros::Time end = ros::Time::now();
-  double dur = (end - start).toSec();
-  ROS_INFO("MCL: Sensor model time = %.2f ms", dur * 1000.0);
+  // Save duration
+  sensor_dur_last_ = (ros::Time::now() - start).toSec();
 }
 
 void MCLNode::saveParticles(const std::string& filename,
@@ -208,6 +214,12 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
     result = false;
   }
   return result;
+}
+
+void MCLNode::statusCb(const ros::TimerEvent& event)
+{
+  ROS_INFO("MCL: Motion update time = %.2f ms", motion_dur_last_ * 1000.0);
+  ROS_INFO("MCL: Sensor update time = %.2f ms", sensor_dur_last_ * 1000.0);
 }
 
 void MCLNode::printMotionParams()

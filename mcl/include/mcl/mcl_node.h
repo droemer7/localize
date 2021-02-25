@@ -36,6 +36,9 @@ namespace localize
     // Sensor scan callback
     void sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg);
 
+    // Status info callback
+    void statusCb(const ros::TimerEvent& event);
+
     // Save distribution of particles to file in CSV format
     void saveParticles(const std::string& filename,
                        const bool overwrite = true
@@ -48,10 +51,10 @@ namespace localize
                   T& value
                  );
 
-    // Print Motion Model parameters
+    // Print Motion model parameters
     void printMotionParams();
 
-    // Print Sensor Model parameters
+    // Print Sensor model parameters
     void printSensorParams();
 
     // Print Map parameters
@@ -62,16 +65,21 @@ namespace localize
     ros::NodeHandle motor_nh_;
     ros::NodeHandle servo_nh_;
     ros::NodeHandle sensor_nh_;
+    ros::NodeHandle status_nh_;
     ros::CallbackQueue motor_cb_queue_;
     ros::CallbackQueue servo_cb_queue_;
     ros::CallbackQueue sensor_cb_queue_;
+    ros::CallbackQueue status_cb_queue_;
     ros::Subscriber motor_sub_;
     ros::Subscriber servo_sub_;
     ros::Subscriber sensor_sub_;
     ros::AsyncSpinner motor_spinner_;
     ros::AsyncSpinner servo_spinner_;
     ros::AsyncSpinner sensor_spinner_;
-    ros::Time prev_t_;
+    ros::AsyncSpinner status_spinner_;
+    ros::Duration dur_1s_;
+    ros::Time motion_t_prev_;
+    ros::Timer status_timer_;
 
     // MCL
     std::unique_ptr<MCL> mcl_ptr_;
@@ -90,6 +98,7 @@ namespace localize
     double motion_ang_vel_n2_;                    // Motion model angular velocity noise coefficient 2
     double motion_th_n1_;                         // Motion model final rotation noise coefficient 1
     double motion_th_n2_;                         // Motion model final rotation noise coefficient 2
+    double motion_dur_last_;                      // Motion model last update time
 
     // Sensor model parameters
     double sensor_range_min_;           // Sensor min range in meters
@@ -103,6 +112,7 @@ namespace localize
     double sensor_weight_map_obj_;      // Sensor model weight for map (expected) object probability
     double sensor_weight_rand_effect_;  // Sensor model weight for random effect probability
     double sensor_uncertainty_factor_;  // Sensor model uncertainty factor - extra noise added to calculation
+    double sensor_dur_last_;            // Sensor model last update time
 
     // Map parameters
     unsigned int map_width_;        // Map number of pixels along x axis

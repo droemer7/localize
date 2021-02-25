@@ -100,6 +100,8 @@ void MCL::reset()
   double y = 0.0;
   double th = 0.0;
 
+  std::lock_guard<std::mutex> lock(mtx_);
+
   for (PoseWithWeight & particle : particles_) {
     occupied = true;
 
