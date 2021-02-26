@@ -1,5 +1,0 @@
-<launch>
-  <arg name="map" default="$(find mcl)/maps/test.yaml"/>
-  <node pkg="map_server" name="map_server" type="map_server" args="$(arg map)" />
-  <param name="/map_file" value="$(arg map)" />
-</launch>

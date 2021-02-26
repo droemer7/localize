@@ -1,4 +1,4 @@
-image: test_detailed_closed.png
+image: test/long_range_45deg.png
 resolution: 0.1
 origin: [-5, -5, 0]
 occupied_thresh: 0.1

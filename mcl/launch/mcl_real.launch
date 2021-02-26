@@ -1,5 +1,10 @@
 <launch>
-  <include file="$(find mcl)/launch/map_server.launch"/>
+  <arg name="map" default="$(find mcl)/maps/test.yaml"/>
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map)">
+    <param name="/map_file" value="$(arg map)"/>
+  </node>
+
   <include file="$(find mcl)/launch/mcl.launch">
     <arg name="sensor_range_no_obj" value="0.0"/>
   </include>
