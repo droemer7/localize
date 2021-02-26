@@ -21,7 +21,7 @@ int main(int argc, char** argv)
     // Start MCL node
     MCLNode mcl_node("vesc/sensors/core",
                      "vesc/sensors/servo_position_command",
-                     "/scan",
+                     "scan",
                      "/static_map"
                     );
     // Stack usage
