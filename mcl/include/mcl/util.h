@@ -86,24 +86,30 @@ namespace localize
 
     // A reference to the random number engine
     std::mt19937& engine()
-    { return rng_gen_; }
+    { return gen_; }
 
   private:
-    std::mt19937 rng_gen_;  // Generator for random numbers
+    std::mt19937 gen_;  // Generator for random numbers
   };
 
   // Generate random samples from a normal distribution
+  template <class T=double>
   class NormalDistributionSampler
   {
   public:
-    // Generates a random sample from a normal distribution
-    // Algorithm 5.4 in Probabilistic Robotics (Thrun 2006, page 124)
-    double gen(const double std_dev,
-               const double mean = 0.0
-              );
+    // Generates a random sample from a normal distribution specified by the
+    // mean and standard deviation
+    T gen(const T mean,
+          const T std_dev
+         )
+    {
+      typename std::normal_distribution<T>::param_type params(mean, std_dev);
+      return distribution_(rng_.engine(), params);
+    }
 
   private:
-    RNG rng_;  // Random number engine
+    RNG rng_;                                   // Random number engine
+    std::normal_distribution<T> distribution_;  // Normal distribution from which to sample
   };
 
   inline bool equal(const double a,

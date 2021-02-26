@@ -78,7 +78,7 @@ namespace localize
     ros::AsyncSpinner sensor_spinner_;
     ros::AsyncSpinner status_spinner_;
     ros::Duration dur_1s_;
-    ros::Time motion_t_prev_;
+    ros::Time motor_t_prev_;
     ros::Timer status_timer_;
 
     // MCL

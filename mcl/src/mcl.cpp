@@ -77,7 +77,7 @@ void MCL::motionUpdate(const double vel,
                        const double dt
                       )
 {
-  std::lock_guard<std::mutex> lock(mtx_);
+  std::lock_guard<std::mutex> lock(particles_mtx_);
   motion_model_.apply(vel,
                       steering_angle,
                       dt,
@@ -87,7 +87,7 @@ void MCL::motionUpdate(const double vel,
 
 void MCL::sensorUpdate(const std::vector<Ray>& rays)
 {
-  std::lock_guard<std::mutex> lock(mtx_);
+  std::lock_guard<std::mutex> lock(particles_mtx_);
   sensor_model_.applyLookup(rays,
                             particles_
                            );
@@ -100,7 +100,7 @@ void MCL::reset()
   double y = 0.0;
   double th = 0.0;
 
-  std::lock_guard<std::mutex> lock(mtx_);
+  std::lock_guard<std::mutex> lock(particles_mtx_);
 
   for (PoseWithWeight & particle : particles_) {
     occupied = true;
@@ -128,7 +128,7 @@ void MCL::save(const std::string filename,
                const bool overwrite
               )
 {
-  std::lock_guard<std::mutex> lock(mtx_);
+  std::lock_guard<std::mutex> lock(particles_mtx_);
   sort(particles_, compWeight);
   localize::save(particles_,
                  filename,

@@ -18,7 +18,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
   dur_1s_(1.0),
-  motion_t_prev_(ros::Time::now()),
+  motor_t_prev_(ros::Time::now()),
   motion_dur_last_(0.0),
   sensor_dur_last_(0.0),
   servo_pos_(0.0)
@@ -155,9 +155,9 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
                      );
   }
 
-  // Calculate time delta
-  double dt = (msg->header.stamp - motion_t_prev_).toSec();
-  motion_t_prev_ = msg->header.stamp;
+  // Calculate motor time delta
+  double dt = (msg->header.stamp - motor_t_prev_).toSec();
+  motor_t_prev_ = msg->header.stamp;
 
   // Perform motion update
   mcl_ptr_->motionUpdate(lin_vel,

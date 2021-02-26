@@ -50,7 +50,7 @@ namespace localize
     double th_n1_;        // Model final rotation noise coefficient 1
     double th_n2_;        // Model final rotation noise coefficient 2
 
-    NormalDistributionSampler sampler_; // Normal distribution sampler
+    NormalDistributionSampler<double> sampler_; // Normal distribution sampler
   };
 
 } // namespace localize

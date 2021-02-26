@@ -82,7 +82,7 @@ namespace localize
     std::uniform_real_distribution<double> y_uni_dist_;   // Uniform real distribution [0, map height]
     std::uniform_real_distribution<double> th_uni_dist_;  // Uniform real distribution [-pi, +pi)
 
-    std::mutex mtx_; // Particle mutex
+    std::mutex particles_mtx_; // Particle distribution mutex
   };
 
 } // namespace localize
