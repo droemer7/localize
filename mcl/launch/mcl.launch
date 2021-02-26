@@ -18,6 +18,10 @@
   <arg name="sensor_uncertainty_factor"        default="0.95"/>
 
   <group ns="$(arg car_name)">
+    <group ns="vesc">
+      <rosparam file="$(find vesc_main)/config/racecar-uw-nano/vesc.yaml" command="load" />
+    </group>
+
     <node name="localizer" pkg="mcl" type="mcl" output="screen">
       <param name="num_particles"                    type="int"    value="$(arg num_particles)"/>
       <param name="motion_lin_vel_n1"                type="double" value="$(arg motion_lin_vel_n1)"/>
