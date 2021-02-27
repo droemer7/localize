@@ -1,7 +1,7 @@
 
 #include <sys/resource.h>
 
-#include "mcl/mcl_node.h"
+#include "mcl/node.h"
 
 using namespace localize;
 

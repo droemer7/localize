@@ -23,8 +23,8 @@ include_directories(
 )
 
 # MCL executable
-add_executable(mcl src/mcl_main.cpp
-                   src/mcl_node.cpp
+add_executable(mcl src/main.cpp
+                   src/node.cpp
                    src/mcl.cpp
                    src/motion.cpp
                    src/sensor.cpp

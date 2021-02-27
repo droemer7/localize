@@ -3,7 +3,7 @@
 
 #include <nav_msgs/GetMap.h>
 
-#include "mcl/mcl_node.h"
+#include "mcl/node.h"
 #include "mcl/util.h"
 
 using namespace localize;
