@@ -1,9 +1,10 @@
 <launch>
   <!-- Launch arguments -->
-  <arg name="car_name"    default="car"/>
-  <arg name="real"        default="false"/>
-  <arg name="standalone"  default="true"/>
+  <arg name="car_name" default="car"/>
+  <arg name="real"/>
+  <arg name="control"/>
 
+  <!-- MCL arguments -->
   <arg name="num_particles"                    default="1000"/>
   <arg name="motion_lin_vel_n1"                default="0.01"/>
   <arg name="motion_lin_vel_n2"                default="0.01"/>
@@ -13,7 +14,7 @@
   <arg name="motion_th_n2"                     default="0.01"/>
   <arg name="sensor_range_no_obj"              default="0.0"/>
   <arg name="sensor_std_dev"                   default="0.02"/>
-  <arg name="sensor_th_sample_inc"             default="0.78539816339744830962"/> <!-- pi/4 -->
+  <arg name="sensor_th_sample_inc"             default="0.7853981634"/> <!-- pi/4 -->
   <arg name="sensor_weight_new_obj_decay_rate" default="0.75"/>
   <arg name="sensor_weight_no_obj"             default="6.5"/>
   <arg name="sensor_weight_new_obj"            default="12.5"/>
@@ -21,36 +22,50 @@
   <arg name="sensor_weight_rand_effect"        default="1.0"/>
   <arg name="sensor_uncertainty_factor"        default="0.95"/>
 
-  <!-- Map -->
-  <group if="$(arg standalone)">
-    <include file="$(find mcl)/launch/map_server.launch"/>
+  <!-- Control enabled -->
+  <group if="$(arg control)">
+    <!-- Real control -->
+    <group if="$(arg real)">
+      <include file="$(find mushr_base)/launch/teleop.launch">
+        <arg name="car_name" value="$(arg car_name)"/>
+      </include>
+    </group>
+    <!-- Sim control -->
+    <group unless="$(arg real)">
+      <include file="$(find mushr_sim)/launch/teleop.launch">
+        <arg name="car_name" value="$(arg car_name)"/>
+      </include>
+    </group>
   </group>
 
-  <!-- Car -->
-  <group ns="$(arg car_name)">
-    <!-- Laser -->
-    <group if="$(arg standalone)">
-      <!-- Real -->
+  <!-- Control disabled -->
+  <group unless="$(arg control)">
+    <!-- Map -->
+    <include file="$(find mushr_base)/launch/map_server.launch"/>
+
+    <group ns="$(arg car_name)">
+      <!-- Real laser -->
       <group if="$(arg real)">
         <include file="$(find ydlidar)/launch/lidar.launch">
           <arg name="car_name" value="$(arg car_name)"/>
         </include>
       </group>
-      <!-- Sim -->
+      <!-- Sim laser -->
       <group unless="$(arg real)">
         <include file="$(find mushr_sim)/launch/sensors.launch">
-          <arg name="racecar_version" value="racecar-uw-nano"/>
-          <arg name="standalone"      value="$(arg standalone)"/>
+          <arg name="car_name"   value="$(arg car_name)"/>
+          <arg name="standalone" value="true"/>
         </include>
       </group>
+      <!-- Motor (parameters) -->
+      <group ns="vesc">
+        <rosparam file="$(find vesc_main)/config/racecar-uw-nano/vesc.yaml" command="load"/>
+      </group>
     </group>
+  </group>
 
-    <!-- VESC (parameters only) -->
-    <group ns="vesc">
-      <rosparam file="$(find vesc_main)/config/racecar-uw-nano/vesc.yaml" command="load"/>
-    </group>
-
-    <!-- MCL -->
+  <!-- MCL -->
+  <group ns="$(arg car_name)">
     <node pkg="mcl" type="mcl" name="localizer" output="screen">
       <param name="num_particles"                    type="int"    value="$(arg num_particles)"/>
       <param name="motion_lin_vel_n1"                type="double" value="$(arg motion_lin_vel_n1)"/>

@@ -1,44 +1,69 @@
 #!/bin/bash
 
-# Arguments
-build="debug"
-run="build"
-standalone="0"
+# Help
+help()
+{
+  echo "
+Options: [-b build] [-x execute] [-c]
+-b build      Build setting: last, debug, release (default: last, uses cached CMake arguments)
+-x execute    Task to execute: build, sim, real, test (default: build)
+-c            Run with teleop control
+-h            Help
+  "
+  exit 1
+}
 
-while getopts "b:r:s:" opt
+# Arguments
+build="last"
+exec="build"
+control="false"
+
+while getopts "b:x:ch" opt
 do
   case "$opt" in
     b ) build="$OPTARG" ;;
-    r ) run="$OPTARG" ;;
-    s ) standalone="$OPTARG" ;;
+    x ) exec="$OPTARG" ;;
+    c ) control="true" ;;
+    h ) help ;;
   esac
 done
 
-# Change to catkin workspace
+# Source ROS
 source /opt/ros/noetic/setup.bash
 source ~/sw/ros/master/devel/setup.bash
-roscd && cd ..
 
 # Build
-if [ $build == "debug" ]
+roscd && cd ..
+if [ $build == "last" ]
+then
+  catkin_make --pkg mcl -j4
+elif [ $build == "debug" ]
 then
   catkin_make --pkg mcl -j4 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=-O0
-else
+elif [ $build == "release" ]
+then
   catkin_make --pkg mcl -j4 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-O3
+else
+  echo ""
+  echo "$0: Illegal build setting (-b) '$build'"
+  echo ""
+  exit
 fi
 
-# Run
-if [ $run == "real" ] || [ $run == "sim" ] || [ $run == "test" ]
+# Task
+if [ $exec == "real" ]
 then
-  if [ $run == "real" ]
-  then
-    roslaunch mcl mcl.launch real:=true standalone:=$standalone
-  else
-    roslaunch mcl mcl.launch real:=false standalone:=$standalone
-  fi
-
-  if [ $run == "test" ]
-  then
-    ./devel/lib/mcl/mcl_test
-  fi
+  roslaunch mcl mcl.launch real:=true control:=$control
+elif [ $exec == "sim" ]
+then
+  roslaunch mcl mcl.launch real:=false control:=$control
+elif [ $exec == "test" ]
+then
+  ./devel/lib/mcl/test
+elif [ $exec != "build" ]
+then
+  echo ""
+  echo "$0: Illegal execute option (-x) '$exec'"
+  help
+  exit
 fi
