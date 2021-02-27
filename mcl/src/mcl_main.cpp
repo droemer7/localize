@@ -8,11 +8,6 @@ using namespace localize;
 // TBD remove stack checks
 int main(int argc, char** argv)
 {
-  rlimit stacklim;
-  rusage stackusage;
-  getrlimit(RLIMIT_STACK, &stacklim);
-  printf("Stack limit (MB): %lu\n", stacklim.rlim_cur / 1024);
-
   // Initialize ROS
   ros::init(argc, argv, "localizer");
   ros::NodeHandle nh;
@@ -21,12 +16,13 @@ int main(int argc, char** argv)
     // Start MCL node
     MCLNode mcl_node("vesc/sensors/core",
                      "vesc/sensors/servo_position_command",
-                     "scan",
+                     "laser/scan",
                      "/static_map"
                     );
     // Stack usage
+    rusage stackusage;
     getrusage(RUSAGE_SELF, &stackusage);
-    printf("Stack usage (MB): %ld\n", stackusage.ru_maxrss / 1024);
+    ROS_INFO("MCL: Stack usage = %ld MB", stackusage.ru_maxrss / 1024);
 
     // Run node until ROS is shutdown
     ros::waitForShutdown();

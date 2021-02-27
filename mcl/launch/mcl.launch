@@ -1,5 +1,9 @@
 <launch>
-  <arg name="car_name"                         default="/car"/>
+  <!-- Launch arguments -->
+  <arg name="car_name"    default="car"/>
+  <arg name="real"        default="false"/>
+  <arg name="standalone"  default="true"/>
+
   <arg name="num_particles"                    default="1000"/>
   <arg name="motion_lin_vel_n1"                default="0.01"/>
   <arg name="motion_lin_vel_n2"                default="0.01"/>
@@ -17,12 +21,37 @@
   <arg name="sensor_weight_rand_effect"        default="1.0"/>
   <arg name="sensor_uncertainty_factor"        default="0.95"/>
 
+  <!-- Map -->
+  <group if="$(arg standalone)">
+    <include file="$(find mcl)/launch/map_server.launch"/>
+  </group>
+
+  <!-- Car -->
   <group ns="$(arg car_name)">
-    <group ns="vesc">
-      <rosparam file="$(find vesc_main)/config/racecar-uw-nano/vesc.yaml" command="load" />
+    <!-- Laser -->
+    <group if="$(arg standalone)">
+      <!-- Real -->
+      <group if="$(arg real)">
+        <include file="$(find ydlidar)/launch/lidar.launch">
+          <arg name="car_name" value="$(arg car_name)"/>
+        </include>
+      </group>
+      <!-- Sim -->
+      <group unless="$(arg real)">
+        <include file="$(find mushr_sim)/launch/sensors.launch">
+          <arg name="racecar_version" value="racecar-uw-nano"/>
+          <arg name="standalone"      value="$(arg standalone)"/>
+        </include>
+      </group>
     </group>
 
-    <node name="localizer" pkg="mcl" type="mcl" output="screen">
+    <!-- VESC (parameters only) -->
+    <group ns="vesc">
+      <rosparam file="$(find vesc_main)/config/racecar-uw-nano/vesc.yaml" command="load"/>
+    </group>
+
+    <!-- MCL -->
+    <node pkg="mcl" type="mcl" name="localizer" output="screen">
       <param name="num_particles"                    type="int"    value="$(arg num_particles)"/>
       <param name="motion_lin_vel_n1"                type="double" value="$(arg motion_lin_vel_n1)"/>
       <param name="motion_lin_vel_n2"                type="double" value="$(arg motion_lin_vel_n2)"/>

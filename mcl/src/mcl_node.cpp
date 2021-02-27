@@ -53,7 +53,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
   }
   // Map parameters
   nav_msgs::GetMap get_map_msg;
-  if (   !ros::service::waitForService(map_topic, ros::Duration(10))
+  if (   !ros::service::waitForService(map_topic, ros::Duration(5))
       || !ros::service::call(map_topic, get_map_msg)
      ) {
     throw std::runtime_error(std::string("MCL: Failed to retrieve map from ") + map_topic);
