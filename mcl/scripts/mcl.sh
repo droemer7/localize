@@ -5,7 +5,7 @@ help()
 {
   echo "
 Options: [-b build] [-x execute] [-c]
--b build      Build setting: last, debug, release (default: last, uses cached CMake arguments)
+-b build      Build setting: last, debug, release (default: last)
 -x execute    Task to execute: build, sim, real, test (default: build)
 -c            Run with teleop control
 -h            Help
