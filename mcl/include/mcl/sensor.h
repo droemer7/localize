@@ -1,6 +1,7 @@
 #ifndef SENSOR_H
 #define SENSOR_H
 
+#include <memory>
 #include <vector>
 
 #include "mcl/util.h"
@@ -9,6 +10,8 @@
 
 namespace localize
 {
+  typedef std::vector<std::vector<double>> Table;
+
   // Beam-based probabilistic model for a range sensor
   //
   // The model is comprised of four superimposed probability distributions:
@@ -28,14 +31,15 @@ namespace localize
               const double range_max,           // Sensor max range in meters
               const double range_no_obj,        // Sensor range reported when nothing is detected
               const double range_std_dev,       // Sensor range standard deviation
-              const double th_sample_inc,       // Sensor angle increment at which to sample observations (rad / sample)
+              const double th_sample_res,       // Sensor angle resolution at which to sample observations (rad per sample)
+              const double th_raycast_res,      // Sensor angle resolution for raycast (rad per increment)
               const double new_obj_decay_rate,  // Model decay rate for unexpected object probability
               const double weight_no_obj,       // Model weight for no object detected probability
               const double weight_new_obj,      // Model weight for new (unexpected) object probability
               const double weight_map_obj,      // Model weight for map (expected) object probability
               const double weight_rand_effect,  // Model weight for random effect probability
               const double uncertainty_factor,  // Model uncertainty factor - extra noise added to calculation
-              const size_t table_size,          // Model table size
+              const double table_res,           // Model table resolution (meters per cell)
               const Map map                     // Map
              );
 
@@ -116,7 +120,7 @@ namespace localize
     double range_max_;          // Sensor max range in meters
     double range_no_obj_;       // Sensor range reported when nothing is detected
     double range_std_dev_;      // Sensor range standard deviation
-    double th_sample_inc_;      // Sensor angle increment at which to sample observations (rad / sample)
+    double th_sample_res_;      // Sensor angle resolution at which to sample observations (rad per sample)
     double new_obj_decay_rate_; // Model decay rate for unexpected object probability
     double weight_no_obj_;      // Model weight for no object detected probability
     double weight_new_obj_;     // Model weight for new (unexpected) object probability
@@ -130,9 +134,9 @@ namespace localize
     // Second axis is incremented by ranges calculated from the map
     // Values are weights that would be given by the model given ranges
     // observed by the sensor and ranges calculated by raycasting on the map
-    std::vector<std::vector<double>> table_;  // Model lookup table
-    const size_t table_size_;                 // Model table size
-    const double table_inc_;                  // Model table increment (step size)
+    const double table_res_;  // Model table resolution (meters per cell)
+    const size_t table_size_; // Model table size
+    Table table_;             // Model lookup table
 
     ranges::CDDTCast raycaster_;  // Range calculator
   };

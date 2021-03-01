@@ -32,14 +32,15 @@ namespace localize
         const double sensor_range_max,          // Sensor max range in meters
         const double sensor_range_no_obj,       // Sensor range reported when nothing is detected
         const double sensor_range_std_dev,      // Sensor range standard deviation
-        const double sensor_th_sample_inc,      // Sensor angle increment at which to sample observations (rad / sample)
+        const double sensor_th_sample_res,      // Sensor angle resolution at which to sample observations (rad per sample)
+        const double sensor_th_raycast_res,     // Sensor angle resolution for raycast (rad per increment)
         const double sensor_new_obj_decay_rate, // Sensor model decay rate for unexpected object probability
         const double sensor_weight_no_obj,      // Sensor model weight for no object detected probability
         const double sensor_weight_new_obj,     // Sensor model weight for new (unexpected) object probability
         const double sensor_weight_map_obj,     // Sensor model weight for map (expected) object probability
         const double sensor_weight_rand_effect, // Sensor model weight for random effect probability
         const double sensor_uncertainty_factor, // Sensor model uncertainty factor - extra noise added to calculation
-        const unsigned int sensor_table_size,   // Sensor model lookup table size
+        const double sensor_table_res,          // Sensor model lookup table resolution (meters per cell)
         const unsigned int map_width,           // Map number of pixels along x axis
         const unsigned int map_height,          // Map number of pixels along y axis
         const float map_x,                      // Map x translation of origin (cell 0,0) relative to world frame
@@ -69,20 +70,24 @@ namespace localize
               const unsigned int precision = 0,
               const bool overwrite = true
              );
+  private:
+    // Indicates if the robot speed is approximately zero
+    bool stopped();
 
   private:
     std::vector<PoseWithWeight> particles_; // Particle distribution
-    const Map map_;                         // Map
-    VelModel motion_model_;                 // Motion model
-    BeamModel sensor_model_;                // Sensor model
+    double vel_;             // Velocity
+    const Map map_;          // Map
+    VelModel motion_model_;  // Motion model
+    BeamModel sensor_model_; // Sensor model
 
     RNG rng_;  // Random number engine
-
     std::uniform_real_distribution<double> x_uni_dist_;   // Uniform real distribution [0, map width]
     std::uniform_real_distribution<double> y_uni_dist_;   // Uniform real distribution [0, map height]
     std::uniform_real_distribution<double> th_uni_dist_;  // Uniform real distribution [-pi, +pi)
 
     std::mutex particles_mtx_; // Particle distribution mutex
+    std::mutex vel_mtx_;       // Velocity mutex
   };
 
 } // namespace localize

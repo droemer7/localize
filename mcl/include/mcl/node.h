@@ -83,12 +83,14 @@ namespace localize
 
     // MCL
     std::unique_ptr<MCL> mcl_ptr_;
+
+    // MCL parameters
     double num_particles_;  // Number of particles
 
     // Motion model parameters
     double car_length_;                           // Car length
-    double motor_speed_to_erpm_gain_;             // Gain for converting motor velocity to electrical RPM (ERPM)
-    double motor_speed_to_erpm_offset_;           // Bias for converting motor velocity to electrical RPM (ERPM)
+    double motor_speed_to_erpm_gain_;             // Gain for converting motor velocity to electrical  ()
+    double motor_speed_to_erpm_offset_;           // Bias for converting motor velocity to electrical  ()
     double motor_steering_angle_to_servo_gain_;   // Gain for converting steering angle to servo position
     double motor_steering_angle_to_servo_offset_; // Bias for converting steering angle to servo position
     double servo_pos_;                            // Steering servo position
@@ -98,21 +100,23 @@ namespace localize
     double motion_ang_vel_n2_;                    // Motion model angular velocity noise coefficient 2
     double motion_th_n1_;                         // Motion model final rotation noise coefficient 1
     double motion_th_n2_;                         // Motion model final rotation noise coefficient 2
-    double motion_dur_last_;                      // Motion model last update time
+    double motion_dur_last_msec_;                 // Motion model update time (milliseconds)
 
     // Sensor model parameters
     double sensor_range_min_;           // Sensor min range in meters
     double sensor_range_max_;           // Sensor max range in meters
     double sensor_range_no_obj_;        // Sensor range reported when nothing is detected
     double sensor_range_std_dev_;       // Sensor range standard deviation
-    double sensor_th_sample_inc_;       // Sensor angle increment at which to sample observations (rad / sample)
+    double sensor_th_sample_res_;       // Sensor angle resolution at which to sample observations (rad per sample)
+    double sensor_th_raycast_res_;      // Sensor angle resolution for raycast (rad per increment)
     double sensor_new_obj_decay_rate_;  // Sensor model decay rate for unexpected object probability
     double sensor_weight_no_obj_;       // Sensor model weight for no object detected probability
     double sensor_weight_new_obj_;      // Sensor model weight for new (unexpected) object probability
     double sensor_weight_map_obj_;      // Sensor model weight for map (expected) object probability
     double sensor_weight_rand_effect_;  // Sensor model weight for random effect probability
     double sensor_uncertainty_factor_;  // Sensor model uncertainty factor - extra noise added to calculation
-    double sensor_dur_last_;            // Sensor model last update time
+    double sensor_table_res_;           // Sensor model table resolution (meters per cell)
+    double sensor_dur_last_msec_;       // Sensor model update time (milliseconds)
 
     // Map parameters
     unsigned int map_width_;        // Map number of pixels along x axis
@@ -123,7 +127,7 @@ namespace localize
     float map_scale_;               // Map scale relative to world frame (meters per pixel)
     std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
 
-    std::mutex servo_mtx_;
+    std::mutex servo_mtx_;  // Servo mutex
   };
 
 } // namespace localize

@@ -36,6 +36,7 @@ void VelModel::apply(const double lin_vel,
   double lin_vel_adj = 0.0;
   double ang_vel_adj = 0.0;
 
+  // Numerical check for square root
   if (   lin_vel_sq > DBL_EPSILON
       || ang_vel_sq > DBL_EPSILON
      ) {

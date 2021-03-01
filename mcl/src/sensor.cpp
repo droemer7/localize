@@ -8,21 +8,22 @@ BeamModel::BeamModel(const double range_min,
                      const double range_max,
                      const double range_no_obj,
                      const double range_std_dev,
-                     const double th_sample_inc,
+                     const double th_sample_res,
+                     const double th_raycast_res,
                      const double new_obj_decay_rate,
                      const double weight_no_obj,
                      const double weight_new_obj,
                      const double weight_map_obj,
                      const double weight_rand_effect,
                      const double uncertainty_factor,
-                     const size_t table_size,
+                     const double table_res,
                      const Map map
                     ) :
   range_min_(range_min),
   range_max_(range_max),
   range_no_obj_(range_no_obj),
   range_std_dev_(range_std_dev),
-  th_sample_inc_(th_sample_inc),
+  th_sample_res_(th_sample_res),
   new_obj_decay_rate_(new_obj_decay_rate),
   weight_no_obj_(weight_no_obj),
   weight_new_obj_(weight_new_obj),
@@ -34,12 +35,12 @@ BeamModel::BeamModel(const double range_min,
                + weight_rand_effect_
               ),
   uncertainty_factor_(uncertainty_factor),
-  table_(table_size + 1, std::vector<double>(table_size + 1)),
-  table_size_(table_size + 1),
-  table_inc_(range_max / table_size),
+  table_res_(table_res),
+  table_size_(range_max / table_res + 1),
+  table_(table_size_, std::vector<double>(table_size_)),
   raycaster_(map,
              range_max / map.scale,
-             200 // TBD th_discretization
+             std::round(M_2PI / th_raycast_res)
             )
 {
   if (range_min_ > range_max_) {
@@ -48,12 +49,12 @@ BeamModel::BeamModel(const double range_min,
     range_min_ = prev_range_max;
     printf("BeamModel: Warning - range min > range max, swapping.\n");
   }
-  if (th_sample_inc_ > M_2PI)
+  if (th_sample_res_ > M_2PI)
   {
-    printf("BeamModel: Warning - angle sample increment greater than 2pi, using 2pi. \
+    printf("BeamModel: Warning - angle sample resolution greater than 2pi, using 2pi. \
             Units are in radians, not degrees.\n"
           );
-    th_sample_inc_ = M_2PI;
+    th_sample_res_ = M_2PI;
   }
   if (uncertainty_factor_ > 1.0)
   {
@@ -75,7 +76,7 @@ BeamModel::BeamModel(const double range_min,
       || range_max_ < 0.0
       || range_no_obj_ < 0.0
       || range_std_dev_ < 0.0
-      || th_sample_inc_ < 0.0
+      || th_sample_res_ < 0.0
       || new_obj_decay_rate_ < 0.0
       || weight_no_obj_ < 0.0
       || weight_new_obj_ < 0.0
@@ -83,7 +84,7 @@ BeamModel::BeamModel(const double range_min,
       || weight_rand_effect_ < 0.0
       || uncertainty_factor_ < 0.0
      ) {
-    throw std::invalid_argument("BeamModel: Check configuration - parameters must be >= zero");
+    throw std::runtime_error("BeamModel: Check configuration - parameters must be >= zero");
   }
   precalc();
 }
@@ -151,9 +152,9 @@ double BeamModel::lookupProb(const float range_obs,
                             )
 {
   // Calculate sensor model table indexes for lookup
-  size_t range_obs_table_i = std::min(std::max(0.0, range_obs / table_inc_),
+  size_t range_obs_table_i = std::min(std::max(0.0, range_obs / table_res_),
                                       static_cast<double>(table_size_ - 1));
-  size_t range_map_table_i = std::min(std::max(0.0, range_map / table_inc_),
+  size_t range_map_table_i = std::min(std::max(0.0, range_map / table_res_),
                                       static_cast<double>(table_size_ - 1));
 
   // Lookup observed range probability
@@ -172,7 +173,7 @@ float BeamModel::repairRange(float range)
 std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
 {
   size_t rays_obs_size = rays_obs.size();
-  size_t rays_obs_sample_size = static_cast<size_t>(M_2PI / th_sample_inc_);
+  size_t rays_obs_sample_size = static_cast<size_t>(M_2PI / th_sample_res_);
   std::vector<Ray> rays_obs_sample(rays_obs_sample_size);
 
   // More than one observation
@@ -190,7 +191,7 @@ std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
           ) {
       rays_obs_sample[s] = rays_obs[o];
       ++s;
-      o = static_cast<size_t>(th_sample_inc_ * s / th_obs_inc);
+      o = static_cast<size_t>(th_sample_res_ * s / th_obs_inc);
     }
     rays_obs_sample.resize(s);
   }
@@ -276,10 +277,10 @@ void BeamModel::precalc()
   float range_map = 0.0;
 
   for (size_t i = 0; i < table_size_; ++i) {
-    range_obs = table_inc_ * i;
+    range_obs = table_res_ * i;
 
     for (size_t j = 0; j < table_size_; ++j) {
-      range_map = table_inc_ * j;
+      range_map = table_res_ * j;
       table_[i][j] = calcProb(range_obs, range_map);
     }
   }

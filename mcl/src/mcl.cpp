@@ -1,5 +1,5 @@
+#include <cmath>
 #include <float.h>
-#include <math.h>
 #include <random>
 
 #include "mcl/mcl.h"
@@ -18,14 +18,15 @@ MCL::MCL(const unsigned int num_particles,
          const double sensor_range_max,
          const double sensor_range_no_obj,
          const double sensor_range_std_dev,
-         const double sensor_th_sample_inc,
+         const double sensor_th_sample_res,
+         const double sensor_th_raycast_res,
          const double sensor_new_obj_decay_rate,
          const double sensor_weight_no_obj,
          const double sensor_weight_new_obj,
          const double sensor_weight_map_obj,
          const double sensor_weight_rand_effect,
          const double sensor_uncertainty_factor,
-         const unsigned int sensor_table_size,
+         const double sensor_table_res,
          const unsigned int map_width,
          const unsigned int map_height,
          const float map_x,
@@ -35,6 +36,7 @@ MCL::MCL(const unsigned int num_particles,
          const std::vector<int8_t> map_data
         ) :
   particles_(num_particles),
+  vel_(0.0),
   map_(map_width,
        map_height,
        map_x,
@@ -55,14 +57,15 @@ MCL::MCL(const unsigned int num_particles,
                 sensor_range_max,
                 sensor_range_no_obj,
                 sensor_range_std_dev,
-                sensor_th_sample_inc,
+                sensor_th_sample_res,
+                sensor_th_raycast_res,
                 sensor_new_obj_decay_rate,
                 sensor_weight_no_obj,
                 sensor_weight_new_obj,
                 sensor_weight_map_obj,
                 sensor_weight_rand_effect,
                 sensor_uncertainty_factor,
-                sensor_table_size,
+                sensor_table_res,
                 map_
                ),
   x_uni_dist_(map_.x, std::nextafter(map_.width * map_.scale + map_.x, DBL_MAX)),
@@ -77,20 +80,31 @@ void MCL::motionUpdate(const double vel,
                        const double dt
                       )
 {
-  std::lock_guard<std::mutex> lock(particles_mtx_);
-  motion_model_.apply(vel,
-                      steering_angle,
-                      dt,
-                      particles_
-                     );
+  // Save speed so we can skip motion & sensor updates if stopped
+  {
+    std::lock_guard<std::mutex> lock(vel_mtx_);
+    vel_ = vel;
+  }
+  // Only do motion update if moving
+  if (!stopped()) {
+    std::lock_guard<std::mutex> lock(particles_mtx_);
+    motion_model_.apply(vel,
+                        steering_angle,
+                        dt,
+                        particles_
+                       );
+  }
 }
 
 void MCL::sensorUpdate(const std::vector<Ray>& rays)
 {
-  std::lock_guard<std::mutex> lock(particles_mtx_);
-  sensor_model_.applyLookup(rays,
-                            particles_
-                           );
+  // Only do sensor update if moving
+  //if (!stopped()) {
+    std::lock_guard<std::mutex> lock(particles_mtx_);
+    sensor_model_.applyLookup(rays,
+                              particles_
+                             );
+  //}
 }
 
 void MCL::reset()
@@ -118,7 +132,7 @@ void MCL::reset()
     particle.weight_ = 0.0;
   }
   // TBD remove
-  particles_[0].x_ = -0.0352;
+  particles_[0].x_ = -0.035;
   particles_[0].y_ = 0.0;
   particles_[0].th_ = 0.0;
 }
@@ -135,4 +149,11 @@ void MCL::save(const std::string filename,
                  precision,
                  overwrite
                 );
+}
+
+bool MCL::stopped()
+{
+  std::lock_guard<std::mutex> lock(vel_mtx_);
+
+  return std::abs(vel_) < FLT_EPSILON;
 }

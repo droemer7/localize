@@ -22,14 +22,15 @@ int main(int argc, char** argv)
     // Stack usage
     rusage stackusage;
     getrusage(RUSAGE_SELF, &stackusage);
-    ROS_INFO("MCL: Stack usage = %ld MB", stackusage.ru_maxrss / 1024);
+    ROS_INFO("MCL: Memory usage = %ld MB", stackusage.ru_maxrss / 1024);
 
     // Run node until ROS is shutdown
     ros::waitForShutdown();
   }
   catch (std::runtime_error error) {
-    printf("%s\n", error.what());
-  }
+    ROS_FATAL("%s", error.what());
 
+    return 1;
+  }
   return 0;
 }

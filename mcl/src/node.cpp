@@ -1,3 +1,5 @@
+#include <float.h>
+
 #include <ros/service.h>
 #include <tf2/utils.h>
 
@@ -19,8 +21,8 @@ MCLNode::MCLNode(const std::string& motor_topic,
   status_spinner_(1, &status_cb_queue_),
   dur_1s_(1.0),
   motor_t_prev_(ros::Time::now()),
-  motion_dur_last_(0.0),
-  sensor_dur_last_(0.0),
+  motion_dur_last_msec_(0.0),
+  sensor_dur_last_msec_(0.0),
   servo_pos_(0.0)
 {
   // Motion and sensor model parameters
@@ -41,13 +43,15 @@ MCLNode::MCLNode(const std::string& motor_topic,
       || !getParam(nh, "laser/range_max", sensor_range_max_)
       || !getParam(nh, "localizer/sensor_range_no_obj", sensor_range_no_obj_)
       || !getParam(nh, "localizer/sensor_std_dev", sensor_range_std_dev_)
-      || !getParam(nh, "localizer/sensor_th_sample_inc", sensor_th_sample_inc_)
+      || !getParam(nh, "localizer/sensor_th_sample_res", sensor_th_sample_res_)
+      || !getParam(nh, "localizer/sensor_th_raycast_res", sensor_th_raycast_res_)
       || !getParam(nh, "localizer/sensor_weight_new_obj_decay_rate", sensor_new_obj_decay_rate_)
       || !getParam(nh, "localizer/sensor_weight_no_obj", sensor_weight_no_obj_)
       || !getParam(nh, "localizer/sensor_weight_new_obj", sensor_weight_new_obj_)
       || !getParam(nh, "localizer/sensor_weight_map_obj", sensor_weight_map_obj_)
       || !getParam(nh, "localizer/sensor_weight_rand_effect", sensor_weight_rand_effect_)
       || !getParam(nh, "localizer/sensor_uncertainty_factor", sensor_uncertainty_factor_)
+      || !getParam(nh, "localizer/sensor_table_res", sensor_table_res_)
      ) {
     throw std::runtime_error("MCL: Missing required parameters");
   }
@@ -68,36 +72,41 @@ MCLNode::MCLNode(const std::string& motor_topic,
   map_data_ = map_msg.data;
 
   // Construct the localizer with retrieved parameters before starting threads
-  std::unique_ptr<MCL> ptr(new MCL(num_particles_,
-                                   car_length_,
-                                   motion_lin_vel_n1_,
-                                   motion_lin_vel_n2_,
-                                   motion_ang_vel_n1_,
-                                   motion_ang_vel_n2_,
-                                   motion_th_n1_,
-                                   motion_th_n2_,
-                                   sensor_range_min_,
-                                   sensor_range_max_,
-                                   sensor_range_no_obj_,
-                                   sensor_range_std_dev_,
-                                   sensor_th_sample_inc_,
-                                   sensor_new_obj_decay_rate_,
-                                   sensor_weight_no_obj_,
-                                   sensor_weight_new_obj_,
-                                   sensor_weight_map_obj_,
-                                   sensor_weight_rand_effect_,
-                                   sensor_uncertainty_factor_,
-                                   1000,
-                                   map_width_,
-                                   map_height_,
-                                   map_x_,
-                                   map_y_,
-                                   map_th_,
-                                   map_scale_,
-                                   map_data_
-                                  )
-                          );
-  mcl_ptr_ = std::move(ptr);
+  try {
+    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_,
+                                            car_length_,
+                                            motion_lin_vel_n1_,
+                                            motion_lin_vel_n2_,
+                                            motion_ang_vel_n1_,
+                                            motion_ang_vel_n2_,
+                                            motion_th_n1_,
+                                            motion_th_n2_,
+                                            sensor_range_min_,
+                                            sensor_range_max_,
+                                            sensor_range_no_obj_,
+                                            sensor_range_std_dev_,
+                                            sensor_th_sample_res_,
+                                            sensor_th_raycast_res_,
+                                            sensor_new_obj_decay_rate_,
+                                            sensor_weight_no_obj_,
+                                            sensor_weight_new_obj_,
+                                            sensor_weight_map_obj_,
+                                            sensor_weight_rand_effect_,
+                                            sensor_uncertainty_factor_,
+                                            sensor_table_res_,
+                                            map_width_,
+                                            map_height_,
+                                            map_x_,
+                                            map_y_,
+                                            map_th_,
+                                            map_scale_,
+                                            map_data_
+                                           )
+                                   );
+  }
+  catch (std::runtime_error error) {
+    throw std::runtime_error(error.what());
+  }
 
   // Assign ROS callback queues
   motor_nh_.setCallbackQueue(&motor_cb_queue_);
@@ -142,11 +151,11 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   // Start timer
   ros::Time start = ros::Time::now();
 
-  // Convert motor ERPM and steering servo position
-  double motor_erpm = msg->state.speed;
-  double lin_vel = (  (motor_erpm - motor_speed_to_erpm_offset_)
+  // Calculate velocity
+  double lin_vel = (  (msg->state.speed - motor_speed_to_erpm_offset_)
                     / motor_speed_to_erpm_gain_
                    );
+  // Calculate steering angle
   double steering_angle = 0.0;
   {
     std::lock_guard<std::mutex> lock(servo_mtx_);
@@ -154,7 +163,6 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
                       / motor_steering_angle_to_servo_gain_
                      );
   }
-
   // Calculate motor time delta
   double dt = (msg->header.stamp - motor_t_prev_).toSec();
   motor_t_prev_ = msg->header.stamp;
@@ -165,11 +173,12 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
                          dt
                         );
   // Save duration
-  motion_dur_last_ = (ros::Time::now() - start).toSec();
+  motion_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
 }
 
 void MCLNode::servoCb(const std_msgs::Float64::ConstPtr& msg)
 {
+  // Update servo position
   std::lock_guard<std::mutex> lock(servo_mtx_);
   servo_pos_ = msg->data;
 }
@@ -180,10 +189,10 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   ros::Time start = ros::Time::now();
 
   // Convert laser data
-  size_t range_count = msg->ranges.size();
-  std::vector<Ray> rays(range_count);
+  size_t ray_count = msg->ranges.size();
+  std::vector<Ray> rays(ray_count);
 
-  for (size_t i = 0; i < range_count; ++i) {
+  for (size_t i = 0; i < ray_count; ++i) {
     rays[i].range_ = msg->ranges[i];
     rays[i].th_ = msg->angle_min + msg->angle_increment * i;
   }
@@ -191,7 +200,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   mcl_ptr_->sensorUpdate(rays);
 
   // Save duration
-  sensor_dur_last_ = (ros::Time::now() - start).toSec();
+  sensor_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
 }
 
 void MCLNode::saveParticles(const std::string& filename,
@@ -218,8 +227,13 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
 {
-  ROS_INFO("MCL: Motion update time = %.2f ms", motion_dur_last_ * 1000.0);
-  ROS_INFO("MCL: Sensor update time = %.2f ms", sensor_dur_last_ * 1000.0);
+
+  if (motion_dur_last_msec_ > 0.01) {
+    ROS_INFO("MCL: Motion update time = %.2f ms", motion_dur_last_msec_);
+  }
+  if (sensor_dur_last_msec_ > 0.01) {
+    ROS_INFO("MCL: Sensor update time = %.2f ms", sensor_dur_last_msec_);
+  }
 }
 
 void MCLNode::printMotionParams()

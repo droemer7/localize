@@ -1,8 +1,8 @@
 <launch>
   <!-- Launch arguments -->
   <arg name="car_name" default="car"/>
-  <arg name="real"/>
-  <arg name="control"/>
+  <arg name="real"     default="false"/>
+  <arg name="control"  default="false"/>
 
   <!-- MCL arguments -->
   <arg name="num_particles"                    default="1000"/>
@@ -14,13 +14,15 @@
   <arg name="motion_th_n2"                     default="0.01"/>
   <arg name="sensor_range_no_obj"              default="0.0"/>
   <arg name="sensor_std_dev"                   default="0.02"/>
-  <arg name="sensor_th_sample_inc"             default="0.7853981634"/> <!-- pi/4 -->
+  <arg name="sensor_th_sample_res"             default="0.7853981634"/> <!-- pi/4 -->
+  <arg name="sensor_th_raycast_res"            default="0.0314159265"/> <!-- pi/100 -->
   <arg name="sensor_weight_new_obj_decay_rate" default="0.75"/>
   <arg name="sensor_weight_no_obj"             default="6.5"/>
   <arg name="sensor_weight_new_obj"            default="12.5"/>
   <arg name="sensor_weight_map_obj"            default="80.0"/>
   <arg name="sensor_weight_rand_effect"        default="1.0"/>
   <arg name="sensor_uncertainty_factor"        default="0.95"/>
+  <arg name="sensor_table_res"                 default="0.01"/>
 
   <!-- Control enabled -->
   <group if="$(arg control)">
@@ -76,13 +78,15 @@
       <param name="motion_th_n2"                     type="double" value="$(arg motion_th_n2)"/>
       <param name="sensor_range_no_obj"              type="double" value="$(arg sensor_range_no_obj)"/>
       <param name="sensor_std_dev"                   type="double" value="$(arg sensor_std_dev)"/>
-      <param name="sensor_th_sample_inc"             type="double" value="$(arg sensor_th_sample_inc)"/>
+      <param name="sensor_th_sample_res"             type="double" value="$(arg sensor_th_sample_res)"/>
+      <param name="sensor_th_raycast_res"            type="double" value="$(arg sensor_th_raycast_res)"/>
       <param name="sensor_weight_new_obj_decay_rate" type="double" value="$(arg sensor_weight_new_obj_decay_rate)"/>
       <param name="sensor_weight_no_obj"             type="double" value="$(arg sensor_weight_no_obj)"/>
       <param name="sensor_weight_new_obj"            type="double" value="$(arg sensor_weight_new_obj)"/>
       <param name="sensor_weight_map_obj"            type="double" value="$(arg sensor_weight_map_obj)"/>
       <param name="sensor_weight_rand_effect"        type="double" value="$(arg sensor_weight_rand_effect)"/>
       <param name="sensor_uncertainty_factor"        type="double" value="$(arg sensor_uncertainty_factor)"/>
+      <param name="sensor_table_res"                 type="double" value="$(arg sensor_table_res)"/>
     </node>
   </group>
 </launch>
