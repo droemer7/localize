@@ -204,10 +204,15 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 }
 
 void MCLNode::saveParticles(const std::string& filename,
+                            const bool sort,
                             const bool overwrite
                            )
 {
-  mcl_ptr_->save(filename, 0, overwrite);
+  mcl_ptr_->save(filename,
+                 sort,
+                 0,
+                 overwrite
+                );
 }
 
 template <class T>

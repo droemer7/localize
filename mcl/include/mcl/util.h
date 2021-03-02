@@ -33,7 +33,7 @@ namespace localize
     explicit PoseWithWeight(const double x = 0.0,
                             const double y = 0.0,
                             const double th = 0.0,
-                            const double weight = 0.0
+                            const double weight = 1.0
                            ) :
       Pose(x, y, th),
       weight_(weight)

@@ -34,7 +34,7 @@ namespace localize
         const double sensor_range_std_dev,      // Sensor range standard deviation
         const double sensor_th_sample_res,      // Sensor angle resolution at which to sample observations (rad per sample)
         const double sensor_th_raycast_res,     // Sensor angle resolution for raycast (rad per increment)
-        const double sensor_new_obj_decay_rate, // Sensor model decay rate for unexpected object probability
+        const double sensor_new_obj_decay_rate, // Sensor model decay rate for new (unexpected) object probability
         const double sensor_weight_no_obj,      // Sensor model weight for no object detected probability
         const double sensor_weight_new_obj,     // Sensor model weight for new (unexpected) object probability
         const double sensor_weight_map_obj,     // Sensor model weight for map (expected) object probability
@@ -61,30 +61,37 @@ namespace localize
     // p(ranges[t] | pose[t], map)
     void sensorUpdate(const std::vector<Ray>& rays);
 
+    // Samples particles from the current distribution using a low variance
+    // technique. Weights are assumed to be normalized.
+    std::vector<PoseWithWeight> sample(size_t num_samples);
+
     // Resets particle distribution, randomizing each particle's pose using a
     // uniform distribution across free space
     void reset();
 
     // Saves particle distribution to file in CSV format
     void save(const std::string filename,
+              const bool sort = true,
               const unsigned int precision = 0,
               const bool overwrite = true
              );
+
   private:
     // Indicates if the robot speed is approximately zero
     bool stopped();
 
   private:
+    size_t iteration; // TBD remove
     std::vector<PoseWithWeight> particles_; // Particle distribution
-    double vel_;             // Velocity
+    double vel_;             // Robot velocity
     const Map map_;          // Map
     VelModel motion_model_;  // Motion model
     BeamModel sensor_model_; // Sensor model
 
     RNG rng_;  // Random number engine
-    std::uniform_real_distribution<double> x_uni_dist_;   // Uniform real distribution [0, map width]
-    std::uniform_real_distribution<double> y_uni_dist_;   // Uniform real distribution [0, map height]
-    std::uniform_real_distribution<double> th_uni_dist_;  // Uniform real distribution [-pi, +pi)
+    std::uniform_real_distribution<double> x_uni_dist_;   // Distribution of map x locations relative to world frame
+    std::uniform_real_distribution<double> y_uni_dist_;   // Distribution of map y locations relative to world frame
+    std::uniform_real_distribution<double> th_uni_dist_;  // Distribution of theta [-pi, +pi) relative to world frame
 
     std::mutex particles_mtx_; // Particle distribution mutex
     std::mutex vel_mtx_;       // Velocity mutex

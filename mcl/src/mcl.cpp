@@ -35,6 +35,7 @@ MCL::MCL(const unsigned int num_particles,
          const float map_scale,
          const std::vector<int8_t> map_data
         ) :
+  iteration(0),
   particles_(num_particles),
   vel_(0.0),
   map_(map_width,
@@ -96,15 +97,53 @@ void MCL::motionUpdate(const double vel,
   }
 }
 
+// TBD undo temporary changes for testing
 void MCL::sensorUpdate(const std::vector<Ray>& rays)
 {
   // Only do sensor update if moving
-  //if (!stopped()) {
+  /*if (!stopped())*/ {
     std::lock_guard<std::mutex> lock(particles_mtx_);
-    sensor_model_.applyLookup(rays,
-                              particles_
-                             );
-  //}
+    sensor_model_.apply(rays, particles_);
+  }
+  if (iteration == 0) {
+    save("particles_presample.csv", false);
+    particles_ = sample(particles_.size());
+  }
+  if (iteration++ == 1) {
+    save("particles_resampled.csv");
+    throw std::runtime_error("Saved resampled particles");
+  }
+}
+
+std::vector<PoseWithWeight> MCL::sample(size_t num_samples)
+{
+  num_samples = std::min(num_samples, particles_.size());
+  std::vector<PoseWithWeight> samples(num_samples);
+
+  if (   num_samples > 0
+      && particles_.size() > 0
+     ) {
+    double sample_width = 1.0 / num_samples;
+    std::uniform_real_distribution<double> sample_dist(0.0, sample_width);
+    double sum_target = sample_dist(rng_.engine());
+    double sum_curr = particles_[0].weight_;
+    size_t s = 0;
+    size_t p = 0;
+
+    // Generate the number of samples desired
+    while (s < num_samples) {
+      // Sum particle weights until we reach the target sum
+      while (sum_curr < sum_target) {
+        sum_curr += particles_[++p].weight_;
+      }
+      // Add to sample set, reset weight to 1.0, and increase target sum
+      samples[s] = particles_[p];
+      samples[s].weight_ = 1.0;
+      ++s;
+      sum_target += sample_width;
+    }
+  }
+  return samples;
 }
 
 void MCL::reset()
@@ -123,27 +162,27 @@ void MCL::reset()
     while (occupied) {
       particle.x_ = x_uni_dist_(rng_.engine());
       particle.y_ = y_uni_dist_(rng_.engine());
-      occupied = map_.isOccupied(particle.x_,
-                                 particle.y_
-                                );
-      }
+      occupied = map_.isOccupied(particle.x_, particle.y_);
+    }
     // Any theta is allowed
     particle.th_ = th_uni_dist_(rng_.engine());
     particle.weight_ = 0.0;
   }
-  // TBD remove
-  particles_[0].x_ = -0.035;
+  particles_[0].x_ = 0.0;
   particles_[0].y_ = 0.0;
-  particles_[0].th_ = 0.0;
+  particles_[0].th_ = -0.2;
 }
 
 void MCL::save(const std::string filename,
+               const bool sort,
                const unsigned int precision,
                const bool overwrite
               )
 {
   std::lock_guard<std::mutex> lock(particles_mtx_);
-  sort(particles_, compWeight);
+  if (sort) {
+    localize::sort(particles_, compWeight);
+  }
   localize::save(particles_,
                  filename,
                  precision,

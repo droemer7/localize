@@ -80,7 +80,7 @@ then
   roslaunch mcl mcl.launch real:=false control:=$control
 elif [ $mode == "test" ]
 then
-  ./devel/lib/mcl/test
+  ./devel/lib/mcl/mcl_test
 elif [ $mode != "build" ]
 then
   echo ""

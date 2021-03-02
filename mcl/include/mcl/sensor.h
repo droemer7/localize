@@ -33,7 +33,7 @@ namespace localize
               const double range_std_dev,       // Sensor range standard deviation
               const double th_sample_res,       // Sensor angle resolution at which to sample observations (rad per sample)
               const double th_raycast_res,      // Sensor angle resolution for raycast (rad per increment)
-              const double new_obj_decay_rate,  // Model decay rate for unexpected object probability
+              const double new_obj_decay_rate,  // Model decay rate for new (unexpected) object probability
               const double weight_no_obj,       // Model weight for no object detected probability
               const double weight_new_obj,      // Model weight for new (unexpected) object probability
               const double weight_map_obj,      // Model weight for map (expected) object probability
@@ -43,7 +43,47 @@ namespace localize
               const Map map                     // Map
              );
 
-    // Calculates the probability the observed range occurred due to the
+    // Applies the sensor model to look up particle importance weights from
+    // p(ranges[t] | pose[t], map)
+    // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
+    void apply(const std::vector<Ray>& rays_obs,
+               std::vector<PoseWithWeight>& particles,
+               const bool calc_enable = false
+              );
+
+  private:
+    // Generate a subset of ranges sampled from the full observation array
+    // using the configured angle sample increment
+    std::vector<Ray> sample(const std::vector<Ray>& rays_obs);
+
+    // Convert NaN, negative ranges and any range beyond the configured max
+    // to the range reported when nothing is detected by the sensor
+    float repair(const float range);
+
+    // Normalizes particle weights
+    void normalize(std::vector<PoseWithWeight>& particles,
+                   const double weight_sum
+                  );
+
+    // Precalculate weights given by the model for a discrete set of ranges
+    // and load this into the model lookup table
+    // First axis is incremented by ranges observed from the sensor
+    // Second axis is incremented by ranges calculated from the map
+    void precalcProb();
+
+    // Retrieve from the model lookup table the overall probability of the
+    // observed range given the 'true' range determined from the map
+    double lookupProb(const float range_obs,
+                      const float range_map
+                     );
+
+    // Calculate the overall probability of the observed range given the
+    // 'true' range determined from the map
+    double calcProb(const float range_obs,
+                    const float range_map
+                   );
+
+    // Calculate the probability the observed range occurred due to the
     // sensor failing to detect an object. This may occur due to reflections
     // or an object being too close to the sensor to be detectable.
     //
@@ -51,13 +91,13 @@ namespace localize
     // sensor when no object is found, or 0 if not.
     double calcProbNoObj(const float range_obs);
 
-    // Calculates the probability the observed range occured due to a new,
+    // Calculate the probability the observed range occured due to a new,
     // unmapped object, such as a person walking by the sensor.
     double calcProbNewObj(const float range_obs,
                           const float range_map
                          );
 
-    // Calculates the probability the observed range occurred due to detecting
+    // Calculate the probability the observed range occurred due to detecting
     // a mapped object. This probability assumes sensor noise is normally
     // distributed with a mean equal to the range of the nearest mapped
     // object.
@@ -65,54 +105,12 @@ namespace localize
                           const float range_map
                          );
 
-    // Calculates the probability the observed range occurred due to random
+    // Calculate the probability the observed range occurred due to random
     // effects (reflections, interferences, etc).
     //
     // Returns a constant value if the observed range is within bounds of the
     // sensor's min and max range.
     double calcProbRandEffect(const float range_obs);
-
-    // Calculates the overall probability of the observed range given the
-    // 'true' range determined from the map
-    double calcProb(const float range_obs,
-                    const float range_map
-                   );
-
-    // Retrieves from the model lookup table the overall probability of the
-    // observed range given the 'true' range determined from the map
-    double lookupProb(const float range_obs,
-                      const float range_map
-                     );
-
-    // Converts NaN, negative ranges and any range beyond the configured max
-    // to the range reported when nothing is detected by the sensor
-    float repairRange(const float range);
-
-    // Generates a subset of ranges sampled from the full observation array
-    // using the configured angle sample increment
-    std::vector<Ray> sample(const std::vector<Ray>& rays_obs);
-
-    // Applies the sensor model to calculate particle importance weights from
-    // p(ranges[t] | pose[t], map)
-    // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    // *** Online calculation - does NOT use lookup table ***
-    void applyCalc(const std::vector<Ray>& rays_obs,
-                   std::vector<PoseWithWeight>& particles
-                  );
-
-    // Applies the sensor model to look up particle importance weights from
-    // p(ranges[t] | pose[t], map) using the model lookup table
-    // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void applyLookup(const std::vector<Ray>& rays_obs,
-                     std::vector<PoseWithWeight>& particles
-                    );
-
-  private:
-    // Precalculates weights given by the model for a discrete set of ranges
-    // and loads this into the model lookup table
-    // First axis is incremented by ranges observed from the sensor
-    // Second axis is incremented by ranges calculated from the map
-    void precalc();
 
   private:
     // Model parameters
@@ -121,7 +119,7 @@ namespace localize
     double range_no_obj_;       // Sensor range reported when nothing is detected
     double range_std_dev_;      // Sensor range standard deviation
     double th_sample_res_;      // Sensor angle resolution at which to sample observations (rad per sample)
-    double new_obj_decay_rate_; // Model decay rate for unexpected object probability
+    double new_obj_decay_rate_; // Model decay rate for new (unexpected) object probability
     double weight_no_obj_;      // Model weight for no object detected probability
     double weight_new_obj_;     // Model weight for new (unexpected) object probability
     double weight_map_obj_;     // Model weight for map (expected) object probability
@@ -139,6 +137,9 @@ namespace localize
     Table table_;             // Model lookup table
 
     ranges::CDDTCast raycaster_;  // Range calculator
+
+    RNG rng_;  // Random number engine
+    std::uniform_real_distribution<double> sample_dist_;  // Distribution of initial sample angle offsets
   };
 
 } // namespace localize

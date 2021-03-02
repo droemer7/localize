@@ -41,6 +41,7 @@ namespace localize
 
     // Save distribution of particles to file in CSV format
     void saveParticles(const std::string& filename,
+                       const bool sort = true,
                        const bool overwrite = true
                       );
 
@@ -109,7 +110,7 @@ namespace localize
     double sensor_range_std_dev_;       // Sensor range standard deviation
     double sensor_th_sample_res_;       // Sensor angle resolution at which to sample observations (rad per sample)
     double sensor_th_raycast_res_;      // Sensor angle resolution for raycast (rad per increment)
-    double sensor_new_obj_decay_rate_;  // Sensor model decay rate for unexpected object probability
+    double sensor_new_obj_decay_rate_;  // Sensor model decay rate for new (unexpected) object probability
     double sensor_weight_no_obj_;       // Sensor model weight for no object detected probability
     double sensor_weight_new_obj_;      // Sensor model weight for new (unexpected) object probability
     double sensor_weight_map_obj_;      // Sensor model weight for map (expected) object probability

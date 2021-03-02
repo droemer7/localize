@@ -62,8 +62,18 @@ int main(int argc, char** argv)
 {
   unsigned int iterations = 3 * 10000;
   unsigned int repeats = 5;
-  testSampleNormalDist<float>(iterations, repeats);
-  testSampleNormalDist<double>(iterations, repeats);
+  // testSampleNormalDist<float>(iterations, repeats);
+  // testSampleNormalDist<double>(iterations, repeats);
+  printf("signbit(-0.0) = %d\n", std::signbit(-0.0));
+  printf("-0.0 equals 0.0? A = %d\n", (-0.0 == 0.0));
+  printf("next after 0.0 = %.4e\n", std::nextafter(0.0, 1.0));
+  printf("0.0 < nextafter(0.0) ? A = %d\n", 0.0 < std::nextafter(0.0, 1.0));
 
+  std::vector<int> v = {0, 1, 2, 3, 4, 5};
+  size_t i = 0;
+
+  while (i < v.size()) {
+    printf("v[i] = %d\n", v[i++]);
+  }
   return 0;
 }
