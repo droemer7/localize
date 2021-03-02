@@ -124,8 +124,7 @@ std::vector<PoseWithWeight> MCL::sample(size_t num_samples)
       && particles_.size() > 0
      ) {
     double sample_width = 1.0 / num_samples;
-    std::uniform_real_distribution<double> sample_dist(0.0, sample_width);
-    double sum_target = sample_dist(rng_.engine());
+    double sum_target = sample_uni_dist_(rng_.engine()) * sample_width;
     double sum_curr = particles_[0].weight_;
     size_t s = 0;
     size_t p = 0;

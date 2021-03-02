@@ -89,9 +89,10 @@ namespace localize
     BeamModel sensor_model_; // Sensor model
 
     RNG rng_;  // Random number engine
-    std::uniform_real_distribution<double> x_uni_dist_;   // Distribution of map x locations relative to world frame
-    std::uniform_real_distribution<double> y_uni_dist_;   // Distribution of map y locations relative to world frame
-    std::uniform_real_distribution<double> th_uni_dist_;  // Distribution of theta [-pi, +pi) relative to world frame
+    std::uniform_real_distribution<double> sample_uni_dist_;  // Distribution [0, 1) for sampling
+    std::uniform_real_distribution<double> x_uni_dist_;       // Distribution of map x locations relative to world frame
+    std::uniform_real_distribution<double> y_uni_dist_;       // Distribution of map y locations relative to world frame
+    std::uniform_real_distribution<double> th_uni_dist_;      // Distribution of theta [-pi, +pi) relative to world frame
 
     std::mutex particles_mtx_; // Particle distribution mutex
     std::mutex vel_mtx_;       // Velocity mutex
