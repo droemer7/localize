@@ -31,14 +31,14 @@ namespace localize
              const double th_n2         // Model final rotation noise coefficient 2
             );
 
-    // Applies the motion model to generate new samples of particles from
+    // Apply the motion model to generate new samples of particles from
     // p(x[t] | u[t], x[t-1])
     // Algorithm 5.3 from Probabilistic Robotics (Thrun 2006, page 124)
-    void apply(const double lin_vel,
-               const double steering_angle,
-               const double dt,
-               std::vector<PoseWithWeight>& particles
-              );
+    void update(const double lin_vel,
+                const double steering_angle,
+                const double dt,
+                std::vector<PoseWithWeight>& particles
+               );
 
   private:
     // Model parameters

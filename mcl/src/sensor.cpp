@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 
 #include "mcl/sensor.h"
@@ -42,33 +43,21 @@ BeamModel::BeamModel(const double range_min,
              range_max / map.scale,
              std::round(M_2PI / th_raycast_res)
             ),
-  sample_dist_(0.0, th_sample_res_)
+  th_sample_dist_(0.0, th_sample_res_)
 {
   if (range_min_ > range_max_) {
-    double prev_range_max = range_max_;
-    range_max_ = range_min_;
-    range_min_ = prev_range_max;
-    printf("BeamModel: Warning - range min > range max, swapping.\n");
+    throw std::runtime_error("BeamModel: range_min > range_max\n");
   }
   if (th_sample_res_ > M_2PI)
   {
-    printf("BeamModel: Warning - angle sample resolution greater than 2pi, using 2pi. \
+    printf("BeamModel: Warning - angle sample resolution greater than 2pi, using 2pi \
             Units are in radians, not degrees.\n"
           );
     th_sample_res_ = M_2PI;
   }
   if (uncertainty_factor_ < 1.0)
   {
-    printf("BeamModel: Warning - model uncertainty factor less than 1, using 1 (no uncertainty).\n");
-    uncertainty_factor_ = 1.0;
-  }
-  if (equal(uncertainty_factor_, 0.0))
-  {
-    printf("BeamModel: Warning - model uncertainty factor negative or too small (%f), \
-           using 1 (no additional uncertainty).                                       \
-           Model uncertainty should be in the range (0, 1].\n",
-           uncertainty_factor_
-          );
+    printf("BeamModel: Warning - model uncertainty factor less than 1, using 1 (none)\n");
     uncertainty_factor_ = 1.0;
   }
   if (   range_min_ < 0.0
@@ -88,13 +77,12 @@ BeamModel::BeamModel(const double range_min,
   precalcProb();
 }
 
-void BeamModel::apply(const std::vector<Ray>& rays_obs,
-                      std::vector<PoseWithWeight>& particles,
-                      const bool calc_enable
-                     )
+void BeamModel::update(const std::vector<Ray>& rays_obs,
+                       std::vector<PoseWithWeight>& particles,
+                       const bool calc_enable
+                      )
 {
   double weight = 1.0;
-  double weight_sum = 0.0;
   float range_obs = 0.0;
   float range_map = 0.0;
 
@@ -120,12 +108,8 @@ void BeamModel::apply(const std::vector<Ray>& rays_obs,
                               lookupProb(range_obs, range_map);
     }
     // Update full weight, applying overall model uncertainty
-    weight = std::pow(weight, uncertainty_factor_);
-    weight_sum += weight;
-    particles[i].weight_ = weight;
+    particles[i].weight_ = std::pow(weight, uncertainty_factor_);
   }
-  // Normalize weights with the sum
-  normalize(particles, weight_sum);
 }
 
 std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
@@ -141,7 +125,7 @@ std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
     // Generate a random offset for the sampled set to start from
     double th_obs_min = rays_obs[0].th_;
     double th_obs_inc = std::abs(rays_obs[1].th_ - th_obs_min);
-    size_t o = sample_dist_(rng_.engine()) / th_obs_inc;
+    size_t o = th_sample_dist_(rng_.engine()) / th_obs_inc;
     size_t s = 0;
 
     // Iterate through both arrays until we've either gone through all of the
@@ -173,18 +157,6 @@ float BeamModel::repair(float range)
          range_no_obj_ : range;
 }
 
-void BeamModel::normalize(std::vector<PoseWithWeight>& particles,
-                          const double weight_sum
-                         )
-{
-  if (weight_sum > 0.0) {
-    double normalizer = 1 / weight_sum;
-    for (size_t i = 0; i < particles.size(); ++i) {
-      particles[i].weight_ *= normalizer;
-    }
-  }
-}
-
 void BeamModel::precalcProb()
 {
   float range_obs = 0.0;
@@ -206,9 +178,11 @@ double BeamModel::lookupProb(const float range_obs,
 {
   // Calculate sensor model table indexes for lookup
   size_t range_obs_table_i = std::min(std::max(0.0, range_obs / table_res_),
-                                      static_cast<double>(table_size_ - 1));
+                                      static_cast<double>(table_size_ - 1)
+                                     );
   size_t range_map_table_i = std::min(std::max(0.0, range_map / table_res_),
-                                      static_cast<double>(table_size_ - 1));
+                                      static_cast<double>(table_size_ - 1)
+                                     );
 
   // Lookup observed range probability
   return table_[range_obs_table_i][range_map_table_i];

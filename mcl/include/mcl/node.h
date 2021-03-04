@@ -62,6 +62,8 @@ namespace localize
     void printMapParams();
 
   private:
+    std::mutex servo_mtx_;  // Servo mutex
+
     // ROS interface
     ros::NodeHandle motor_nh_;
     ros::NodeHandle servo_nh_;
@@ -86,7 +88,12 @@ namespace localize
     std::unique_ptr<MCL> mcl_ptr_;
 
     // MCL parameters
-    double num_particles_;  // Number of particles
+    double mcl_num_particles_min_;    // Minimum number of particles
+    double mcl_num_particles_max_;    // Maximum number of particles
+    double mcl_kld_eps_;              // KL distance threshold
+    double mcl_hist_occ_weight_min_;  // Minimum particle weight required for a histogram cell to be considered occupied
+    double mcl_hist_pos_res_;         // Histogram bin size for x and y position
+    double mcl_hist_th_res_;          // Histogram bin size for heading angle
 
     // Motion model parameters
     double car_length_;                           // Car length
@@ -127,8 +134,6 @@ namespace localize
     float map_th_;                  // Map angle relative to world frame
     float map_scale_;               // Map scale relative to world frame (meters per pixel)
     std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
-
-    std::mutex servo_mtx_;  // Servo mutex
   };
 
 } // namespace localize

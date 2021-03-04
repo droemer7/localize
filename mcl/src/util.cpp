@@ -16,6 +16,64 @@ Pose::Pose(const double x,
   th_(th)
 {}
 
+PoseHistogram::PoseHistogram(const double x_len,
+                             const double y_len,
+                             const double th_len,
+                             const double x_res,
+                             const double y_res,
+                             const double th_res,
+                             const double weight_min
+                            ) :
+  x_len_(x_len),
+  y_len_(y_len),
+  th_len_(th_len),
+  x_res_(x_res),
+  y_res_(y_res),
+  th_res_(th_res),
+  weight_min_(weight_min),
+  hist_(x_len / x_res,
+        std::vector<std::vector<bool>>(y_len / y_res,
+                                       std::vector<bool>(th_len / th_res, false)
+                                      )
+       )
+{}
+
+bool PoseHistogram::update(const PoseWithWeight& particle)
+{
+  bool new_occ = false;
+
+  // Ignore particle if its unnormalized weight is low
+  if (particle.weight_ > weight_min_) {
+    // Calculate indexes
+    size_t x_i = std::min(std::max(0.0, particle.x_ / x_res_),
+                          static_cast<double>(x_len_ - 1)
+                         );
+    size_t y_i = std::min(std::max(0.0, particle.y_ / y_res_),
+                          static_cast<double>(y_len_ - 1)
+                         );
+    size_t th_i = std::min(std::max(0.0, particle.th_ / th_res_),
+                           static_cast<double>(th_len_ - 1)
+                          );
+    // Update histogram
+    if (!hist_[x_i][y_i][th_i]) {
+      hist_[x_i][y_i][th_i] = true;
+      new_occ = true;
+    }
+  }
+  return new_occ;
+}
+
+void PoseHistogram::reset()
+{
+  for (size_t i = 0; i < hist_.size(); ++i) {
+    for (size_t j = 0; j < hist_.size(); ++j) {
+      for (size_t k = 0; k < hist_.size(); ++k) {
+        hist_[i][j][k] = false;
+      }
+    }
+  }
+}
+
 // Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
 Map::Map(const unsigned int width,
          const unsigned int height,

@@ -27,7 +27,12 @@ MCLNode::MCLNode(const std::string& motor_topic,
 {
   // Motion and sensor model parameters
   ros::NodeHandle nh;
-  if (   !getParam(nh, "localizer/num_particles", num_particles_)
+  if (   !getParam(nh, "localizer/mcl_num_particles_min", mcl_num_particles_min_)
+      || !getParam(nh, "localizer/mcl_num_particles_max", mcl_num_particles_max_)
+      || !getParam(nh, "localizer/mcl_kld_eps", mcl_kld_eps_)
+      || !getParam(nh, "localizer/mcl_hist_occ_weight_min", mcl_hist_occ_weight_min_)
+      || !getParam(nh, "localizer/mcl_hist_pos_res", mcl_hist_pos_res_)
+      || !getParam(nh, "localizer/mcl_hist_th_res", mcl_hist_th_res_)
       || !getParam(nh, "vesc/chassis_length", car_length_)
       || !getParam(nh, "vesc/speed_to_erpm_gain", motor_speed_to_erpm_gain_)
       || !getParam(nh, "vesc/speed_to_erpm_offset", motor_speed_to_erpm_offset_)
@@ -73,7 +78,12 @@ MCLNode::MCLNode(const std::string& motor_topic,
 
   // Construct the localizer with retrieved parameters before starting threads
   try {
-    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_,
+    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(mcl_num_particles_min_,
+                                            mcl_num_particles_max_,
+                                            mcl_kld_eps_,
+                                            mcl_hist_occ_weight_min_,
+                                            mcl_hist_pos_res_,
+                                            mcl_hist_th_res_,
                                             car_length_,
                                             motion_lin_vel_n1_,
                                             motion_lin_vel_n2_,

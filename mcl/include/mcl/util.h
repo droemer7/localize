@@ -55,6 +55,39 @@ namespace localize
     float th_;
   };
 
+  // 3D boolean histogram representing occupancy of pose space (x, y, th)
+  // Current provides minimum
+  class PoseHistogram
+  {
+  public:
+    // Constructors
+    PoseHistogram(const double x_len,     // Length of x dimension (meters)
+                  const double y_len,     // Length of y dimension (meters)
+                  const double th_len,    // Range of angular dimension (rad)
+                  const double x_res,     // Resolution for x position (meters per cell)
+                  const double y_res,     // Resolution for y position (meters per cell)
+                  const double th_res,    // Resolution for angle (rad per cell)
+                  const double weight_min // Minimum particle weight required for a histogram cell to be considered occupied
+                 );
+
+    // Update occupancy with the particle's location if its
+    // weight is larger than the minimum required threshold
+    bool update(const PoseWithWeight& particle);
+
+    // Resets all cell occupancy counts
+    void reset();
+
+  private:
+    const double x_len_;      // Length of x dimension (meters)
+    const double y_len_;      // Length of y dimension (meters)
+    const double th_len_;     // Range of angular dimension (rad)
+    const double x_res_;      // Resolution for x position (meters per cell)
+    const double y_res_;      // Resolution for y position (meters per cell)
+    const double th_res_;     // Resolution for heading angle (rad per cell)
+    const double weight_min_; // Minimum particle weight required for a histogram cell to be considered occupied
+    std::vector<std::vector<std::vector<bool>>> hist_;  // Histogram
+  };
+
   // Map class constructed with ROS coordinate space conversion parameters
   // Used by RangeLib
   class Map : public ranges::OMap
@@ -263,7 +296,7 @@ namespace localize
   { return (p1.weight_ < p2.weight_); };
 
   inline void sort(std::vector<PoseWithWeight>& particles,
-                   bool (*comp)(const PoseWithWeight& p1, const PoseWithWeight& p2)
+                   bool (*comp)(const PoseWithWeight& p1, const PoseWithWeight& p2) = compWeight
                   )
   { std::sort(particles.rbegin(), particles.rend(), comp); }
 

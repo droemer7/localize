@@ -1,7 +1,6 @@
 #ifndef SENSOR_H
 #define SENSOR_H
 
-#include <memory>
 #include <vector>
 
 #include "mcl/util.h"
@@ -10,8 +9,6 @@
 
 namespace localize
 {
-  typedef std::vector<std::vector<double>> Table;
-
   // Beam-based probabilistic model for a range sensor
   //
   // The model is comprised of four superimposed probability distributions:
@@ -46,10 +43,10 @@ namespace localize
     // Applies the sensor model to look up particle importance weights from
     // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void apply(const std::vector<Ray>& rays_obs,
-               std::vector<PoseWithWeight>& particles,
-               const bool calc_enable = false
-              );
+    void update(const std::vector<Ray>& rays_obs,
+                std::vector<PoseWithWeight>& particles,
+                const bool calc_enable = false
+               );
 
   private:
     // Generate a subset of ranges sampled from the full observation array
@@ -59,11 +56,6 @@ namespace localize
     // Convert NaN, negative ranges and any range beyond the configured max
     // to the range reported when nothing is detected by the sensor
     float repair(const float range);
-
-    // Normalizes particle weights
-    void normalize(std::vector<PoseWithWeight>& particles,
-                   const double weight_sum
-                  );
 
     // Precalculate weights given by the model for a discrete set of ranges
     // and load this into the model lookup table
@@ -132,14 +124,14 @@ namespace localize
     // Second axis is incremented by ranges calculated from the map
     // Values are weights that would be given by the model given ranges
     // observed by the sensor and ranges calculated by raycasting on the map
-    const double table_res_;  // Model table resolution (meters per cell)
-    const size_t table_size_; // Model table size
-    Table table_;             // Model lookup table
+    const double table_res_;                  // Model table resolution (meters per cell)
+    const size_t table_size_;                 // Model table size
+    std::vector<std::vector<double>> table_;  // Model lookup table
 
     ranges::CDDTCast raycaster_;  // Range calculator
 
     RNG rng_;  // Random number engine
-    std::uniform_real_distribution<double> sample_dist_;  // Distribution of initial sample angle offsets
+    std::uniform_real_distribution<double> th_sample_dist_;  // Distribution of initial sample angle offsets
   };
 
 } // namespace localize

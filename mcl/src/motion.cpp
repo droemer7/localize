@@ -21,11 +21,11 @@ VelModel::VelModel(const double car_length,
   th_n2_(th_n2)
 {}
 
-void VelModel::apply(const double lin_vel,
-                     const double steering_angle,
-                     const double dt,
-                     std::vector<PoseWithWeight>& particles
-                    )
+void VelModel::update(const double lin_vel,
+                      const double steering_angle,
+                      const double dt,
+                      std::vector<PoseWithWeight>& particles
+                     )
 {
   double ang_vel = (lin_vel / car_length_) * std::tan(steering_angle);
   double lin_vel_sq = lin_vel * lin_vel;
@@ -57,9 +57,8 @@ void VelModel::apply(const double lin_vel,
       particle.y_ += (  (lin_vel_adj / ang_vel_adj)
                       * ( std::cos(particle.th_) - std::cos(particle.th_ + ang_vel_adj * dt))
                      );
-
       // Calculate new pose rotation, adding additional noise
-      particle.th_ += (ang_vel_adj + th_noise) * dt;
+      particle.th_ += wrapAngle((ang_vel_adj + th_noise) * dt);
     }
   }
 }

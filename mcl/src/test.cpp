@@ -58,22 +58,112 @@ void testSampleNormalDist(const unsigned int samples,
   printf("--- Test complete ---\n");
 }
 
+void testVectorReserve(size_t iterations,
+                       const bool reserve_enable
+                      )
+{
+  std::chrono::_V2::high_resolution_clock::time_point start;
+  std::chrono::_V2::high_resolution_clock::time_point end;
+  std::chrono::duration<double> dur;
+  double dur_max = 0.0;
+  double dur_tot = 0.0;
+
+  PoseWithWeight pose(1.0, 2.0, 3.0, 4.0);
+  std::vector<PoseWithWeight> v;
+
+  if (reserve_enable) {
+    v.resize(iterations);
+  }
+
+  printf("v.size() = %lu\n", v.size());
+  printf("v.capacity() = %lu\n", v.capacity());
+
+  std::vector<double> dur_v(iterations);
+  for (size_t i = 0; i < iterations; ++i) {
+    start = std::chrono::high_resolution_clock::now();
+    v.push_back(pose);
+    end = std::chrono::high_resolution_clock::now();
+    dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+    dur_v[i] = dur.count() * 1000.0;
+    dur_max = dur_v[i] > dur_max? dur_v[i] : dur_max;
+    dur_tot += dur_v[i];
+  }
+  printf("Max = %f ms\n", dur_max);
+  printf("Total = %f ms\n", dur_tot);
+  printf("--- Test complete ---\n");
+}
+
+void testHist()
+{
+  std::vector<std::vector<std::vector<int>>> hist(5, std::vector<std::vector<int>>(10, std::vector<int>(3, 0)));
+  int w = 0;
+  for (size_t i = 0; i < hist.size(); ++i) {
+    for (size_t j = 0; j < hist[0].size(); ++j) {
+      for (size_t k = 0; k < hist[0][0].size(); ++k) {
+        hist[i][j][k] = w++;
+      }
+    }
+  }
+
+  for (size_t i = 0; i < hist.size(); ++i) {
+    for (size_t j = 0; j < hist[0].size(); ++j) {
+      for (size_t k = 0; k < hist[0][0].size(); ++k) {
+        printf("hist[%lu][%lu][%lu] = %d\n", i, j, k, hist[i][j][k]);
+      }
+    }
+  }
+}
+
+void testAngleWrapping(const size_t num_angles,
+                       const double angle_inc
+                      )
+{
+  double angle = 0.0;
+
+  for (size_t i = 0; i < num_angles; ++i) {
+    angle = i * angle_inc;
+    printf("Wrap(%f) = %f\n",
+           angle * 180.0 / M_PI,
+           wrapAngle(angle) * 180.0 / M_PI
+          );
+  }
+}
+
+void normalize(double weight_sum)
+{
+  std::vector<double> weights = {1, 2, 3, 4, 5};
+  if (weight_sum <= 0.0) {
+    weight_sum = 0.0;
+    for (size_t i = 0; i < weights.size(); ++i) {
+      weight_sum += weights[i];
+    }
+  }
+  double normalizer = 1 / weight_sum;
+  for (size_t i = 0; i < weights.size(); ++i) {
+    weights[i] *= normalizer;
+  }
+  for (size_t i = 0; i < weights.size(); ++i) {
+    printf("weight[%lu] = %f\n", i, weights[i]);
+  }
+}
+
+void normalize()
+{
+  normalize(0.0);
+}
+
 int main(int argc, char** argv)
 {
-  unsigned int iterations = 3 * 10000;
-  unsigned int repeats = 5;
+  // unsigned int iterations = 3 * 10000;
+  // unsigned int repeats = 5;
   // testSampleNormalDist<float>(iterations, repeats);
   // testSampleNormalDist<double>(iterations, repeats);
-  printf("signbit(-0.0) = %d\n", std::signbit(-0.0));
-  printf("-0.0 equals 0.0? A = %d\n", (-0.0 == 0.0));
-  printf("next after 0.0 = %.4e\n", std::nextafter(0.0, 1.0));
-  printf("0.0 < nextafter(0.0) ? A = %d\n", 0.0 < std::nextafter(0.0, 1.0));
+  // testVectorReserve(10000, true);
+  // testVectorReserve(10000, false);
+  // testHist();
+  // testAngleWrapping(20, 45 * M_PI / 180.0);
 
-  std::vector<int> v = {0, 1, 2, 3, 4, 5};
-  size_t i = 0;
+  normalize();
 
-  while (i < v.size()) {
-    printf("v[i] = %d\n", v[i++]);
-  }
   return 0;
 }
