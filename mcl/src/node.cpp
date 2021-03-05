@@ -10,6 +10,20 @@
 
 using namespace localize;
 
+RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
+  RayScan(msg->ranges.size())
+{
+  th_inc_ = msg->angle_increment;
+  t_inc_ = msg->time_increment;
+  t_dur_ = msg->scan_time;
+
+  for (size_t i = 0; i < rays_.size(); ++i) {
+    rays_[i].range_ = msg->ranges[i];
+    rays_[i].th_ = msg->angle_min + th_inc_ * i;
+  }
+  rays_ = rays_;
+}
+
 MCLNode::MCLNode(const std::string& motor_topic,
                  const std::string& servo_topic,
                  const std::string& sensor_topic,
@@ -198,16 +212,8 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   // Start timer
   ros::Time start = ros::Time::now();
 
-  // Convert laser data
-  size_t ray_count = msg->ranges.size();
-  RayVector rays(ray_count);
-
-  for (size_t i = 0; i < ray_count; ++i) {
-    rays[i].range_ = msg->ranges[i];
-    rays[i].th_ = msg->angle_min + msg->angle_increment * i;
-  }
   // Perform sensor update
-  mcl_ptr_->update(rays);
+  mcl_ptr_->update(RayScanMsg(msg));
 
   // Save duration
   sensor_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;

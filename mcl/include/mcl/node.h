@@ -15,9 +15,17 @@
 #include <vesc_msgs/VescStateStamped.h>
 
 #include "mcl/mcl.h"
+#include "mcl/util.h"
 
 namespace localize
 {
+  class RayScanMsg : public RayScan
+  {
+  public:
+    // Constructors
+    RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg);
+  };
+
   class MCLNode
   {
   public:

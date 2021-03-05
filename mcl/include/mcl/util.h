@@ -24,16 +24,17 @@ namespace localize
   // A particle with 2D location, heading angle and weight
   struct Particle
   {
-    explicit Particle(const double x = 0.0,
-                      const double y = 0.0,
-                      const double th = 0.0,
+    // Constructors
+    explicit Particle(const double x = 0.0,     // X position (meters)
+                      const double y = 0.0,     // Y position (meters)
+                      const double th = 0.0,    // Heading angle (rad)
                       const double weight = 0.0
                      );
 
-    double x_;
-    double y_;
-    double th_;
-    double weight_;
+    double x_;      // X position (meters)
+    double y_;      // Y position (meters)
+    double th_;     // Heading angle (rad)
+    double weight_; // Importance weight
   };
 
   typedef std::vector<Particle> ParticleVector;
@@ -41,19 +42,34 @@ namespace localize
   // A range sensor ray with range and angle
   struct Ray
   {
-    explicit Ray(const float range = 0.0,
-                 const float th = 0.0
-                ) :
-      range_(range),
-      th_(th)
-    {}
+    // Constructors
+    explicit Ray(const float range = 0.0, // Range (meters)
+                 const float th = 0.0     // Angle (rad)
+                );
 
-    float range_;
-    float th_;
+    float range_; // Range (meters)
+    float th_;    // Angle (rad)
   };
 
   typedef std::vector<Ray> RayVector;
 
+  // Rayscan data
+  struct RayScan
+  {
+    // Constructors
+    explicit RayScan(RayVector rays = RayVector(),  // Vector of rays data
+                     float th_inc = 0.0,            // Angle increment between ray elements (rad per index)
+                     float t_inc = 0.0,             // Time increment between ray elements (sec per index)
+                     float t_dur = 0.0              // Scan duration (sec)
+                    );
+
+    explicit RayScan(size_t num_rays);
+
+    RayVector rays_;  // Vector of rays data
+    float th_inc_;    // Angle increment between ray elements (rad per index)
+    float t_inc_;     // Time increment between ray elements (sec per index)
+    float t_dur_;     // Scan duration (sec)
+  };
 
   // 3D boolean histogram representing occupancy of pose space (x, y, th)
   // Current provides minimum

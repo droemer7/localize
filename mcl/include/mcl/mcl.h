@@ -63,8 +63,8 @@ namespace localize
                );
 
     // Apply the sensor model to update particle weights using
-    // p(rays[t] | pose[t], map)
-    void update(const RayVector& rays);
+    // p(scan[t] | pose[t], map)
+    void update(const RayScan&& obs);
 
   private:
     // Sample particles from the current distribution using a low variance

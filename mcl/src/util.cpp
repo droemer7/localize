@@ -18,6 +18,28 @@ Particle::Particle(const double x,
   weight_(weight)
 {}
 
+Ray::Ray(const float range,
+         const float th
+        ) :
+  range_(range),
+  th_(th)
+{}
+
+RayScan::RayScan(RayVector rays,
+                 float th_inc,
+                 float t_inc,
+                 float t_dur
+                ) :
+  rays_(rays),
+  th_inc_(th_inc),
+  t_inc_(t_inc),
+  t_dur_(t_dur)
+{}
+
+RayScan::RayScan(size_t num_rays) :
+  RayScan()
+{}
+
 ParticleHistogram::ParticleHistogram(const double x_len,
                                      const double y_len,
                                      const double th_len,

@@ -43,6 +43,7 @@ BeamModel::BeamModel(const double range_min,
   table_res_(table_res),
   table_size_(range_max / table_res + 1),
   table_(table_size_, std::vector<double>(table_size_)),
+  rays_obs_sample_size_(std::round(M_2PI / th_sample_res_)),
   raycaster_(map,
              range_max / map.scale,
              std::round(M_2PI / th_raycast_res)
@@ -81,8 +82,11 @@ BeamModel::BeamModel(const double range_min,
   precalcProb();
 }
 
-void BeamModel::update(const RayVector& rays_obs,
-                       const bool calc_enable
+// Instead of having a RayVector member of the subsampled rays, use a RayScan member so
+// the overload for Particle&, bool can call this function using the last stored scan
+void BeamModel::update(Particle& particle,
+                       const RayScan& obs,
+                       const bool calc_enable = false
                       )
 {
   RecursiveLock lock(particles_mtx_);
@@ -92,62 +96,92 @@ void BeamModel::update(const RayVector& rays_obs,
   float range_map = 0.0;
 
   // Downsample the full ray list according to the angle sample increment
-  RayVector rays_obs_sample = sample(rays_obs);
+  rays_obs_sample_ = sample(obs);
 
+  for (Ray& ray_obs : rays_obs_sample_) {
+    // Compute range from the map
+    range_map = raycaster_.calc_range(particle.x_,
+                                      particle.y_,
+                                      particle.th_ + ray_obs.th_
+                                     );
+    // Make sure ranges are valid (NaNs, negative values, etc)
+    range_obs = repair(ray_obs.range_);
+    range_map = repair(range_map);
+
+    // Update partial weight with this measurement's probability
+    weight *= calc_enable ? calcProb(range_obs, range_map) :
+                            lookupProb(range_obs, range_map);
+  }
+  // Update full weight, applying overall model uncertainty
+  particle.weight_ = std::pow(weight, uncertainty_factor_);
+}
+
+void BeamModel::update(const size_t particle_i,
+                       const RayScan& obs,
+                       const bool calc_enable
+                      )
+{
+  update(particles_[particle_i],
+         obs,
+         calc_enable
+        );
+}
+
+void BeamModel::update(const RayScan& obs,
+                       const bool calc_enable
+                      )
+{
   for (Particle& particle : particles_) {
-    weight = 1.0;
-
-    for (Ray& ray_obs : rays_obs_sample) {
-      // Compute range from the map
-      range_map = raycaster_.calc_range(particle.x_,
-                                        particle.y_,
-                                        particle.th_ + ray_obs.th_
-                                       );
-      // Make sure ranges are valid and convert if necessary
-      // (NaNs, negative values, etc)
-      range_obs = repair(ray_obs.range_);
-      range_map = repair(range_map);
-
-      // Update partial weight with this measurement's probability
-      weight *= calc_enable ? calcProb(range_obs, range_map) :
-                              lookupProb(range_obs, range_map);
-    }
-    // Update full weight, applying overall model uncertainty
-    particle.weight_ = std::pow(weight, uncertainty_factor_);
+    update(particle,
+           obs,
+           calc_enable
+          );
   }
 }
 
-RayVector BeamModel::sample(const RayVector& rays_obs)
+void BeamModel::update(Particle& particle,
+                       const bool calc_enable
+                      )
 {
-  size_t rays_obs_size = rays_obs.size();
-  size_t rays_obs_sample_size = static_cast<size_t>(std::round(M_2PI / th_sample_res_));
-  RayVector rays_obs_sample(rays_obs_sample_size);
+  update(particle, calc_enable);
+}
+
+void BeamModel::update(const size_t particle_i,
+                       const bool calc_enable
+                      )
+{
+  update(particles_[particle_i], calc_enable);
+}
+
+RayVector BeamModel::sample(const RayScan& obs)
+{
+  size_t rays_obs_size = obs.rays_.size();
+  RayVector rays_obs_sample(rays_obs_sample_size_);
 
   // More than one observation
   if (   rays_obs_size > 1
-      && rays_obs_sample_size > 0
+      && rays_obs_sample_size_ > 0
      ) {
     // Generate a random offset for the sampled set to start from
-    double th_obs_min = rays_obs[0].th_;
-    double th_obs_inc = std::abs(rays_obs[1].th_ - th_obs_min);
-    size_t o = th_sample_dist_(rng_.engine()) / th_obs_inc;
+    size_t o_step_size = static_cast<size_t>(th_sample_res_ / obs.th_inc_);
+    size_t o = th_sample_dist_(rng_.engine()) / obs.th_inc_;
     size_t s = 0;
 
     // Iterate through both arrays until we've either gone through all of the
     // observations, or we've collected the desired amount of samples
     while (   o < rays_obs_size
-           && s < rays_obs_sample_size
+           && s < rays_obs_sample_size_
           ) {
-      rays_obs_sample[s++] = rays_obs[o];
-      o += static_cast<size_t>(th_sample_res_ / th_obs_inc);
+      rays_obs_sample[s++] = obs.rays_[o];
+      o += o_step_size;
     }
     rays_obs_sample.resize(s);
   }
   // Only one observation
   else if (   rays_obs_size == 1
-           && rays_obs_sample_size > 0
+           && rays_obs_sample_size_ > 0
           ) {
-    rays_obs_sample[0] = rays_obs[0];
+    rays_obs_sample[0] = obs.rays_[0];
     rays_obs_sample.resize(1);
   }
   return rays_obs_sample;

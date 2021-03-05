@@ -42,17 +42,37 @@ namespace localize
               RecursiveMutex& particles_mtx     // Recursive particle distribution mutex
              );
 
-    // Applies the sensor model to look up particle importance weights from
+    // Applies the sensor model to determine particle importance weights from
     // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void update(const RayVector& rays_obs,
+    void update(Particle& particle,
+                const RayScan& obs,
                 const bool calc_enable = false
                );
 
+    void update(const size_t particle_i,
+                const RayScan& obs,
+                const bool calc_enable = false
+               );
+
+    void update(const RayScan& obs,
+                const bool calc_enable = false
+               );
+
+    void update(const size_t particle_i,
+                const bool calc_enable = false
+               );
+
+    void update(Particle& particle,
+                const bool calc_enable = false
+               );
+
+    void update(const bool calc_enable = false);
+
   private:
-    // Generate a subset of ranges sampled from the full observation array
-    // using the configured angle sample increment
-    RayVector sample(const RayVector& rays_obs);
+    // Generate a subset of ranges sampled from the full scan using the
+    // preset angle sample increment
+    RayVector sample(const RayScan& obs);
 
     // Convert NaN, negative ranges and any range beyond the configured max
     // to the range reported when nothing is detected by the sensor
@@ -131,6 +151,9 @@ namespace localize
     const double table_res_;                  // Model table resolution (meters per cell)
     const size_t table_size_;                 // Model table size
     std::vector<std::vector<double>> table_;  // Model lookup table
+
+    const size_t rays_obs_sample_size_; // Number of downsampled observations
+    RayVector rays_obs_sample_;         // Downsampled observations
 
     ranges::CDDTCast raycaster_;  // Range calculator
 

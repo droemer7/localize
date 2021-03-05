@@ -119,10 +119,10 @@ void MCL::update(const double vel,
   }
 }
 
-void MCL::update(const RayVector& rays)
+void MCL::update(const RayScan&& obs)
 {
   if (!stopped()) {
-    sensor_model_.update(rays);
+    sensor_model_.update(obs);
     sample();
   }
   // TBD remove
@@ -196,8 +196,8 @@ void MCL::sample()
     // Update histogram, returns true if number of occupied bins increased
     k = hist_.update(particles_[s]) ? k + 1 : k;
 
-    // Compute target number of samples using the Wilson-Hilferty
-    // transformation of the chi-square distribution
+    // Compute target number of samples
+    // Wilson-Hilferty transformation of chi-square distribution
     if (k > 1) {
       chi_sq_term_1 = (k - 1.0) / (2.0 * kld_eps_);
       chi_sq_term_2 = 1.0 - F_2_9 / (k - 1.0) + Z_P_99 * std::sqrt(F_2_9 / (k - 1.0));
@@ -205,15 +205,10 @@ void MCL::sample()
     }
     ++s;
   }
-  // Resize to the actual number of samples used
+  // Resize to the actual number of samples used and normalize
   particles_.resize(s);
+  normalize(weight_sum);
 
-  // Normalize weights
-  double normalizer = 1 / weight_sum;
-
-  for (size_t i = 0; i < particles_.size(); ++i) {
-    particles_[i].weight_ *= normalizer;
-  }
   return;
 }
 
@@ -233,6 +228,28 @@ Particle MCL::gen()
 
   // Particle weight is initialized to 1.0 in constructor
   return particle;
+}
+
+void MCL::normalize(double weight_sum)
+{
+  double normalizer = 1 / weight_sum;
+
+  for (size_t i = 0; i < particles_.size(); ++i) {
+    particles_[i].weight_ *= normalizer;
+  }
+  return;
+}
+
+void MCL::normalize()
+{
+  double weight_sum = 0.0;
+
+  for (size_t i = 0; i < particles_.size(); ++i) {
+    weight_sum += particles_[i].weight_;
+  }
+  normalize(weight_sum);
+
+  return;
 }
 
 void MCL::updateVel(const double vel)
