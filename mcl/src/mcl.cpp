@@ -44,7 +44,10 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const float map_scale,
          const std::vector<int8_t> map_data
         ) :
-  iteration(0),
+  num_particles_min_(mcl_num_particles_min),
+  num_particles_max_(mcl_num_particles_max),
+  kld_eps_(mcl_kld_eps),
+  vel_(0.0),
   map_(map_width,
        map_height,
        map_x,
@@ -59,7 +62,9 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
                 motion_ang_vel_n1,
                 motion_ang_vel_n2,
                 motion_th_n1,
-                motion_th_n2
+                motion_th_n2,
+                particles_,
+                particles_mtx_
                ),
   sensor_model_(sensor_range_min,
                 sensor_range_max,
@@ -74,7 +79,9 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
                 sensor_weight_rand_effect,
                 sensor_uncertainty_factor,
                 sensor_table_res,
-                map_
+                map_,
+                particles_,
+                particles_mtx_
                ),
   hist_(map_.width * map_.scale,
         map_.height * map_.scale,
@@ -84,10 +91,6 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
         mcl_hist_th_res,
         mcl_hist_occ_weight_min
        ),
-  num_particles_min_(mcl_num_particles_min),
-  num_particles_max_(mcl_num_particles_max),
-  kld_eps_(mcl_kld_eps),
-  vel_(0.0),
   sample_dist_(0.0, 1.0),
   x_dist_(map_.x, std::nextafter(map_.width * map_.scale + map_.x, DBL_MAX)),
   y_dist_(map_.y, std::nextafter(map_.height * map_.scale + map_.y, DBL_MAX)),
@@ -96,38 +99,30 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   if (num_particles_min_ > num_particles_max_) {
     throw std::runtime_error("MCL: num_particles_min > num_particles_max\n");
   }
-  // Reserve enough space up front since these can be large
+  // Reserve space - particle vector is expected to be large at times
+  RecursiveLock lock(particles_mtx_);
   particles_.reserve(num_particles_max_);
-  samples_.reserve(num_particles_max_);
 }
 
-void MCL::motionUpdate(const double vel,
-                       const double steering_angle,
-                       const double dt
-                      )
+void MCL::update(const double vel,
+                 const double steering_angle,
+                 const double dt
+                )
 {
-  {
-    Lock lock(vel_mtx_);
-    vel_ = vel;
-  }
+  updateVel(vel);
 
-  // Only do motion update if moving
   if (!stopped()) {
     motion_model_.update(vel,
                          steering_angle,
-                         dt,
-                         LockedParticleVector(particles_, particles_mtx_)
+                         dt
                         );
   }
 }
 
-void MCL::sensorUpdate(const RayVector& rays)
+void MCL::update(const RayVector& rays)
 {
-  RecursiveLock lock(particles_mtx_);
-
-  // Only do sensor update if moving
   if (!stopped()) {
-    sensor_model_.update(rays, LockedParticleVector(particles_, particles_mtx_));
+    sensor_model_.update(rays);
     sample();
   }
   // TBD remove
@@ -143,12 +138,11 @@ void MCL::sensorUpdate(const RayVector& rays)
   */
 }
 
-// TBD can we just use particles vector and overwrite? is samples vector really necessary
 void MCL::sample()
 {
-  LockedParticleVector particles(particles_, particles_mtx_);
+  RecursiveLock lock(particles_mtx_);
 
-  size_t num_particles = particles.size();
+  size_t num_particles = particles_.size();
   double sample_width = 0.0;
   double sum_target = 0.0;
   double sum_curr = 0.0;
@@ -167,7 +161,7 @@ void MCL::sample()
   if (num_particles > 0) {
     sample_width = 1.0 / num_particles;
     sum_target = sample_dist_(rng_.engine()) * sample_width;
-    sum_curr = particles[p].weight_;
+    sum_curr = particles_[p].weight_;
   }
   // Generate samples until we exceed both the minimum and target number of
   // samples, or reach the maximum number allowed
@@ -181,21 +175,26 @@ void MCL::sample()
     if (s < num_particles) {
       // Sum weights until we reach the target sum
       while (sum_curr < sum_target) {
-        sum_curr += particles[++p].weight_;
+        sum_curr += particles_[++p].weight_;
       }
       // Add to sample set and increase target sum
-      samples_[s] = particles[p];
+      // Note that s <= p always given the above while loop
+      particles_[s] = particles_[p];
       sum_target += sample_width;
     }
     // Generate a new random particle in free space
     else {
-      samples_[s] = gen();
+      particles_[s] = gen();
+      // TBD calculate importance weight here because we will need it to
+      // update the histogram
+      // Also, sensor model will need to have a copy of the last downsampled
+      // observed rays
     }
     // Update weight sum
-    weight_sum += samples_[s].weight_;
+    weight_sum += particles_[s].weight_;
 
     // Update histogram, returns true if number of occupied bins increased
-    k = hist_.update(samples_[s++]) ? k + 1 : k;
+    k = hist_.update(particles_[s]) ? k + 1 : k;
 
     // Compute target number of samples using the Wilson-Hilferty
     // transformation of the chi-square distribution
@@ -204,15 +203,17 @@ void MCL::sample()
       chi_sq_term_2 = 1.0 - F_2_9 / (k - 1.0) + Z_P_99 * std::sqrt(F_2_9 / (k - 1.0));
       num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
     }
+    ++s;
   }
-  // Resize to the actual number of samples used and normalize weights
-  samples_.resize(s);
-  double normalizer = 1 / weight_sum;
-  for (size_t i = 0; i < samples_.size(); ++i) {
-    samples_[i].weight_ *= normalizer;
-  }
-  particles = samples_;
+  // Resize to the actual number of samples used
+  particles_.resize(s);
 
+  // Normalize weights
+  double normalizer = 1 / weight_sum;
+
+  for (size_t i = 0; i < particles_.size(); ++i) {
+    particles_[i].weight_ *= normalizer;
+  }
   return;
 }
 
@@ -234,10 +235,15 @@ Particle MCL::gen()
   return particle;
 }
 
+void MCL::updateVel(const double vel)
+{
+  Lock lock(vel_mtx_);
+  vel_ = vel;
+}
+
 bool MCL::stopped()
 {
   Lock lock(vel_mtx_);
-
   return std::abs(vel_) < FLT_EPSILON;
 }
 
@@ -247,13 +253,12 @@ void MCL::save(const std::string filename,
                const bool overwrite
               )
 {
-  LockedParticleVector particles(particles_, particles_mtx_);
-  ParticleVector particles_copy(particles.begin(), particles.end());
+  RecursiveLock lock(particles_mtx_);
 
   if (sort) {
-    localize::sort(particles_copy);
+    localize::sort(particles_);
   }
-  localize::save(particles_copy,
+  localize::save(particles_,
                  filename,
                  precision,
                  overwrite

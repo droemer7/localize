@@ -37,14 +37,15 @@ namespace localize
               const double weight_rand_effect,  // Model weight for random effect probability
               const double uncertainty_factor,  // Model uncertainty factor - extra noise added to calculation
               const double table_res,           // Model table resolution (meters per cell)
-              const Map map                     // Map
+              const Map map,                    // Map
+              ParticleVector& particles,        // Particle distribution
+              RecursiveMutex& particles_mtx     // Recursive particle distribution mutex
              );
 
     // Applies the sensor model to look up particle importance weights from
     // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
     void update(const RayVector& rays_obs,
-                LockedParticleVector particles,
                 const bool calc_enable = false
                );
 
@@ -105,6 +106,9 @@ namespace localize
     double calcProbRandEffect(const float range_obs);
 
   private:
+    ParticleVector& particles_;     // Particle distribution
+    RecursiveMutex& particles_mtx_; // Recursive particle distribution mutex
+
     // Model parameters
     double range_min_;          // Sensor min range in meters
     double range_max_;          // Sensor max range in meters

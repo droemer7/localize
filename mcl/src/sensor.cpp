@@ -18,8 +18,12 @@ BeamModel::BeamModel(const double range_min,
                      const double weight_rand_effect,
                      const double uncertainty_factor,
                      const double table_res,
-                     const Map map
+                     const Map map,
+                     ParticleVector& particles,
+                     RecursiveMutex& particles_mtx
                     ) :
+  particles_(particles),
+  particles_mtx_(particles_mtx),
   range_min_(range_min),
   range_max_(range_max),
   range_no_obj_(range_no_obj),
@@ -78,10 +82,11 @@ BeamModel::BeamModel(const double range_min,
 }
 
 void BeamModel::update(const RayVector& rays_obs,
-                       LockedParticleVector particles,
                        const bool calc_enable
                       )
 {
+  RecursiveLock lock(particles_mtx_);
+
   double weight = 1.0;
   float range_obs = 0.0;
   float range_map = 0.0;
@@ -89,18 +94,18 @@ void BeamModel::update(const RayVector& rays_obs,
   // Downsample the full ray list according to the angle sample increment
   RayVector rays_obs_sample = sample(rays_obs);
 
-  for (size_t i = 0; i < particles.size(); ++i) {
+  for (Particle& particle : particles_) {
     weight = 1.0;
 
-    for (size_t j = 0; j < rays_obs_sample.size(); ++j) {
+    for (Ray& ray_obs : rays_obs_sample) {
       // Compute range from the map
-      range_map = raycaster_.calc_range(particles[i].x_,
-                                        particles[i].y_,
-                                        particles[i].th_ + rays_obs_sample[j].th_
+      range_map = raycaster_.calc_range(particle.x_,
+                                        particle.y_,
+                                        particle.th_ + ray_obs.th_
                                        );
       // Make sure ranges are valid and convert if necessary
       // (NaNs, negative values, etc)
-      range_obs = repair(rays_obs_sample[j].range_);
+      range_obs = repair(ray_obs.range_);
       range_map = repair(range_map);
 
       // Update partial weight with this measurement's probability
@@ -108,7 +113,7 @@ void BeamModel::update(const RayVector& rays_obs,
                               lookupProb(range_obs, range_map);
     }
     // Update full weight, applying overall model uncertainty
-    particles[i].weight_ = std::pow(weight, uncertainty_factor_);
+    particle.weight_ = std::pow(weight, uncertainty_factor_);
   }
 }
 

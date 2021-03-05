@@ -55,16 +55,16 @@ namespace localize
         const std::vector<int8_t> map_data        // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
-    // Apply the motion model to generate new samples of particles from
+    // Apply the motion model to update particle locations using
     // p(x[t] | u[t], x[t-1])
-    void motionUpdate(const double vel,
-                      const double steering_angle,
-                      const double dt
-                     );
+    void update(const double vel,
+                const double steering_angle,
+                const double dt
+               );
 
-    // Apply the sensor model to calculate particle importance weights from
-    // p(ranges[t] | pose[t], map)
-    void sensorUpdate(const RayVector& rays);
+    // Apply the sensor model to update particle weights using
+    // p(rays[t] | pose[t], map)
+    void update(const RayVector& rays);
 
   private:
     // Sample particles from the current distribution using a low variance
@@ -83,7 +83,10 @@ namespace localize
     // Normalize particle weights
     void normalize();
 
-    // Indicates if the robot speed is approximately zero
+    // Update robot velocity
+    void updateVel(const double vel);
+
+    // Indicates if the robot velocity is approximately zero
     bool stopped();
 
     // Save particle distribution to file in CSV format
@@ -94,22 +97,19 @@ namespace localize
              );
 
   private:
-    size_t iteration; // TBD remove
-
     std::recursive_mutex particles_mtx_;  // Particle distribution mutex
     std::mutex vel_mtx_;                  // Velocity mutex
-
-    const Map map_;           // Map
-    VelModel motion_model_;   // Motion model
-    BeamModel sensor_model_;  // Sensor model
-    ParticleHistogram hist_;      // Histogram for estimating relative entropy
 
     const size_t num_particles_min_;  // Minimum number of particles
     const size_t num_particles_max_;  // Maximum number of particles
     const double kld_eps_;            // KL distance threshold
-    ParticleVector particles_;        // Particle distribution
-    ParticleVector samples_;          // Sampled particles (temporary storage during sampling)
     double vel_;                      // Robot velocity
+
+    ParticleVector particles_;  // Particle distribution
+    const Map map_;             // Map
+    VelModel motion_model_;     // Motion model
+    BeamModel sensor_model_;    // Sensor model
+    ParticleHistogram hist_;    // Histogram for estimating relative entropy
 
     RNG rng_;  // Random number engine
     std::uniform_real_distribution<double> sample_dist_;  // Distribution [0, 1) for sampling

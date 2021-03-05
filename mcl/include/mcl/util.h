@@ -14,6 +14,8 @@
 
 namespace localize
 {
+  typedef std::mutex Mutex;
+  typedef std::recursive_mutex RecursiveMutex;
   typedef std::lock_guard<std::mutex> Lock;
   typedef std::lock_guard<std::recursive_mutex> RecursiveLock;
 
@@ -25,7 +27,7 @@ namespace localize
     explicit Particle(const double x = 0.0,
                       const double y = 0.0,
                       const double th = 0.0,
-                      const double weight = 1.0
+                      const double weight = 0.0
                      );
 
     double x_;
@@ -52,51 +54,6 @@ namespace localize
 
   typedef std::vector<Ray> RayVector;
 
-  class LockedParticleVector
-  {
-  public:
-    // Constructor
-    LockedParticleVector(ParticleVector& particles,
-                         std::recursive_mutex & mtx
-                        ) :
-      lock_(mtx),
-      particles_(particles)
-    {}
-
-    // Operators
-    Particle & operator[](size_t i) const
-    { return particles_[i]; }
-
-    ParticleVector & operator=(const ParticleVector & particles)
-    { return particles_; }
-
-    // Iterators
-    ParticleVector::iterator begin() const
-    { return particles_.begin(); }
-
-    ParticleVector::iterator end() const
-    { return particles_.end(); }
-
-    ParticleVector::reverse_iterator rbegin() const
-    { return particles_.rbegin(); }
-
-    ParticleVector::reverse_iterator rend() const
-    { return particles_.rend(); }
-
-    // Operations / Attributes
-    void reserve(size_t num) const
-    { return particles_.reserve(num); }
-
-    void resize(size_t num)
-    { particles_.resize(num); }
-
-    size_t size() const
-    { return particles_.size(); }
-
-  private:
-    std::unique_lock<std::recursive_mutex> lock_;
-    ParticleVector& particles_;
-  };
 
   // 3D boolean histogram representing occupancy of pose space (x, y, th)
   // Current provides minimum

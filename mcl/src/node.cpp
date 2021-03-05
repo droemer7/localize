@@ -178,10 +178,10 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   motor_t_prev_ = msg->header.stamp;
 
   // Perform motion update
-  mcl_ptr_->motionUpdate(lin_vel,
-                         steering_angle,
-                         dt
-                        );
+  mcl_ptr_->update(lin_vel,
+                   steering_angle,
+                   dt
+                  );
   // Save duration
   motion_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
 }
@@ -207,7 +207,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
     rays[i].th_ = msg->angle_min + msg->angle_increment * i;
   }
   // Perform sensor update
-  mcl_ptr_->sensorUpdate(rays);
+  mcl_ptr_->update(rays);
 
   // Save duration
   sensor_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;

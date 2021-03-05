@@ -10,8 +10,12 @@ VelModel::VelModel(const double car_length,
                    const double ang_vel_n1,
                    const double ang_vel_n2,
                    const double th_n1,
-                   const double th_n2
+                   const double th_n2,
+                   ParticleVector& particles,
+                   RecursiveMutex& particles_mtx
                   ) :
+  particles_(particles),
+  particles_mtx_(particles_mtx),
   car_length_(car_length),
   lin_vel_n1_(lin_vel_n1),
   lin_vel_n2_(lin_vel_n2),
@@ -23,10 +27,11 @@ VelModel::VelModel(const double car_length,
 
 void VelModel::update(const double lin_vel,
                       const double steering_angle,
-                      const double dt,
-                      LockedParticleVector particles
+                      const double dt
                      )
 {
+  RecursiveLock lock(particles_mtx_);
+
   double ang_vel = (lin_vel / car_length_) * std::tan(steering_angle);
   double lin_vel_sq = lin_vel * lin_vel;
   double ang_vel_sq = ang_vel * ang_vel;
@@ -40,7 +45,7 @@ void VelModel::update(const double lin_vel,
   if (   lin_vel_sq > DBL_EPSILON
       || ang_vel_sq > DBL_EPSILON
      ) {
-    for (Particle& particle : particles) {
+    for (Particle& particle : particles_) {
       // Calculate noise for velocities and rotation
       lin_vel_noise = sampler_.gen(0.0, std::sqrt(lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq));
       ang_vel_noise = sampler_.gen(0.0, std::sqrt(ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq));
