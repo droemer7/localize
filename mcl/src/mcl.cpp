@@ -99,7 +99,6 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   // Reserve enough space up front since these can be large
   particles_.reserve(num_particles_max_);
   samples_.reserve(num_particles_max_);
-  reset();
 }
 
 void MCL::motionUpdate(const double vel,
@@ -108,28 +107,27 @@ void MCL::motionUpdate(const double vel,
                       )
 {
   {
-    std::lock_guard<std::mutex> lock(vel_mtx_);
+    Lock lock(vel_mtx_);
     vel_ = vel;
   }
-  std::lock_guard<std::mutex> lock(particles_mtx_);
 
   // Only do motion update if moving
   if (!stopped()) {
     motion_model_.update(vel,
                          steering_angle,
                          dt,
-                         particles_
+                         LockedParticleVector(particles_, particles_mtx_)
                         );
   }
 }
 
-void MCL::sensorUpdate(const std::vector<Ray>& rays)
+void MCL::sensorUpdate(const RayVector& rays)
 {
-  std::lock_guard<std::mutex> lock(particles_mtx_);
+  RecursiveLock lock(particles_mtx_);
 
   // Only do sensor update if moving
   if (!stopped()) {
-    sensor_model_.update(rays, particles_);
+    sensor_model_.update(rays, LockedParticleVector(particles_, particles_mtx_));
     sample();
   }
   // TBD remove
@@ -145,26 +143,12 @@ void MCL::sensorUpdate(const std::vector<Ray>& rays)
   */
 }
 
-void MCL::save(const std::string filename,
-               const bool sort,
-               const unsigned int precision,
-               const bool overwrite
-              )
-{
-  if (sort) {
-    localize::sort(particles_);
-  }
-  localize::save(particles_,
-                 filename,
-                 precision,
-                 overwrite
-                );
-}
-
 // TBD can we just use particles vector and overwrite? is samples vector really necessary
 void MCL::sample()
 {
-  size_t num_particles = particles_.size();
+  LockedParticleVector particles(particles_, particles_mtx_);
+
+  size_t num_particles = particles.size();
   double sample_width = 0.0;
   double sum_target = 0.0;
   double sum_curr = 0.0;
@@ -183,7 +167,7 @@ void MCL::sample()
   if (num_particles > 0) {
     sample_width = 1.0 / num_particles;
     sum_target = sample_dist_(rng_.engine()) * sample_width;
-    sum_curr = particles_[0].weight_;
+    sum_curr = particles[p].weight_;
   }
   // Generate samples until we exceed both the minimum and target number of
   // samples, or reach the maximum number allowed
@@ -197,10 +181,10 @@ void MCL::sample()
     if (s < num_particles) {
       // Sum weights until we reach the target sum
       while (sum_curr < sum_target) {
-        sum_curr += particles_[++p].weight_;
+        sum_curr += particles[++p].weight_;
       }
       // Add to sample set and increase target sum
-      samples_[s] = particles_[p];
+      samples_[s] = particles[p];
       sum_target += sample_width;
     }
     // Generate a new random particle in free space
@@ -227,14 +211,14 @@ void MCL::sample()
   for (size_t i = 0; i < samples_.size(); ++i) {
     samples_[i].weight_ *= normalizer;
   }
-  particles_ = samples_;
+  particles = samples_;
 
   return;
 }
 
-PoseWithWeight MCL::gen()
+Particle MCL::gen()
 {
-  PoseWithWeight particle;
+  Particle particle;
   bool occupied = true;
 
   // Regenerate x & y until free space is found
@@ -250,34 +234,30 @@ PoseWithWeight MCL::gen()
   return particle;
 }
 
-// TBD replace using gen()
-void MCL::reset()
-{
-  bool occupied = true;
-
-  for (PoseWithWeight & particle : particles_) {
-    occupied = true;
-
-    // Regenerate x & y until free space is found
-    while (occupied) {
-      particle.x_ = x_dist_(rng_.engine());
-      particle.y_ = y_dist_(rng_.engine());
-      occupied = map_.isOccupied(particle.x_, particle.y_);
-    }
-    // Any theta is allowed
-    particle.th_ = th_dist_(rng_.engine());
-    particle.weight_ = 0.0;
-  }
-  particles_[0].x_ = 0.0;
-  particles_[0].y_ = 0.0;
-  particles_[0].th_ = -0.2;
-}
-
 bool MCL::stopped()
 {
-  std::lock_guard<std::mutex> lock(vel_mtx_);
+  Lock lock(vel_mtx_);
 
   return std::abs(vel_) < FLT_EPSILON;
+}
+
+void MCL::save(const std::string filename,
+               const bool sort,
+               const unsigned int precision,
+               const bool overwrite
+              )
+{
+  LockedParticleVector particles(particles_, particles_mtx_);
+  ParticleVector particles_copy(particles.begin(), particles.end());
+
+  if (sort) {
+    localize::sort(particles_copy);
+  }
+  localize::save(particles_copy,
+                 filename,
+                 precision,
+                 overwrite
+                );
 }
 
 // TBD remove

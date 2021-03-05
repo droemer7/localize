@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <float.h>
 #include <fstream>
+#include <mutex>
 #include <random>
 #include <string>
 #include <vector>
@@ -13,35 +14,29 @@
 
 namespace localize
 {
+  typedef std::lock_guard<std::mutex> Lock;
+  typedef std::lock_guard<std::recursive_mutex> RecursiveLock;
+
   extern const std::string DATA_PATH;
 
-  // A particle with 2D location and heading
-  struct Pose
+  // A particle with 2D location, heading angle and weight
+  struct Particle
   {
-    explicit Pose(const double x = 0.0,
-                  const double y = 0.0,
-                  const double th = 0.0
-                 );
+    explicit Particle(const double x = 0.0,
+                      const double y = 0.0,
+                      const double th = 0.0,
+                      const double weight = 1.0
+                     );
 
     double x_;
     double y_;
     double th_;
-  };
-
-  struct PoseWithWeight : Pose
-  {
-    explicit PoseWithWeight(const double x = 0.0,
-                            const double y = 0.0,
-                            const double th = 0.0,
-                            const double weight = 1.0
-                           ) :
-      Pose(x, y, th),
-      weight_(weight)
-    {}
-
     double weight_;
   };
 
+  typedef std::vector<Particle> ParticleVector;
+
+  // A range sensor ray with range and angle
   struct Ray
   {
     explicit Ray(const float range = 0.0,
@@ -55,24 +50,72 @@ namespace localize
     float th_;
   };
 
+  typedef std::vector<Ray> RayVector;
+
+  class LockedParticleVector
+  {
+  public:
+    // Constructor
+    LockedParticleVector(ParticleVector& particles,
+                         std::recursive_mutex & mtx
+                        ) :
+      lock_(mtx),
+      particles_(particles)
+    {}
+
+    // Operators
+    Particle & operator[](size_t i) const
+    { return particles_[i]; }
+
+    ParticleVector & operator=(const ParticleVector & particles)
+    { return particles_; }
+
+    // Iterators
+    ParticleVector::iterator begin() const
+    { return particles_.begin(); }
+
+    ParticleVector::iterator end() const
+    { return particles_.end(); }
+
+    ParticleVector::reverse_iterator rbegin() const
+    { return particles_.rbegin(); }
+
+    ParticleVector::reverse_iterator rend() const
+    { return particles_.rend(); }
+
+    // Operations / Attributes
+    void reserve(size_t num) const
+    { return particles_.reserve(num); }
+
+    void resize(size_t num)
+    { particles_.resize(num); }
+
+    size_t size() const
+    { return particles_.size(); }
+
+  private:
+    std::unique_lock<std::recursive_mutex> lock_;
+    ParticleVector& particles_;
+  };
+
   // 3D boolean histogram representing occupancy of pose space (x, y, th)
   // Current provides minimum
-  class PoseHistogram
+  class ParticleHistogram
   {
   public:
     // Constructors
-    PoseHistogram(const double x_len,     // Length of x dimension (meters)
-                  const double y_len,     // Length of y dimension (meters)
-                  const double th_len,    // Range of angular dimension (rad)
-                  const double x_res,     // Resolution for x position (meters per cell)
-                  const double y_res,     // Resolution for y position (meters per cell)
-                  const double th_res,    // Resolution for angle (rad per cell)
-                  const double weight_min // Minimum particle weight required for a histogram cell to be considered occupied
-                 );
+    ParticleHistogram(const double x_len,     // Length of x dimension (meters)
+                      const double y_len,     // Length of y dimension (meters)
+                      const double th_len,    // Range of angular dimension (rad)
+                      const double x_res,     // Resolution for x position (meters per cell)
+                      const double y_res,     // Resolution for y position (meters per cell)
+                      const double th_res,    // Resolution for angle (rad per cell)
+                      const double weight_min // Minimum particle weight required for a histogram cell to be considered occupied
+                     );
 
     // Update occupancy with the particle's location if its
     // weight is larger than the minimum required threshold
-    bool update(const PoseWithWeight& particle);
+    bool update(const Particle& particle);
 
     // Resets all cell occupancy counts
     void reset();
@@ -145,10 +188,11 @@ namespace localize
     std::normal_distribution<T> distribution_;  // Normal distribution from which to sample
   };
 
-  inline bool equal(const double a,
-                    const double b
-                   )
-  { return std::abs(a - b) <= FLT_EPSILON; }
+  // Approximate equality check for floating point
+  inline bool approxEqual(const double a,
+                          const double b
+                         )
+  { return std::abs(a - b) <= FLT_EPSILON * std::abs(a); }
 
   // Wrap an angle to (-pi, pi] (angle of -pi should convert to +pi)
   inline double wrapAngle(double angle)
@@ -168,7 +212,7 @@ namespace localize
     return angle;
   }
 
-  // Saves a matrix to file in CSV format
+  // Saves data to file in CSV format
   template <class T>
   void save(const std::vector<std::vector<T>>& data_matrix,
             const std::string filename,
@@ -192,6 +236,7 @@ namespace localize
     output.close();
   }
 
+  // Saves data to file in CSV format
   template <class T>
   void save(const std::vector<T>& data_vector,
             const std::string filename,
@@ -226,7 +271,8 @@ namespace localize
         );
   }
 
-  inline void save(const std::vector<PoseWithWeight>& particles,
+  // Save data to file in CSV format
+  inline void save(const ParticleVector& particles,
                    const std::string filename,
                    const unsigned int precision = 0,
                    const bool overwrite = true
@@ -242,7 +288,7 @@ namespace localize
     output << "Particles\n";
     output << "x,y,theta (deg),weight\n";
 
-    for (const PoseWithWeight& particle : particles) {
+    for (const Particle& particle : particles) {
       output << particle.x_ << ","
              << particle.y_ << ","
              << particle.th_ * 180.0 / M_PI << ","
@@ -252,7 +298,8 @@ namespace localize
     output.close();
   }
 
-  inline void save(const std::vector<Ray>& rays,
+  // Save data to file in CSV format
+  inline void save(const RayVector& rays,
                    const std::string filename,
                    const unsigned int precision = 0,
                    const bool overwrite = true
@@ -275,28 +322,33 @@ namespace localize
     output.close();
   }
 
-  inline bool compX(const PoseWithWeight& p1,
-                    const PoseWithWeight& p2
+  // Compare poses by x
+  inline bool compX(const Particle& p1,
+                    const Particle& p2
                    )
   { return (p1.x_ < p2.x_); };
 
-  inline bool compY(const PoseWithWeight& p1,
-                    const PoseWithWeight& p2
+  // Compare poses by y
+  inline bool compY(const Particle& p1,
+                    const Particle& p2
                    )
   { return (p1.y_ < p2.y_); };
 
-  inline bool compTh(const PoseWithWeight& p1,
-                     const PoseWithWeight& p2
+  // Compare poses by theta
+  inline bool compTh(const Particle& p1,
+                     const Particle& p2
                     )
   { return (p1.th_ < p2.th_); };
 
-  inline bool compWeight(const PoseWithWeight& p1,
-                         const PoseWithWeight& p2
+  // Compare poses by weight
+  inline bool compWeight(const Particle& p1,
+                         const Particle& p2
                         )
   { return (p1.weight_ < p2.weight_); };
 
-  inline void sort(std::vector<PoseWithWeight>& particles,
-                   bool (*comp)(const PoseWithWeight& p1, const PoseWithWeight& p2) = compWeight
+  // Sort poses in descending value, default by weight
+  inline void sort(ParticleVector& particles,
+                   bool (*comp)(const Particle& p1, const Particle& p2) = compWeight
                   )
   { std::sort(particles.rbegin(), particles.rend(), comp); }
 

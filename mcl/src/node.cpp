@@ -200,7 +200,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 
   // Convert laser data
   size_t ray_count = msg->ranges.size();
-  std::vector<Ray> rays(ray_count);
+  RayVector rays(ray_count);
 
   for (size_t i = 0; i < ray_count; ++i) {
     rays[i].range_ = msg->ranges[i];
@@ -211,18 +211,6 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 
   // Save duration
   sensor_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-}
-
-void MCLNode::saveParticles(const std::string& filename,
-                            const bool sort,
-                            const bool overwrite
-                           )
-{
-  mcl_ptr_->save(filename,
-                 sort,
-                 0,
-                 overwrite
-                );
 }
 
 template <class T>

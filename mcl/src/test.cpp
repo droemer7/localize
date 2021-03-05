@@ -1,25 +1,13 @@
 #include <chrono>
 #include <float.h>
 #include <stdio.h>
+#include <thread>
 
 #include "mcl/mcl.h"
 #include "mcl/sensor.h"
 #include "mcl/util.h"
 
 #include "includes/RangeLib.h"
-
-static const double SENSOR_RANGE_MIN = 0.0;
-static const double SENSOR_RANGE_MAX = 10.0;
-static const double SENSOR_RANGE_NO_OBJ = 0.0;
-static const double SENSOR_RANGE_STD_DEV = 0.01;
-static const double SENSOR_ANGLE_SAMPLE_RES = 45 * M_PI / 180.0;
-static const double SENSOR_NEW_OBJ_DECAY_RATE = 0.5;
-static const double SENSOR_WEIGHT_NO_OBJ = 25.0;
-static const double SENSOR_WEIGHT_NEW_OBJ = 15.0;
-static const double SENSOR_WEIGHT_MAP_OBJ = 55.0;
-static const double SENSOR_WEIGHT_RAND_EFFECT = 5.0;
-static const double SENSOR_UNCERTAINTY_FACTOR = 0.95;
-static const size_t SENSOR_TABLE_SIZE = 1000;
 
 using namespace localize;
 
@@ -68,8 +56,8 @@ void testVectorReserve(size_t iterations,
   double dur_max = 0.0;
   double dur_tot = 0.0;
 
-  PoseWithWeight pose(1.0, 2.0, 3.0, 4.0);
-  std::vector<PoseWithWeight> v;
+  Particle pose(1.0, 2.0, 3.0, 4.0);
+  ParticleVector v;
 
   if (reserve_enable) {
     v.resize(iterations);
@@ -93,27 +81,6 @@ void testVectorReserve(size_t iterations,
   printf("--- Test complete ---\n");
 }
 
-void testHist()
-{
-  std::vector<std::vector<std::vector<int>>> hist(5, std::vector<std::vector<int>>(10, std::vector<int>(3, 0)));
-  int w = 0;
-  for (size_t i = 0; i < hist.size(); ++i) {
-    for (size_t j = 0; j < hist[0].size(); ++j) {
-      for (size_t k = 0; k < hist[0][0].size(); ++k) {
-        hist[i][j][k] = w++;
-      }
-    }
-  }
-
-  for (size_t i = 0; i < hist.size(); ++i) {
-    for (size_t j = 0; j < hist[0].size(); ++j) {
-      for (size_t k = 0; k < hist[0][0].size(); ++k) {
-        printf("hist[%lu][%lu][%lu] = %d\n", i, j, k, hist[i][j][k]);
-      }
-    }
-  }
-}
-
 void testAngleWrapping(const size_t num_angles,
                        const double angle_inc
                       )
@@ -129,29 +96,6 @@ void testAngleWrapping(const size_t num_angles,
   }
 }
 
-void normalize(double weight_sum)
-{
-  std::vector<double> weights = {1, 2, 3, 4, 5};
-  if (weight_sum <= 0.0) {
-    weight_sum = 0.0;
-    for (size_t i = 0; i < weights.size(); ++i) {
-      weight_sum += weights[i];
-    }
-  }
-  double normalizer = 1 / weight_sum;
-  for (size_t i = 0; i < weights.size(); ++i) {
-    weights[i] *= normalizer;
-  }
-  for (size_t i = 0; i < weights.size(); ++i) {
-    printf("weight[%lu] = %f\n", i, weights[i]);
-  }
-}
-
-void normalize()
-{
-  normalize(0.0);
-}
-
 int main(int argc, char** argv)
 {
   // unsigned int iterations = 3 * 10000;
@@ -160,10 +104,24 @@ int main(int argc, char** argv)
   // testSampleNormalDist<double>(iterations, repeats);
   // testVectorReserve(10000, true);
   // testVectorReserve(10000, false);
-  // testHist();
   // testAngleWrapping(20, 45 * M_PI / 180.0);
 
-  normalize();
+  // std::shared_ptr<std::vector<PoseWithWeight>> particles_ptr(new std::vector<PoseWithWeight>(5));
+  // std::mutex mtx;
+  // Particles particles(mtx, particles_ptr);
+  // particles[0].x_ = 55;
+  // printf("x = %f\n", (*particles_ptr)[0].x_);
+
+  std::vector<int> v = {1, 2, 3};
+  {
+    std::vector<int>& vref = v;
+    vref[0] = 4;
+    vref[1] = 5;
+    vref[2] = 6;
+  }
+  for (size_t i = 0; i < v.size(); ++i) {
+    printf("v[%lu] = %d\n", i, v[i]);
+  }
 
   return 0;
 }

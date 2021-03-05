@@ -77,8 +77,8 @@ BeamModel::BeamModel(const double range_min,
   precalcProb();
 }
 
-void BeamModel::update(const std::vector<Ray>& rays_obs,
-                       std::vector<PoseWithWeight>& particles,
+void BeamModel::update(const RayVector& rays_obs,
+                       LockedParticleVector particles,
                        const bool calc_enable
                       )
 {
@@ -87,7 +87,7 @@ void BeamModel::update(const std::vector<Ray>& rays_obs,
   float range_map = 0.0;
 
   // Downsample the full ray list according to the angle sample increment
-  std::vector<Ray> rays_obs_sample = sample(rays_obs);
+  RayVector rays_obs_sample = sample(rays_obs);
 
   for (size_t i = 0; i < particles.size(); ++i) {
     weight = 1.0;
@@ -112,11 +112,11 @@ void BeamModel::update(const std::vector<Ray>& rays_obs,
   }
 }
 
-std::vector<Ray> BeamModel::sample(const std::vector<Ray>& rays_obs)
+RayVector BeamModel::sample(const RayVector& rays_obs)
 {
   size_t rays_obs_size = rays_obs.size();
   size_t rays_obs_sample_size = static_cast<size_t>(std::round(M_2PI / th_sample_res_));
-  std::vector<Ray> rays_obs_sample(rays_obs_sample_size);
+  RayVector rays_obs_sample(rays_obs_sample_size);
 
   // More than one observation
   if (   rays_obs_size > 1
@@ -203,14 +203,14 @@ double BeamModel::calcProb(const float range_obs,
 
 double BeamModel::calcProbNoObj(const float range_obs)
 {
-  return equal(range_obs, range_no_obj_);
+  return approxEqual(range_obs, range_no_obj_);
 }
 
 double BeamModel::calcProbNewObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (   !equal(range_obs, range_no_obj_)
+  if (   !approxEqual(range_obs, range_no_obj_)
       && range_obs <= range_map
      ) {
     return (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
@@ -226,7 +226,7 @@ double BeamModel::calcProbMapObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (!equal(range_obs, range_no_obj_)) {
+  if (!approxEqual(range_obs, range_no_obj_)) {
     return std::exp(  -(range_obs - range_map) * (range_obs - range_map)
                     / (2 * range_std_dev_ * range_std_dev_)
                    );
@@ -238,7 +238,7 @@ double BeamModel::calcProbMapObj(const float range_obs,
 
 double BeamModel::calcProbRandEffect(const float range_obs)
 {
-  if (!equal(range_obs, range_no_obj_)) {
+  if (!approxEqual(range_obs, range_no_obj_)) {
     return 1.0 / range_max_;
   }
   else {

@@ -7,23 +7,25 @@ using namespace localize;
 
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
 
-Pose::Pose(const double x,
-           const double y,
-           const double th
-          ):
+Particle::Particle(const double x,
+                   const double y,
+                   const double th,
+                   const double weight
+                  ):
   x_(x),
   y_(y),
-  th_(th)
+  th_(th),
+  weight_(weight)
 {}
 
-PoseHistogram::PoseHistogram(const double x_len,
-                             const double y_len,
-                             const double th_len,
-                             const double x_res,
-                             const double y_res,
-                             const double th_res,
-                             const double weight_min
-                            ) :
+ParticleHistogram::ParticleHistogram(const double x_len,
+                                     const double y_len,
+                                     const double th_len,
+                                     const double x_res,
+                                     const double y_res,
+                                     const double th_res,
+                                     const double weight_min
+                                    ) :
   x_len_(x_len),
   y_len_(y_len),
   th_len_(th_len),
@@ -38,7 +40,7 @@ PoseHistogram::PoseHistogram(const double x_len,
        )
 {}
 
-bool PoseHistogram::update(const PoseWithWeight& particle)
+bool ParticleHistogram::update(const Particle& particle)
 {
   bool new_occ = false;
 
@@ -63,11 +65,11 @@ bool PoseHistogram::update(const PoseWithWeight& particle)
   return new_occ;
 }
 
-void PoseHistogram::reset()
+void ParticleHistogram::reset()
 {
   for (size_t i = 0; i < hist_.size(); ++i) {
-    for (size_t j = 0; j < hist_.size(); ++j) {
-      for (size_t k = 0; k < hist_.size(); ++k) {
+    for (size_t j = 0; j < hist_[0].size(); ++j) {
+      for (size_t k = 0; k < hist_[0][0].size(); ++k) {
         hist_[i][j][k] = false;
       }
     }

@@ -43,15 +43,15 @@ namespace localize
     // Applies the sensor model to look up particle importance weights from
     // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void update(const std::vector<Ray>& rays_obs,
-                std::vector<PoseWithWeight>& particles,
+    void update(const RayVector& rays_obs,
+                LockedParticleVector particles,
                 const bool calc_enable = false
                );
 
   private:
     // Generate a subset of ranges sampled from the full observation array
     // using the configured angle sample increment
-    std::vector<Ray> sample(const std::vector<Ray>& rays_obs);
+    RayVector sample(const RayVector& rays_obs);
 
     // Convert NaN, negative ranges and any range beyond the configured max
     // to the range reported when nothing is detected by the sensor

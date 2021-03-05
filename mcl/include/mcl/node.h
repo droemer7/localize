@@ -39,12 +39,6 @@ namespace localize
     // Status info callback
     void statusCb(const ros::TimerEvent& event);
 
-    // Save distribution of particles to file in CSV format
-    void saveParticles(const std::string& filename,
-                       const bool sort = true,
-                       const bool overwrite = true
-                      );
-
     // Retrieves the desired parameter value from the ROS parameter server
     template <class T>
     bool getParam(const ros::NodeHandle& nh,

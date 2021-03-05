@@ -7,7 +7,6 @@
 
 #include "mcl/motion.h"
 #include "mcl/sensor.h"
-#include "mcl/hist.h"
 #include "mcl/util.h"
 
 namespace localize
@@ -65,14 +64,7 @@ namespace localize
 
     // Apply the sensor model to calculate particle importance weights from
     // p(ranges[t] | pose[t], map)
-    void sensorUpdate(const std::vector<Ray>& rays);
-
-    // Save particle distribution to file in CSV format
-    void save(const std::string filename,
-              const bool sort = true,
-              const unsigned int precision = 0,
-              const bool overwrite = true
-             );
+    void sensorUpdate(const RayVector& rays);
 
   private:
     // Sample particles from the current distribution using a low variance
@@ -83,11 +75,7 @@ namespace localize
     void sample();
 
     // Generate a random particle in free space
-    PoseWithWeight gen();
-
-    // Update histogram and returns true if the number of occupied cells
-    // increased with this particle (the corresponding cell _was_ free)
-    bool histUpdate(const PoseWithWeight& particle);
+    Particle gen();
 
     // Normalize particle weights
     void normalize(double weight_sum);
@@ -95,30 +83,33 @@ namespace localize
     // Normalize particle weights
     void normalize();
 
-    // Generate a random particle distribution in free space
-    void reset();
-
     // Indicates if the robot speed is approximately zero
     bool stopped();
+
+    // Save particle distribution to file in CSV format
+    void save(const std::string filename,
+              const bool sort = true,
+              const unsigned int precision = 0,
+              const bool overwrite = true
+             );
 
   private:
     size_t iteration; // TBD remove
 
-    // TBD create lock wrapper for access to particles_
-    std::mutex particles_mtx_; // Particle distribution mutex
-    std::mutex vel_mtx_;       // Velocity mutex
+    std::recursive_mutex particles_mtx_;  // Particle distribution mutex
+    std::mutex vel_mtx_;                  // Velocity mutex
 
     const Map map_;           // Map
     VelModel motion_model_;   // Motion model
     BeamModel sensor_model_;  // Sensor model
-    PoseHistogram hist_;      // Histogram for estimating relative entropy
+    ParticleHistogram hist_;      // Histogram for estimating relative entropy
 
-    const size_t num_particles_min_;        // Minimum number of particles
-    const size_t num_particles_max_;        // Maximum number of particles
-    const double kld_eps_;                  // KL distance threshold
-    std::vector<PoseWithWeight> particles_; // Particle distribution
-    std::vector<PoseWithWeight> samples_;   // Sampled particles (temporary storage during sampling)
-    double vel_;                            // Robot velocity
+    const size_t num_particles_min_;  // Minimum number of particles
+    const size_t num_particles_max_;  // Maximum number of particles
+    const double kld_eps_;            // KL distance threshold
+    ParticleVector particles_;        // Particle distribution
+    ParticleVector samples_;          // Sampled particles (temporary storage during sampling)
+    double vel_;                      // Robot velocity
 
     RNG rng_;  // Random number engine
     std::uniform_real_distribution<double> sample_dist_;  // Distribution [0, 1) for sampling

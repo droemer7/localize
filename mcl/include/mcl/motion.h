@@ -37,7 +37,7 @@ namespace localize
     void update(const double lin_vel,
                 const double steering_angle,
                 const double dt,
-                std::vector<PoseWithWeight>& particles
+                LockedParticleVector particles
                );
 
   private:
