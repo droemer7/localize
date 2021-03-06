@@ -9,9 +9,10 @@
 
 #include "includes/RangeLib.h"
 
-double start = 0.5;
-
 using namespace localize;
+
+double start = 0.5;
+ParticleVector particles_g(3, Particle(1.0, 2.0, 3.0, 4.0));
 
 template <class T>
 void testSampleNormalDist(const unsigned int samples,
@@ -201,11 +202,6 @@ void sample(size_t init_num_particles,
   return;
 }
 
-void testRefRVal(const Particle& particle)
-{
-  printf("x = %f\n", particle.x_);
-}
-
 int main(int argc, char** argv)
 {
   // unsigned int iterations = 3 * 10000;
@@ -217,7 +213,11 @@ int main(int argc, char** argv)
   // testAngleWrapping(20, 45 * M_PI / 180.0);
   // sample(10, 15, 20);
 
-  testRefRVal(Particle(1.0, 2.0, 3.0, 4.0));
-
+  printf("%d\n", approxEqual(-0.0, 0.0, FLT_EPSILON));
+  printf("%d\n", approxEqual(10000.00009, 10001.0, FLT_EPSILON));
+  printf("%d\n", std::abs(10000.000997 - 10000.000) < FLT_EPSILON);
+  printf("%d\n", approxEqual(2.0, 2.0000000003, FLT_EPSILON));
+  printf("%d\n", approxEqual(-0.000008, -0.0008, FLT_EPSILON));
+  printf("%lu", sizeof(int));
   return 0;
 }

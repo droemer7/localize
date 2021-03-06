@@ -112,33 +112,24 @@ void MCL::update(const double vel,
   updateVel(vel);
 
   if (!stopped()) {
-    motion_model_.update(vel,
-                         steering_angle,
-                         dt
-                        );
+    particles_ = motion_model_.update(vel,
+                                      steering_angle,
+                                      dt
+                                     );
   }
 }
 
 void MCL::update(const RayScan&& obs)
 {
-  if (!stopped()) {
-    sensor_model_.update(obs);
-    sample();
-  }
-  // TBD remove
-  /*
-  if (iteration == 0) {
-    save("particles_presample.csv", false);
-    sample();
-  }
-  if (iteration++ == 1) {
+  //if (!stopped()) {
+    particles_ = sensor_model_.update(obs);
+    particles_ = sample();
     save("particles_postsample.csv");
-    throw std::runtime_error("Saved resampled particles");
-  }
-  */
+  //}
+  throw std::runtime_error("Saved resampled particles");
 }
 
-void MCL::sample()
+ParticleVector& MCL::sample()
 {
   RecursiveLock lock(particles_mtx_);
 
@@ -161,10 +152,10 @@ void MCL::sample()
   if (num_particles > 0) {
     sample_width = 1.0 / num_particles;
     sum_target = sample_dist_(rng_.engine()) * sample_width;
-    sum_curr = particles_[p].weight_;
+    sum_curr = particles_[0].weight_;
   }
   // Generate samples until we exceed both the minimum and target number of
-  // samples, or reach the maximum number allowed
+  // samples, or reach the maximum allowed
   while (   (   s < num_particles_target
              || s < num_particles_min_
             )
@@ -182,21 +173,26 @@ void MCL::sample()
       particles_[s] = particles_[p];
       sum_target += sample_width;
     }
-    // Generate a new random particle in free space
+    // Finished sampling current particles
     else {
+      // Generate a new random particle in free space
       particles_[s] = gen();
-      // TBD calculate importance weight here because we will need it to
-      // update the histogram
-      // Also, sensor model will need to have a copy of the last downsampled
-      // observed rays
-    }
-    // Update weight sum
-    weight_sum += particles_[s].weight_;
+      printf("particles[%lu].weight_ = %.20f\n", s, particles_[s].weight_);
 
-    // Update histogram, returns true if number of occupied bins increased
+      // Calculate importance weight using previous sensor observation
+      // so the histogram can determine occupancy
+      particles_[s] = sensor_model_.update(s);
+      printf("particles[%lu].x_ = %.20f\n", s, particles_[s].x_);
+      printf("particles[%lu].y_ = %.20f\n", s, particles_[s].y_);
+      printf("particles[%lu].th_ = %.20f\n", s, particles_[s].th_);
+      printf("particles[%lu].weight_ = %.20f\n", s, particles_[s].weight_);
+    }
+    // Update weight sum and histogram, incrementing k if the number of
+    // occupied histogram cells increased
+    weight_sum += particles_[s].weight_;
     k = hist_.update(particles_[s]) ? k + 1 : k;
 
-    // Compute target number of samples
+    // Update target number of samples
     // Wilson-Hilferty transformation of chi-square distribution
     if (k > 1) {
       chi_sq_term_1 = (k - 1.0) / (2.0 * kld_eps_);
@@ -209,7 +205,7 @@ void MCL::sample()
   particles_.resize(s);
   normalize(weight_sum);
 
-  return;
+  return particles_;
 }
 
 Particle MCL::gen()
@@ -232,8 +228,11 @@ Particle MCL::gen()
 
 void MCL::normalize(double weight_sum)
 {
-  double normalizer = 1 / weight_sum;
+  double normalizer = 0.0;
 
+  if (weight_sum > 0.0) {
+    normalizer = 1 / weight_sum;
+  }
   for (size_t i = 0; i < particles_.size(); ++i) {
     particles_[i].weight_ *= normalizer;
   }

@@ -36,10 +36,10 @@ namespace localize
     // Apply the motion model to generate new samples of particles from
     // p(x[t] | u[t], x[t-1])
     // Algorithm 5.3 from Probabilistic Robotics (Thrun 2006, page 124)
-    void update(const double lin_vel,
-                const double steering_angle,
-                const double dt
-               );
+    ParticleVector& update(const double lin_vel,
+                           const double steering_angle,
+                           const double dt
+                          );
 
   private:
     ParticleVector& particles_;     // Particle distribution

@@ -82,12 +82,10 @@ BeamModel::BeamModel(const double range_min,
   precalcProb();
 }
 
-// Instead of having a RayVector member of the subsampled rays, use a RayScan member so
-// the overload for Particle&, bool can call this function using the last stored scan
-void BeamModel::update(Particle& particle,
-                       const RayScan& obs,
-                       const bool calc_enable = false
-                      )
+ParticleVector& BeamModel::update(ParticleVector& particles,
+                                  const RayScan& obs,
+                                  const bool calc_enable
+                                 )
 {
   RecursiveLock lock(particles_mtx_);
 
@@ -96,61 +94,58 @@ void BeamModel::update(Particle& particle,
   float range_map = 0.0;
 
   // Downsample the full ray list according to the angle sample increment
-  rays_obs_sample_ = sample(obs);
-
-  for (Ray& ray_obs : rays_obs_sample_) {
-    // Compute range from the map
-    range_map = raycaster_.calc_range(particle.x_,
-                                      particle.y_,
-                                      particle.th_ + ray_obs.th_
-                                     );
-    // Make sure ranges are valid (NaNs, negative values, etc)
-    range_obs = repair(ray_obs.range_);
-    range_map = repair(range_map);
-
-    // Update partial weight with this measurement's probability
-    weight *= calc_enable ? calcProb(range_obs, range_map) :
-                            lookupProb(range_obs, range_map);
+  // If empty, use the most recent sample
+  if (obs.rays_.size() > 0) {
+    rays_obs_sample_ = sample(obs);
   }
-  // Update full weight, applying overall model uncertainty
-  particle.weight_ = std::pow(weight, uncertainty_factor_);
+
+  for (Particle& particle : particles) {
+    weight = 1.0;
+
+    for (Ray& ray_obs : rays_obs_sample_) {
+      // Compute range from the map
+      range_map = raycaster_.calc_range(particle.x_,
+                                        particle.y_,
+                                        particle.th_ + ray_obs.th_
+                                       );
+      // Make sure ranges are valid (NaNs, negative values, etc)
+      range_obs = repair(ray_obs.range_);
+      range_map = repair(range_map);
+
+      // Update partial weight with this measurement's probability
+      weight *= calc_enable ? calcProb(range_obs, range_map) :
+                              lookupProb(range_obs, range_map);
+    }
+    // Update full weight, applying overall model uncertainty
+    particle.weight_ = std::pow(weight, uncertainty_factor_);
+    // printf("range_obs = %.3f, range_map = %.3f, weight = %.10f\n", range_obs, range_map, lookupProb(range_obs, range_map));
+  }
+  return particles;
 }
 
-void BeamModel::update(const size_t particle_i,
-                       const RayScan& obs,
-                       const bool calc_enable
-                      )
+ParticleVector& BeamModel::update(const RayScan& obs,
+                                  const bool calc_enable
+                                 )
 {
-  update(particles_[particle_i],
+  return update(particles_,
+                obs,
+                calc_enable
+               );
+}
+
+Particle& BeamModel::update(const size_t particle_i,
+                            const RayScan& obs,
+                            const bool calc_enable
+                           )
+{
+  ParticleVector particles(1, particles_[particle_i]);
+  update(particles,
          obs,
          calc_enable
         );
-}
+  particles_[particle_i] = particles[0];
 
-void BeamModel::update(const RayScan& obs,
-                       const bool calc_enable
-                      )
-{
-  for (Particle& particle : particles_) {
-    update(particle,
-           obs,
-           calc_enable
-          );
-  }
-}
-
-void BeamModel::update(Particle& particle,
-                       const bool calc_enable
-                      )
-{
-  update(particle, calc_enable);
-}
-
-void BeamModel::update(const size_t particle_i,
-                       const bool calc_enable
-                      )
-{
-  update(particles_[particle_i], calc_enable);
+  return particles_[particle_i];
 }
 
 RayVector BeamModel::sample(const RayScan& obs)
@@ -167,8 +162,7 @@ RayVector BeamModel::sample(const RayScan& obs)
     size_t o = th_sample_dist_(rng_.engine()) / obs.th_inc_;
     size_t s = 0;
 
-    // Iterate through both arrays until we've either gone through all of the
-    // observations, or we've collected the desired amount of samples
+    // Iterate through both arrays selecting the desired amount of samples
     while (   o < rays_obs_size
            && s < rays_obs_sample_size_
           ) {
@@ -223,7 +217,7 @@ double BeamModel::lookupProb(const float range_obs,
                                       static_cast<double>(table_size_ - 1)
                                      );
 
-  // Lookup observed range probability
+  // Lookup probability
   return table_[range_obs_table_i][range_map_table_i];
 }
 
@@ -242,14 +236,14 @@ double BeamModel::calcProb(const float range_obs,
 
 double BeamModel::calcProbNoObj(const float range_obs)
 {
-  return approxEqual(range_obs, range_no_obj_);
+  return approxEqual(range_obs, range_no_obj_, FLT_EPSILON);
 }
 
 double BeamModel::calcProbNewObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (   !approxEqual(range_obs, range_no_obj_)
+  if (   !approxEqual(range_obs, range_no_obj_, FLT_EPSILON)
       && range_obs <= range_map
      ) {
     return (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
@@ -265,7 +259,7 @@ double BeamModel::calcProbMapObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (!approxEqual(range_obs, range_no_obj_)) {
+  if (!approxEqual(range_obs, range_no_obj_, FLT_EPSILON)) {
     return std::exp(  -(range_obs - range_map) * (range_obs - range_map)
                     / (2 * range_std_dev_ * range_std_dev_)
                    );
@@ -277,7 +271,7 @@ double BeamModel::calcProbMapObj(const float range_obs,
 
 double BeamModel::calcProbRandEffect(const float range_obs)
 {
-  if (!approxEqual(range_obs, range_no_obj_)) {
+  if (!approxEqual(range_obs, range_no_obj_, FLT_EPSILON)) {
     return 1.0 / range_max_;
   }
   else {

@@ -162,10 +162,14 @@ namespace localize
   };
 
   // Approximate equality check for floating point
+  // For MCL
+  // The Art of Comptuer Programming, Volume 2, Seminumeric Algorithms (Knuth 1997)
+  // Section 4.2.2. Equation 22
   inline bool approxEqual(const double a,
-                          const double b
+                          const double b,
+                          const double epsilon
                          )
-  { return std::abs(a - b) <= FLT_EPSILON * std::abs(a); }
+  { return std::abs(a - b) <= epsilon * std::max(std::abs(a), std::abs(b)); }
 
   // Wrap an angle to (-pi, pi] (angle of -pi should convert to +pi)
   inline double wrapAngle(double angle)

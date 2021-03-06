@@ -25,10 +25,10 @@ VelModel::VelModel(const double car_length,
   th_n2_(th_n2)
 {}
 
-void VelModel::update(const double lin_vel,
-                      const double steering_angle,
-                      const double dt
-                     )
+ParticleVector& VelModel::update(const double lin_vel,
+                                 const double steering_angle,
+                                 const double dt
+                                )
 {
   RecursiveLock lock(particles_mtx_);
 
@@ -47,9 +47,18 @@ void VelModel::update(const double lin_vel,
      ) {
     for (Particle& particle : particles_) {
       // Calculate noise for velocities and rotation
-      lin_vel_noise = sampler_.gen(0.0, std::sqrt(lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq));
-      ang_vel_noise = sampler_.gen(0.0, std::sqrt(ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq));
-      th_noise = sampler_.gen(0.0, std::sqrt(th_n1_ * lin_vel_sq + th_n2_ * ang_vel_sq));
+      lin_vel_noise = sampler_.gen(0.0, std::sqrt(  lin_vel_n1_ * lin_vel_sq
+                                                  + lin_vel_n2_ * ang_vel_sq
+                                                 )
+                                  );
+      ang_vel_noise = sampler_.gen(0.0, std::sqrt(  ang_vel_n1_ * lin_vel_sq
+                                                  + ang_vel_n2_ * ang_vel_sq
+                                                 )
+                                  );
+      th_noise = sampler_.gen(0.0, std::sqrt(  th_n1_ * lin_vel_sq
+                                             + th_n2_ * ang_vel_sq
+                                            )
+                             );
 
       // Add noise to velocities
       lin_vel_adj = lin_vel + lin_vel_noise;
@@ -66,4 +75,5 @@ void VelModel::update(const double lin_vel,
       particle.th_ += wrapAngle((ang_vel_adj + th_noise) * dt);
     }
   }
+  return particles_;
 }

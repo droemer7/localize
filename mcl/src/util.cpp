@@ -38,7 +38,9 @@ RayScan::RayScan(RayVector rays,
 
 RayScan::RayScan(size_t num_rays) :
   RayScan()
-{}
+{
+  rays_.resize(num_rays);
+}
 
 ParticleHistogram::ParticleHistogram(const double x_len,
                                      const double y_len,

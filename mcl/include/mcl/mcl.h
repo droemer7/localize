@@ -63,7 +63,7 @@ namespace localize
                );
 
     // Apply the sensor model to update particle weights using
-    // p(scan[t] | pose[t], map)
+    // p(obs[t] | pose[t], map)
     void update(const RayScan&& obs);
 
   private:
@@ -72,7 +72,7 @@ namespace localize
     // and the reference distribution (estimated by sampling and counting the
     // number of histogram bins with support) is reduced to acceptable bounds
     // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void sample();
+    ParticleVector& sample();
 
     // Generate a random particle in free space
     Particle gen();

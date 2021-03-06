@@ -45,30 +45,19 @@ namespace localize
     // Applies the sensor model to determine particle importance weights from
     // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void update(Particle& particle,
-                const RayScan& obs,
-                const bool calc_enable = false
-               );
+    ParticleVector& update(ParticleVector& particles,
+                           const RayScan& obs = RayScan(),
+                           const bool calc_enable = false
+                          );
 
-    void update(const size_t particle_i,
-                const RayScan& obs,
-                const bool calc_enable = false
-               );
+    ParticleVector& update(const RayScan& obs = RayScan(),
+                           const bool calc_enable = false
+                          );
 
-    void update(const RayScan& obs,
-                const bool calc_enable = false
-               );
-
-    void update(const size_t particle_i,
-                const bool calc_enable = false
-               );
-
-    void update(Particle& particle,
-                const bool calc_enable = false
-               );
-
-    void update(const bool calc_enable = false);
-
+    Particle& update(const size_t particle_i,
+                     const RayScan& obs = RayScan(),
+                     const bool calc_enable = false
+                    );
   private:
     // Generate a subset of ranges sampled from the full scan using the
     // preset angle sample increment
