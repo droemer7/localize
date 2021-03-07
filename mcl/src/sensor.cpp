@@ -145,7 +145,7 @@ RayVector BeamModel::sample(const RayScan& obs)
      ) {
     // Generate a random offset for the sampled set to start from
     size_t o_step_size = static_cast<size_t>(th_sample_res_ / obs.th_inc_);
-    size_t o = th_sample_dist_(rng_.engine()) / obs.th_inc_;
+    size_t o = 0;//th_sample_dist_(rng_.engine()) / obs.th_inc_;
     size_t s = 0;
 
     // Iterate through both arrays selecting the desired amount of samples
@@ -169,7 +169,7 @@ RayVector BeamModel::sample(const RayScan& obs)
 
 float BeamModel::repair(float range)
 {
-  return (   range > range_max_
+  return (   range >= range_max_
           || std::signbit(range)
           || std::isnan(range)
          ) ?

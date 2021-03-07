@@ -131,9 +131,9 @@ namespace localize
     // Map parameters
     unsigned int map_width_;        // Map number of pixels along x axis
     unsigned int map_height_;       // Map number of pixels along y axis
-    float map_x_;                   // Map x translation of origin (cell 0,0) relative to world frame
-    float map_y_;                   // Map y translation of origin (cell 0,0) relative to world frame
-    float map_th_;                  // Map angle relative to world frame
+    float map_x_;                   // Map x translation of origin (cell 0,0) relative to world frame (meters)
+    float map_y_;                   // Map y translation of origin (cell 0,0) relative to world frame (meters)
+    float map_th_;                  // Map angle relative to world frame (rad)
     float map_scale_;               // Map scale relative to world frame (meters per pixel)
     std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
   };

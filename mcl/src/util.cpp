@@ -42,24 +42,51 @@ RayScan::RayScan(size_t num_rays) :
   rays_.resize(num_rays);
 }
 
-ParticleHistogram::ParticleHistogram(const double x_len,
-                                     const double y_len,
-                                     const double th_len,
-                                     const double x_res,
+// Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
+Map::Map(const unsigned int width,
+         const unsigned int height,
+         const float x_origin,
+         const float y_origin,
+         const float th_origin,
+         const float scale,
+         const std::vector<int8_t> data
+        ) :
+  ranges::OMap(height, width)
+{
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      if (data[i * width + j] > 10) {
+        grid[i][j] = true;
+      }
+    }
+  }
+  this->x = x_origin;
+  this->y = y_origin;
+  this->th = -th_origin;
+  this->sin_th = std::sin(-th_origin);
+  this->cos_th = std::cos(-th_origin);
+  this->scale = scale;
+}
+
+ParticleHistogram::ParticleHistogram(const double x_res,
                                      const double y_res,
                                      const double th_res,
-                                     const double weight_min
+                                     const double weight_min,
+                                     const Map& map
                                     ) :
-  x_len_(x_len),
-  y_len_(y_len),
-  th_len_(th_len),
   x_res_(x_res),
   y_res_(y_res),
   th_res_(th_res),
   weight_min_(weight_min),
-  hist_(x_len / x_res,
-        std::vector<std::vector<bool>>(y_len / y_res,
-                                       std::vector<bool>(th_len / th_res, false)
+  x_size_(std::round(map.width * map.scale / x_res_)),
+  y_size_(std::round(map.height * map.scale / y_res_)),
+  th_size_(std::round((M_2PI + map.th) / th_res)),
+  x_origin_(map.x),
+  y_origin_(map.y),
+  th_origin_(map.th),
+  hist_(x_size_,
+        std::vector<std::vector<bool>>(y_size_,
+                                       std::vector<bool>(th_size_, false)
                                       )
        )
 {}
@@ -72,23 +99,22 @@ bool ParticleHistogram::update(const Particle& particle)
   // TBD remove weight condition?
   if (particle.weight_ > weight_min_) {
     // Calculate indexes
-    size_t x_i = std::min(std::max(0.0, particle.x_ / x_res_),
-                          static_cast<double>(x_len_ - 1)
+    size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / x_res_),
+                          static_cast<double>(x_size_ - 1)
                          );
-    size_t y_i = std::min(std::max(0.0, particle.y_ / y_res_),
-                          static_cast<double>(y_len_ - 1)
+    size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / y_res_),
+                          static_cast<double>(y_size_ - 1)
                          );
-    size_t th_i = std::min(std::max(0.0, particle.th_ / th_res_),
-                           static_cast<double>(th_len_ - 1)
+    size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / th_res_),
+                           static_cast<double>(th_size_ - 1)
                           );
-    // TBD remove
-    // printf("x, y, th state   = %f, %f, %f\n", particle.x_, particle.y_, particle.th_);
-    // printf("x, y, th indexes = %lu, %lu, %lu\n", x_i, y_i, th_i);
-
     // Update histogram
     if (!hist_[x_i][y_i][th_i]) {
       hist_[x_i][y_i][th_i] = true;
       new_occ = true;
+      //printf("OCCUPIED: %lu, %lu, %lu\n", x_i, y_i, th_i);
+    } else {
+      //printf("FREE: %lu, %lu, %lu\n", x_i, y_i, th_i);
     }
   }
   return new_occ;
@@ -103,32 +129,6 @@ void ParticleHistogram::reset()
       }
     }
   }
-}
-
-// Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
-Map::Map(const unsigned int width,
-         const unsigned int height,
-         const float x,
-         const float y,
-         const float th,
-         const float scale,
-         const std::vector<int8_t> data
-        ) :
-  ranges::OMap(height, width)
-{
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      if (data[i * width + j] > 10) {
-        grid[i][j] = true;
-      }
-    }
-  }
-  this->x = x;
-  this->y = y;
-  this->th = -th;
-  this->sin_th = std::sin(-th);
-  this->cos_th = std::cos(-th);
-  this->scale = scale;
 }
 
 RNG::RNG()

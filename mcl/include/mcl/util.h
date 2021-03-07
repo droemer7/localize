@@ -71,19 +71,38 @@ namespace localize
     float t_dur_;     // Scan duration (sec)
   };
 
+  // Map class constructed with ROS coordinate space conversion parameters
+  // Used by RangeLib
+  class Map : public ranges::OMap
+  {
+  public:
+    // Constructor
+    Map(const unsigned int width,       // Number of pixels along x axis
+        const unsigned int height,      // Number of pixels along y axis
+        const float x_origin,           // X translation of origin (cell 0,0) relative to world frame (meters)
+        const float y_origin,           // Y translation of origin (cell 0,0) relative to world frame (meters)
+        const float th_origin,          // Angle relative to world frame (rad)
+        const float scale,              // Scale relative to world frame (meters per pixel)
+        const std::vector<int8_t> data  // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+       );
+
+    inline bool occupied(float x, float y) const
+    {
+      rosWorldToGrid(x, y);
+      return isOccupiedNT(x, y);
+    }
+  };
+
   // 3D boolean histogram representing occupancy of pose space (x, y, th)
-  // Current provides minimum
   class ParticleHistogram
   {
   public:
     // Constructors
-    ParticleHistogram(const double x_len,     // Length of x dimension (meters)
-                      const double y_len,     // Length of y dimension (meters)
-                      const double th_len,    // Range of angular dimension (rad)
-                      const double x_res,     // Resolution for x position (meters per cell)
-                      const double y_res,     // Resolution for y position (meters per cell)
-                      const double th_res,    // Resolution for angle (rad per cell)
-                      const double weight_min // Minimum particle weight required for a histogram cell to be considered occupied
+    ParticleHistogram(const double x_res,       // Resolution for x position (meters per cell)
+                      const double y_res,       // Resolution for y position (meters per cell)
+                      const double th_res,      // Resolution for angle (rad per cell)
+                      const double weight_min,  // Minimum particle weight required for a histogram cell to be considered occupied
+                      const Map& map            // Map
                      );
 
     // Update occupancy with the particle's location if its
@@ -94,36 +113,17 @@ namespace localize
     void reset();
 
   private:
-    const double x_len_;      // Length of x dimension (meters)
-    const double y_len_;      // Length of y dimension (meters)
-    const double th_len_;     // Range of angular dimension (rad)
-    const double x_res_;      // Resolution for x position (meters per cell)
-    const double y_res_;      // Resolution for y position (meters per cell)
-    const double th_res_;     // Resolution for heading angle (rad per cell)
-    const double weight_min_; // Minimum particle weight required for a histogram cell to be considered occupied
+    const double x_res_;        // Resolution for x position (meters per cell)
+    const double y_res_;        // Resolution for y position (meters per cell)
+    const double th_res_;       // Resolution for heading angle (rad per cell)
+    const double weight_min_;   // Minimum particle weight required for a histogram cell to be considered occupied
+    const double x_size_;       // Size of x dimension (number of elements)
+    const double y_size_;       // Size of y dimension (number of elements)
+    const double th_size_;      // Size of angular dimension (number of elements)
+    const double x_origin_;     // X translation of origin (cell 0,0) relative to world frame (meters)
+    const double y_origin_;     // Y translation of origin (cell 0,0) relative to world frame (meters)
+    const double th_origin_;    // Angle relative to world frame (rad)
     std::vector<std::vector<std::vector<bool>>> hist_;  // Histogram
-  };
-
-  // Map class constructed with ROS coordinate space conversion parameters
-  // Used by RangeLib
-  class Map : public ranges::OMap
-  {
-  public:
-    // Constructor
-    Map(const unsigned int width,       // Number of pixels along x axis
-        const unsigned int height,      // Number of pixels along y axis
-        const float x,                  // X translation of origin (cell 0,0) relative to world frame
-        const float y,                  // Y translation of origin (cell 0,0) relative to world frame
-        const float th,                 // Angle relative to world frame
-        const float scale,              // Scale relative to world frame (meters per pixel)
-        const std::vector<int8_t> data  // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
-       );
-
-    inline bool occupied(float x, float y) const
-    {
-      rosWorldToGrid(x, y);
-      return isOccupiedNT(x, y);
-    }
   };
 
   // RNG wrapper to seed properly

@@ -81,13 +81,11 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
                 sensor_table_res,
                 map_
                ),
-  hist_(map_.width * map_.scale,
-        map_.height * map_.scale,
-        M_2PI,
-        mcl_hist_pos_res,
+  hist_(mcl_hist_pos_res,
         mcl_hist_pos_res,
         mcl_hist_th_res,
-        mcl_hist_occ_weight_min
+        mcl_hist_occ_weight_min,
+        map_
        ),
   sample_dist_(0.0, 1.0),
   x_dist_(map_.x, std::nextafter(map_.width * map_.scale + map_.x, DBL_MAX)),
