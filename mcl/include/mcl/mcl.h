@@ -33,13 +33,13 @@ namespace localize
         const double motion_ang_vel_n2,           // Motion model angular velocity noise coefficient 2
         const double motion_th_n1,                // Motion model final rotation noise coefficient 1
         const double motion_th_n2,                // Motion model final rotation noise coefficient 2
-        const double sensor_range_min,            // Sensor min range in meters
-        const double sensor_range_max,            // Sensor max range in meters
-        const double sensor_range_no_obj,         // Sensor range reported when nothing is detected
-        const double sensor_range_std_dev,        // Sensor range standard deviation
-        const double sensor_th_sample_res,        // Sensor angle resolution at which to sample observations (rad per sample)
-        const double sensor_th_raycast_res,       // Sensor angle resolution for raycast (rad per increment)
-        const double sensor_new_obj_decay_rate,   // Sensor model decay rate for new (unexpected) object probability
+        const float sensor_range_min,             // Sensor min range in meters
+        const float sensor_range_max,             // Sensor max range in meters
+        const float sensor_range_no_obj,          // Sensor range reported when nothing is detected
+        const float sensor_range_std_dev,         // Sensor range standard deviation
+        const float sensor_th_sample_res,         // Sensor angle resolution at which to sample observations (rad per sample)
+        const float sensor_th_raycast_res,        // Sensor angle resolution for raycast (rad per increment)
+        const float sensor_new_obj_decay_rate,    // Sensor model decay rate for new (unexpected) object probability
         const double sensor_weight_no_obj,        // Sensor model weight for no object detected probability
         const double sensor_weight_new_obj,       // Sensor model weight for new (unexpected) object probability
         const double sensor_weight_map_obj,       // Sensor model weight for map (expected) object probability
@@ -67,27 +67,32 @@ namespace localize
     void update(const RayScan&& obs);
 
   private:
-    // Sample particles from the current distribution using a low variance
-    // technique until the relative entropy between the current distribution
-    // and the reference distribution (estimated by sampling and counting the
-    // number of histogram bins with support) is reduced to acceptable bounds
+    // Update particle distribution
+    // Samples from the current distribution using a low variance technique
+    // until the relative entropy between the current distribution and the
+    // reference distribution (estimated by sampling and counting the number
+    // of histogram bins with support) is reduced to acceptable bounds
     // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    ParticleVector& sample();
+    void update(ParticleVector& particles);
 
     // Generate a random particle in free space
     Particle gen();
 
     // Normalize particle weights
-    void normalize(double weight_sum);
+    void normalize(ParticleVector& particles,
+                   double weight_sum
+                  );
 
     // Normalize particle weights
-    void normalize();
+    void normalize(ParticleVector& particles);
 
-    // Update robot velocity
-    void updateVel(const double vel);
-
-    // Indicates if the robot velocity is approximately zero
+    // Indicates if the robot velocity is approximately zero, and saves the
+    // input value
     bool stopped();
+
+    // Indicates if the robot velocity is approximately zero, using the last
+    // saved value
+    bool stopped(const double vel);
 
     // Save particle distribution to file in CSV format
     void save(const std::string filename,
@@ -98,14 +103,15 @@ namespace localize
 
   private:
     std::recursive_mutex particles_mtx_;  // Particle distribution mutex
-    std::mutex vel_mtx_;                  // Velocity mutex
+    std::recursive_mutex vel_mtx_;        // Velocity mutex
 
+    ParticleVector particles_;        // Particle distribution
     const size_t num_particles_min_;  // Minimum number of particles
     const size_t num_particles_max_;  // Maximum number of particles
+    size_t num_particles_curr_;       // Current number of particles (not necessarily equal to size()!)
     const double kld_eps_;            // KL distance threshold
     double vel_;                      // Robot velocity
 
-    ParticleVector particles_;  // Particle distribution
     const Map map_;             // Map
     VelModel motion_model_;     // Motion model
     BeamModel sensor_model_;    // Sensor model

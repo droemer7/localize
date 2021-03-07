@@ -24,40 +24,35 @@ namespace localize
   {
   public:
     // Constructor
-    BeamModel(const double range_min,           // Sensor min range in meters
-              const double range_max,           // Sensor max range in meters
-              const double range_no_obj,        // Sensor range reported when nothing is detected
-              const double range_std_dev,       // Sensor range standard deviation
-              const double th_sample_res,       // Sensor angle resolution at which to sample observations (rad per sample)
-              const double th_raycast_res,      // Sensor angle resolution for raycast (rad per increment)
-              const double new_obj_decay_rate,  // Model decay rate for new (unexpected) object probability
+    BeamModel(const float range_min,            // Sensor min range in meters
+              const float range_max,            // Sensor max range in meters
+              const float range_no_obj,         // Sensor range reported when nothing is detected
+              const float range_std_dev,        // Sensor range standard deviation
+              const float th_sample_res,        // Sensor angle resolution at which to sample observations (rad per sample)
+              const float th_raycast_res,       // Sensor angle resolution for raycast (rad per increment)
+              const float new_obj_decay_rate,   // Model decay rate for new (unexpected) object probability
               const double weight_no_obj,       // Model weight for no object detected probability
               const double weight_new_obj,      // Model weight for new (unexpected) object probability
               const double weight_map_obj,      // Model weight for map (expected) object probability
               const double weight_rand_effect,  // Model weight for random effect probability
               const double uncertainty_factor,  // Model uncertainty factor - extra noise added to calculation
               const double table_res,           // Model table resolution (meters per cell)
-              const Map map,                    // Map
-              ParticleVector& particles,        // Particle distribution
-              RecursiveMutex& particles_mtx     // Recursive particle distribution mutex
+              const Map map                     // Map
              );
 
     // Applies the sensor model to determine particle importance weights from
     // p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    ParticleVector& update(ParticleVector& particles,
-                           const RayScan& obs = RayScan(),
-                           const bool calc_enable = false
-                          );
+    void update(ParticleVector& particles,
+                const RayScan& obs = RayScan(),
+                const bool calc_enable = false
+               );
 
-    ParticleVector& update(const RayScan& obs = RayScan(),
-                           const bool calc_enable = false
-                          );
+    void update(Particle& particle,
+                const RayScan& obs = RayScan(),
+                const bool calc_enable = false
+               );
 
-    Particle& update(const size_t particle_i,
-                     const RayScan& obs = RayScan(),
-                     const bool calc_enable = false
-                    );
   private:
     // Generate a subset of ranges sampled from the full scan using the
     // preset angle sample increment
@@ -115,16 +110,13 @@ namespace localize
     double calcProbRandEffect(const float range_obs);
 
   private:
-    ParticleVector& particles_;     // Particle distribution
-    RecursiveMutex& particles_mtx_; // Recursive particle distribution mutex
-
     // Model parameters
-    double range_min_;          // Sensor min range in meters
-    double range_max_;          // Sensor max range in meters
-    double range_no_obj_;       // Sensor range reported when nothing is detected
-    double range_std_dev_;      // Sensor range standard deviation
-    double th_sample_res_;      // Sensor angle resolution at which to sample observations (rad per sample)
-    double new_obj_decay_rate_; // Model decay rate for new (unexpected) object probability
+    float range_min_;           // Sensor min range in meters
+    float range_max_;           // Sensor max range in meters
+    float range_no_obj_;        // Sensor range reported when nothing is detected
+    float range_std_dev_;       // Sensor range standard deviation
+    float th_sample_res_;       // Sensor angle resolution at which to sample observations (rad per sample)
+    float new_obj_decay_rate_;  // Model decay rate for new (unexpected) object probability
     double weight_no_obj_;      // Model weight for no object detected probability
     double weight_new_obj_;     // Model weight for new (unexpected) object probability
     double weight_map_obj_;     // Model weight for map (expected) object probability

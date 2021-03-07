@@ -3,27 +3,25 @@
 
 #include "mcl/sensor.h"
 
+const float RANGE_EPSILON = 1e-5;
+
 using namespace localize;
 
-BeamModel::BeamModel(const double range_min,
-                     const double range_max,
-                     const double range_no_obj,
-                     const double range_std_dev,
-                     const double th_sample_res,
-                     const double th_raycast_res,
-                     const double new_obj_decay_rate,
+BeamModel::BeamModel(const float range_min,
+                     const float range_max,
+                     const float range_no_obj,
+                     const float range_std_dev,
+                     const float th_sample_res,
+                     const float th_raycast_res,
+                     const float new_obj_decay_rate,
                      const double weight_no_obj,
                      const double weight_new_obj,
                      const double weight_map_obj,
                      const double weight_rand_effect,
                      const double uncertainty_factor,
                      const double table_res,
-                     const Map map,
-                     ParticleVector& particles,
-                     RecursiveMutex& particles_mtx
+                     const Map map
                     ) :
-  particles_(particles),
-  particles_mtx_(particles_mtx),
   range_min_(range_min),
   range_max_(range_max),
   range_no_obj_(range_no_obj),
@@ -82,13 +80,11 @@ BeamModel::BeamModel(const double range_min,
   precalcProb();
 }
 
-ParticleVector& BeamModel::update(ParticleVector& particles,
-                                  const RayScan& obs,
-                                  const bool calc_enable
-                                 )
+void BeamModel::update(ParticleVector& particles,
+                       const RayScan& obs,
+                       const bool calc_enable
+                      )
 {
-  RecursiveLock lock(particles_mtx_);
-
   double weight = 1.0;
   float range_obs = 0.0;
   float range_map = 0.0;
@@ -118,34 +114,24 @@ ParticleVector& BeamModel::update(ParticleVector& particles,
     }
     // Update full weight, applying overall model uncertainty
     particle.weight_ = std::pow(weight, uncertainty_factor_);
-    // printf("range_obs = %.3f, range_map = %.3f, weight = %.10f\n", range_obs, range_map, lookupProb(range_obs, range_map));
   }
-  return particles;
+  return;
 }
 
-ParticleVector& BeamModel::update(const RayScan& obs,
-                                  const bool calc_enable
-                                 )
+void BeamModel::update(Particle& particle,
+                       const RayScan& obs,
+                       const bool calc_enable
+                      )
 {
-  return update(particles_,
-                obs,
-                calc_enable
-               );
-}
+  ParticleVector particles(1, particle);
 
-Particle& BeamModel::update(const size_t particle_i,
-                            const RayScan& obs,
-                            const bool calc_enable
-                           )
-{
-  ParticleVector particles(1, particles_[particle_i]);
   update(particles,
          obs,
          calc_enable
         );
-  particles_[particle_i] = particles[0];
+  particle = particles[0];
 
-  return particles_[particle_i];
+  return;
 }
 
 RayVector BeamModel::sample(const RayScan& obs)
@@ -236,14 +222,20 @@ double BeamModel::calcProb(const float range_obs,
 
 double BeamModel::calcProbNoObj(const float range_obs)
 {
-  return approxEqual(range_obs, range_no_obj_, FLT_EPSILON);
+  return approxEqual(range_obs,
+                     range_no_obj_,
+                     RANGE_EPSILON
+                    );
 }
 
 double BeamModel::calcProbNewObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (   !approxEqual(range_obs, range_no_obj_, FLT_EPSILON)
+  if (   !approxEqual(range_obs,
+                      range_no_obj_,
+                      RANGE_EPSILON
+                     )
       && range_obs <= range_map
      ) {
     return (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
@@ -259,7 +251,11 @@ double BeamModel::calcProbMapObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (!approxEqual(range_obs, range_no_obj_, FLT_EPSILON)) {
+  if (!approxEqual(range_obs,
+                   range_no_obj_,
+                   RANGE_EPSILON
+                  )
+     ) {
     return std::exp(  -(range_obs - range_map) * (range_obs - range_map)
                     / (2 * range_std_dev_ * range_std_dev_)
                    );
@@ -271,7 +267,11 @@ double BeamModel::calcProbMapObj(const float range_obs,
 
 double BeamModel::calcProbRandEffect(const float range_obs)
 {
-  if (!approxEqual(range_obs, range_no_obj_, FLT_EPSILON)) {
+  if (!approxEqual(range_obs,
+                   range_no_obj_,
+                   RANGE_EPSILON
+                  )
+     ) {
     return 1.0 / range_max_;
   }
   else {

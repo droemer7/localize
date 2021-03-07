@@ -22,29 +22,25 @@ namespace localize
   {
   public:
     // Constructor
-    VelModel(const double car_length,       // Car length
-             const double lin_vel_n1,       // Model linear velocity noise coefficient 1
-             const double lin_vel_n2,       // Model linear velocity noise coefficient 2
-             const double ang_vel_n1,       // Model angular velocity noise coefficient 1
-             const double ang_vel_n2,       // Model angular velocity noise coefficient 2
-             const double th_n1,            // Model final rotation noise coefficient 1
-             const double th_n2,            // Model final rotation noise coefficient 2
-             ParticleVector& particles,     // Particle distribution
-             RecursiveMutex& particles_mtx  // Recursive particle distribution mutex
+    VelModel(const double car_length, // Car length
+             const double lin_vel_n1, // Model linear velocity noise coefficient 1
+             const double lin_vel_n2, // Model linear velocity noise coefficient 2
+             const double ang_vel_n1, // Model angular velocity noise coefficient 1
+             const double ang_vel_n2, // Model angular velocity noise coefficient 2
+             const double th_n1,      // Model final rotation noise coefficient 1
+             const double th_n2       // Model final rotation noise coefficient 2
             );
 
     // Apply the motion model to generate new samples of particles from
     // p(x[t] | u[t], x[t-1])
     // Algorithm 5.3 from Probabilistic Robotics (Thrun 2006, page 124)
-    ParticleVector& update(const double lin_vel,
-                           const double steering_angle,
-                           const double dt
-                          );
+    void update(ParticleVector& particles,
+                const double lin_vel,
+                const double steering_angle,
+                const double dt
+               );
 
   private:
-    ParticleVector& particles_;     // Particle distribution
-    RecursiveMutex& particles_mtx_; // Recursive particle distribution mutex
-
     // Model parameters
     double car_length_; // Car length
     double lin_vel_n1_; // Model linear velocity noise coefficient 1

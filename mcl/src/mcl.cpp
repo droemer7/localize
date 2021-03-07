@@ -4,9 +4,9 @@
 
 #include "mcl/mcl.h"
 
+static const double STOPPED_THRESHOLD = 1e-5; // Threshold for considering robot stopped (defers updates)
 static const double Z_P_99 = 2.3263478740;    // Z score for P(0.99) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;            // Fraction 2/9
-static const double HIST_OCC_PROB_MIN = 1e-4; // Probability required to consider a histogram cell occupied
 
 using namespace localize;
 
@@ -23,13 +23,13 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const double motion_ang_vel_n2,
          const double motion_th_n1,
          const double motion_th_n2,
-         const double sensor_range_min,
-         const double sensor_range_max,
-         const double sensor_range_no_obj,
-         const double sensor_range_std_dev,
-         const double sensor_th_sample_res,
-         const double sensor_th_raycast_res,
-         const double sensor_new_obj_decay_rate,
+         const float sensor_range_min,
+         const float sensor_range_max,
+         const float sensor_range_no_obj,
+         const float sensor_range_std_dev,
+         const float sensor_th_sample_res,
+         const float sensor_th_raycast_res,
+         const float sensor_new_obj_decay_rate,
          const double sensor_weight_no_obj,
          const double sensor_weight_new_obj,
          const double sensor_weight_map_obj,
@@ -44,8 +44,10 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const float map_scale,
          const std::vector<int8_t> map_data
         ) :
+  particles_(mcl_num_particles_max),
   num_particles_min_(mcl_num_particles_min),
   num_particles_max_(mcl_num_particles_max),
+  num_particles_curr_(0),
   kld_eps_(mcl_kld_eps),
   vel_(0.0),
   map_(map_width,
@@ -62,9 +64,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
                 motion_ang_vel_n1,
                 motion_ang_vel_n2,
                 motion_th_n1,
-                motion_th_n2,
-                particles_,
-                particles_mtx_
+                motion_th_n2
                ),
   sensor_model_(sensor_range_min,
                 sensor_range_max,
@@ -79,9 +79,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
                 sensor_weight_rand_effect,
                 sensor_uncertainty_factor,
                 sensor_table_res,
-                map_,
-                particles_,
-                particles_mtx_
+                map_
                ),
   hist_(map_.width * map_.scale,
         map_.height * map_.scale,
@@ -99,9 +97,6 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   if (num_particles_min_ > num_particles_max_) {
     throw std::runtime_error("MCL: num_particles_min > num_particles_max\n");
   }
-  // Reserve space - particle vector is expected to be large at times
-  RecursiveLock lock(particles_mtx_);
-  particles_.reserve(num_particles_max_);
 }
 
 void MCL::update(const double vel,
@@ -109,31 +104,26 @@ void MCL::update(const double vel,
                  const double dt
                 )
 {
-  updateVel(vel);
-
-  if (!stopped()) {
-    particles_ = motion_model_.update(vel,
-                                      steering_angle,
-                                      dt
-                                     );
+  if (!stopped(vel)) {
+    motion_model_.update(particles_, vel, steering_angle, dt);
   }
 }
 
 void MCL::update(const RayScan&& obs)
 {
   //if (!stopped()) {
-    particles_ = sensor_model_.update(obs);
-    particles_ = sample();
-    save("particles_postsample.csv");
+    RecursiveLock lock(particles_mtx_);
+
+    sensor_model_.update(particles_, obs);
+    update(particles_);
   //}
-  throw std::runtime_error("Saved resampled particles");
+  throw std::runtime_error("Finished");
 }
 
-ParticleVector& MCL::sample()
+void MCL::update(ParticleVector& particles)
 {
   RecursiveLock lock(particles_mtx_);
 
-  size_t num_particles = particles_.size();
   double sample_width = 0.0;
   double sum_target = 0.0;
   double sum_curr = 0.0;
@@ -149,10 +139,10 @@ ParticleVector& MCL::sample()
   hist_.reset();
 
   // Initialize target and current weight sums
-  if (num_particles > 0) {
-    sample_width = 1.0 / num_particles;
+  if (num_particles_curr_ > 0) {
+    sample_width = 1.0 / num_particles_curr_;
     sum_target = sample_dist_(rng_.engine()) * sample_width;
-    sum_curr = particles_[0].weight_;
+    sum_curr = particles[0].weight_;
   }
   // Generate samples until we exceed both the minimum and target number of
   // samples, or reach the maximum allowed
@@ -163,49 +153,58 @@ ParticleVector& MCL::sample()
         ) {
     // Sample from the current distribution until the sampled set
     // size is equal to the current distribution size
-    if (s < num_particles) {
+    if (s < num_particles_curr_) {
       // Sum weights until we reach the target sum
       while (sum_curr < sum_target) {
-        sum_curr += particles_[++p].weight_;
+        sum_curr += particles[++p].weight_;
       }
       // Add to sample set and increase target sum
       // Note that s <= p always given the above while loop
-      particles_[s] = particles_[p];
+      particles[s] = particles[p];
       sum_target += sample_width;
     }
     // Finished sampling current particles
     else {
       // Generate a new random particle in free space
-      particles_[s] = gen();
-      printf("particles[%lu].weight_ = %.20f\n", s, particles_[s].weight_);
-
-      // Calculate importance weight using previous sensor observation
+      if (s == 0) { // TBD remove
+        particles[s] = Particle();
+      }
+      else if (s == 1) { // TBD remove
+        particles[s] = Particle(0.1, 0.1);
+      }
+      else {
+        particles[s] = gen();
+      }
+      // Update particle importance weight using previous sensor observation
       // so the histogram can determine occupancy
-      particles_[s] = sensor_model_.update(s);
-      printf("particles[%lu].x_ = %.20f\n", s, particles_[s].x_);
-      printf("particles[%lu].y_ = %.20f\n", s, particles_[s].y_);
-      printf("particles[%lu].th_ = %.20f\n", s, particles_[s].th_);
-      printf("particles[%lu].weight_ = %.20f\n", s, particles_[s].weight_);
+      sensor_model_.update(particles[s]);
     }
-    // Update weight sum and histogram, incrementing k if the number of
-    // occupied histogram cells increased
-    weight_sum += particles_[s].weight_;
-    k = hist_.update(particles_[s]) ? k + 1 : k;
+    weight_sum += particles[s].weight_;
 
-    // Update target number of samples
-    // Wilson-Hilferty transformation of chi-square distribution
-    if (k > 1) {
-      chi_sq_term_1 = (k - 1.0) / (2.0 * kld_eps_);
-      chi_sq_term_2 = 1.0 - F_2_9 / (k - 1.0) + Z_P_99 * std::sqrt(F_2_9 / (k - 1.0));
-      num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
+    // Update histogram, incrementing k if the number of occupied histogram
+    // cells increased
+    if (hist_.update(particles[s])) {
+      ++k;
+      // Update target number of samples
+      // Wilson-Hilferty transformation of chi-square distribution
+      if (k > 1) {
+        chi_sq_term_1 = (k - 1.0) / (2.0 * kld_eps_);
+        chi_sq_term_2 = 1.0 - F_2_9 / (k - 1.0) + Z_P_99 * std::sqrt(F_2_9 / (k - 1.0));
+        num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
+      }
     }
     ++s;
   }
-  // Resize to the actual number of samples used and normalize
-  particles_.resize(s);
-  normalize(weight_sum);
+  num_particles_curr_ = s;
+  printf("s = %lu\n", s);
+  printf("k = %lu\n", k);
 
-  return particles_;
+  // Normalize weights
+  save("particles_prenorm.csv");
+  normalize(particles, weight_sum);
+  save("particles_postnorm.csv");
+
+  return;
 }
 
 Particle MCL::gen()
@@ -217,7 +216,7 @@ Particle MCL::gen()
   while (occupied) {
     particle.x_ = x_dist_(rng_.engine());
     particle.y_ = y_dist_(rng_.engine());
-    occupied = map_.isOccupied(particle.x_, particle.y_);
+    occupied = map_.occupied(particle.x_, particle.y_);
   }
   // Any theta is allowed
   particle.th_ = th_dist_(rng_.engine());
@@ -226,41 +225,50 @@ Particle MCL::gen()
   return particle;
 }
 
-void MCL::normalize(double weight_sum)
+void MCL::normalize(ParticleVector& particles,
+                    double weight_sum
+                   )
 {
+  RecursiveLock lock(particles_mtx_);
+
   double normalizer = 0.0;
 
   if (weight_sum > 0.0) {
     normalizer = 1 / weight_sum;
   }
-  for (size_t i = 0; i < particles_.size(); ++i) {
-    particles_[i].weight_ *= normalizer;
+  for (size_t i = 0; i < num_particles_curr_; ++i) {
+    particles[i].weight_ *= normalizer;
   }
   return;
 }
 
-void MCL::normalize()
+void MCL::normalize(ParticleVector& particles)
 {
+  RecursiveLock lock(particles_mtx_);
+
   double weight_sum = 0.0;
 
-  for (size_t i = 0; i < particles_.size(); ++i) {
-    weight_sum += particles_[i].weight_;
+  for (size_t i = 0; i < num_particles_curr_; ++i) {
+    weight_sum += particles[i].weight_;
   }
-  normalize(weight_sum);
+  normalize(particles, weight_sum);
 
   return;
-}
-
-void MCL::updateVel(const double vel)
-{
-  Lock lock(vel_mtx_);
-  vel_ = vel;
 }
 
 bool MCL::stopped()
 {
-  Lock lock(vel_mtx_);
-  return std::abs(vel_) < FLT_EPSILON;
+  RecursiveLock lock(vel_mtx_);
+
+  return std::abs(vel_) < STOPPED_THRESHOLD;
+}
+
+bool MCL::stopped(const double vel)
+{
+  RecursiveLock lock(vel_mtx_);
+  vel_ = vel;
+
+  return stopped();
 }
 
 void MCL::save(const std::string filename,
@@ -271,45 +279,15 @@ void MCL::save(const std::string filename,
 {
   RecursiveLock lock(particles_mtx_);
 
+  ParticleVector particles = particles_;
+  particles.resize(num_particles_curr_);
+
   if (sort) {
-    localize::sort(particles_);
+    localize::sort(particles);
   }
-  localize::save(particles_,
+  localize::save(particles,
                  filename,
                  precision,
                  overwrite
                 );
 }
-
-// TBD remove
-/*
-std::vector<PoseWithWeight> MCL::sample(size_t num_samples)
-{
-  num_samples = std::min(num_samples, particles_.size());
-  std::vector<PoseWithWeight> samples(num_samples);
-
-  if (   num_samples > 0
-      && particles_.size() > 0
-     ) {
-    double sample_width = 1.0 / num_samples;
-    double sum_target = sample_dist_(rng_.engine()) * sample_width;
-    double sum_curr = particles_[0].weight_;
-    size_t s = 0;
-    size_t p = 0;
-
-    // Generate the number of samples desired
-    while (s < num_samples) {
-      // Sum particle weights until we reach the target sum
-      while (sum_curr < sum_target) {
-        sum_curr += particles_[++p].weight_;
-      }
-      // Add to sample set, reset weight to 1.0, and increase target sum
-      samples[s] = particles_[p];
-      samples[s].weight_ = 1.0;
-      ++s;
-      sum_target += sample_width;
-    }
-  }
-  return samples;
-}
-*/

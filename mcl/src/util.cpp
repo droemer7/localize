@@ -69,6 +69,7 @@ bool ParticleHistogram::update(const Particle& particle)
   bool new_occ = false;
 
   // Ignore particle if its unnormalized weight is low
+  // TBD remove weight condition?
   if (particle.weight_ > weight_min_) {
     // Calculate indexes
     size_t x_i = std::min(std::max(0.0, particle.x_ / x_res_),
@@ -80,6 +81,10 @@ bool ParticleHistogram::update(const Particle& particle)
     size_t th_i = std::min(std::max(0.0, particle.th_ / th_res_),
                            static_cast<double>(th_len_ - 1)
                           );
+    // TBD remove
+    // printf("x, y, th state   = %f, %f, %f\n", particle.x_, particle.y_, particle.th_);
+    // printf("x, y, th indexes = %lu, %lu, %lu\n", x_i, y_i, th_i);
+
     // Update histogram
     if (!hist_[x_i][y_i][th_i]) {
       hist_[x_i][y_i][th_i] = true;

@@ -113,13 +113,13 @@ namespace localize
     double motion_dur_last_msec_;                 // Motion model update time (milliseconds)
 
     // Sensor model parameters
-    double sensor_range_min_;           // Sensor min range in meters
-    double sensor_range_max_;           // Sensor max range in meters
-    double sensor_range_no_obj_;        // Sensor range reported when nothing is detected
-    double sensor_range_std_dev_;       // Sensor range standard deviation
-    double sensor_th_sample_res_;       // Sensor angle resolution at which to sample observations (rad per sample)
-    double sensor_th_raycast_res_;      // Sensor angle resolution for raycast (rad per increment)
-    double sensor_new_obj_decay_rate_;  // Sensor model decay rate for new (unexpected) object probability
+    float sensor_range_min_;            // Sensor min range in meters
+    float sensor_range_max_;            // Sensor max range in meters
+    float sensor_range_no_obj_;         // Sensor range reported when nothing is detected
+    float sensor_range_std_dev_;        // Sensor range standard deviation
+    float sensor_th_sample_res_;        // Sensor angle resolution at which to sample observations (rad per sample)
+    float sensor_th_raycast_res_;       // Sensor angle resolution for raycast (rad per increment)
+    float sensor_new_obj_decay_rate_;   // Sensor model decay rate for new (unexpected) object probability
     double sensor_weight_no_obj_;       // Sensor model weight for no object detected probability
     double sensor_weight_new_obj_;      // Sensor model weight for new (unexpected) object probability
     double sensor_weight_map_obj_;      // Sensor model weight for map (expected) object probability

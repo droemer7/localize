@@ -1,5 +1,5 @@
-image: test/shapes_1k_x_1k.png
-resolution: 0.01
+image: test/shapes_1k_x_1k_v2.png
+resolution: 0.02
 origin: [-5, -5, 0]
 occupied_thresh: 0.1
 free_thresh: 0.09

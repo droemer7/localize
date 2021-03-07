@@ -28,7 +28,7 @@ namespace localize
     explicit Particle(const double x = 0.0,     // X position (meters)
                       const double y = 0.0,     // Y position (meters)
                       const double th = 0.0,    // Heading angle (rad)
-                      const double weight = 0.0
+                      const double weight = 0.0 // Importance weight
                      );
 
     double x_;      // X position (meters)
@@ -119,7 +119,7 @@ namespace localize
         const std::vector<int8_t> data  // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
-    inline bool isOccupied(float x, float y) const
+    inline bool occupied(float x, float y) const
     {
       rosWorldToGrid(x, y);
       return isOccupiedNT(x, y);
@@ -161,10 +161,16 @@ namespace localize
     std::normal_distribution<T> distribution_;  // Normal distribution from which to sample
   };
 
-  // Approximate equality check for floating point
+  // Approximate equality check for floating point values
   // For MCL
   // The Art of Comptuer Programming, Volume 2, Seminumeric Algorithms (Knuth 1997)
   // Section 4.2.2. Equation 22
+  inline bool approxEqual(const float a,
+                          const float b,
+                          const float epsilon
+                         )
+  { return std::abs(a - b) <= epsilon * std::max(std::abs(a), std::abs(b)); }
+
   inline bool approxEqual(const double a,
                           const double b,
                           const double epsilon
@@ -300,27 +306,19 @@ namespace localize
   }
 
   // Compare poses by x
-  inline bool compX(const Particle& p1,
-                    const Particle& p2
-                   )
+  inline bool compX(const Particle& p1, const Particle& p2)
   { return (p1.x_ < p2.x_); };
 
   // Compare poses by y
-  inline bool compY(const Particle& p1,
-                    const Particle& p2
-                   )
+  inline bool compY(const Particle& p1, const Particle& p2)
   { return (p1.y_ < p2.y_); };
 
   // Compare poses by theta
-  inline bool compTh(const Particle& p1,
-                     const Particle& p2
-                    )
+  inline bool compTh(const Particle& p1, const Particle& p2)
   { return (p1.th_ < p2.th_); };
 
   // Compare poses by weight
-  inline bool compWeight(const Particle& p1,
-                         const Particle& p2
-                        )
+  inline bool compWeight(const Particle& p1, const Particle& p2)
   { return (p1.weight_ < p2.weight_); };
 
   // Sort poses in descending value, default by weight

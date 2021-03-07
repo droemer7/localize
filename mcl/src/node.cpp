@@ -64,7 +64,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
       || !getParam(nh, "localizer/sensor_std_dev", sensor_range_std_dev_)
       || !getParam(nh, "localizer/sensor_th_sample_res", sensor_th_sample_res_)
       || !getParam(nh, "localizer/sensor_th_raycast_res", sensor_th_raycast_res_)
-      || !getParam(nh, "localizer/sensor_weight_new_obj_decay_rate", sensor_new_obj_decay_rate_)
+      || !getParam(nh, "localizer/sensor_new_obj_decay_rate", sensor_new_obj_decay_rate_)
       || !getParam(nh, "localizer/sensor_weight_no_obj", sensor_weight_no_obj_)
       || !getParam(nh, "localizer/sensor_weight_new_obj", sensor_weight_new_obj_)
       || !getParam(nh, "localizer/sensor_weight_map_obj", sensor_weight_map_obj_)
@@ -192,10 +192,7 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   motor_t_prev_ = msg->header.stamp;
 
   // Perform motion update
-  mcl_ptr_->update(lin_vel,
-                   steering_angle,
-                   dt
-                  );
+  mcl_ptr_->update(lin_vel, steering_angle, dt);
   // Save duration
   motion_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
 }
