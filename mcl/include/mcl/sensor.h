@@ -53,6 +53,10 @@ namespace localize
                 const bool calc_enable = false
                );
 
+    // Updates the latest saved observation by sampling from the input
+    // observation
+    void update(const RayScan& obs);
+
   private:
     // Generate a subset of ranges sampled from the full scan using the
     // preset angle sample increment

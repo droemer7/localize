@@ -134,6 +134,11 @@ void BeamModel::update(Particle& particle,
   return;
 }
 
+void BeamModel::update(const RayScan& obs)
+{
+  rays_obs_sample_ = sample(obs);
+}
+
 RayVector BeamModel::sample(const RayScan& obs)
 {
   size_t rays_obs_size = obs.rays_.size();

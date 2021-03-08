@@ -109,13 +109,16 @@ void MCL::update(const double vel,
 
 void MCL::update(const RayScan&& obs)
 {
+  // This might still need to be update(particles_, obs) if we want to only run
+  // the KLD sampling periodically based on how weights are changing
+  //
+  // If we KLD sample every sensor update then update(obs) is better since
+  // sampling recalculates weights
+  sensor_model_.update(obs);
   //if (!stopped()) {
-    RecursiveLock lock(particles_mtx_);
-
-    sensor_model_.update(particles_, obs);
+    //sensor_model_.update(particles_, obs);
     update(particles_);
   //}
-  throw std::runtime_error("Finished");
 }
 
 void MCL::update(ParticleVector& particles)
@@ -129,6 +132,7 @@ void MCL::update(ParticleVector& particles)
   double num_particles_target = num_particles_max_;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
+  bool repeat = false;
   size_t s = 0;
   size_t p = 0;
   size_t k = 0;
@@ -149,32 +153,33 @@ void MCL::update(ParticleVector& particles)
             )
          && s < num_particles_max_
         ) {
-    // Sample from the current distribution until the sampled set
-    // size is equal to the current distribution size
+    // Draw a particle from the current distribution with probability
+    // proportional to its weight
     if (s < num_particles_curr_) {
+      repeat = (s > 0);
+
       // Sum weights until we reach the target sum
       while (sum_curr < sum_target) {
         sum_curr += particles[++p].weight_;
+        repeat = false;
       }
       // Add to sample set and increase target sum
       // Note that s <= p always given the above while loop
       particles[s] = particles[p];
       sum_target += sample_width;
     }
-    // Finished sampling current particles
+    // Finished sampling current distribution so generate a new random particle
     else {
-      // Generate a new random particle in free space
-      if (s == 0) { // TBD remove
-        particles[s] = Particle();
-      }
-      else if (s == 1) { // TBD remove
-        particles[s] = Particle(0.1, 0.1);
-      }
-      else {
-        particles[s] = gen();
-      }
-      // Update particle importance weight using previous sensor observation
-      // so the histogram can determine occupancy
+      repeat = false;
+      particles[s] = gen();
+    }
+    // Update particle importance weight
+    // If it's a duplicate, copy the already-recalculated weight
+    if (repeat) {
+      particles[s].weight_ = particles[s - 1].weight_;
+    }
+    // If it's a new sample, recalculate the weight
+    else {
       sensor_model_.update(particles[s]);
     }
     weight_sum += particles[s].weight_;
@@ -194,13 +199,15 @@ void MCL::update(ParticleVector& particles)
     ++s;
   }
   num_particles_curr_ = s;
-  printf("s = %lu\n", s);
-  printf("k = %lu\n", k);
+  printf("Samples: actual = %lu, target %lu\n",
+         s, static_cast<size_t>(num_particles_target)
+        );
+  printf("Histogram: count = %lu\n", k);
 
   // Normalize weights
-  save("particles_prenorm.csv");
+  // save("particles_prenorm.csv");
   normalize(particles, weight_sum);
-  save("particles_postnorm.csv");
+  // save("particles_postnorm.csv");
 
   return;
 }
