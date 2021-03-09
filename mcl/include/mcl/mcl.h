@@ -102,6 +102,7 @@ namespace localize
              );
 
   private:
+    size_t iteration; // TBD remove
     std::recursive_mutex particles_mtx_;  // Particle distribution mutex
     std::recursive_mutex vel_mtx_;        // Velocity mutex
 

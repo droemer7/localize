@@ -44,8 +44,9 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const float map_scale,
          const std::vector<int8_t> map_data
         ) :
+  iteration(0),
   particles_(mcl_num_particles_max),
-  num_particles_min_(mcl_num_particles_min),
+  num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
   num_particles_max_(mcl_num_particles_max),
   num_particles_curr_(0),
   kld_eps_(mcl_kld_eps),
@@ -95,6 +96,9 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   if (num_particles_min_ > num_particles_max_) {
     throw std::runtime_error("MCL: num_particles_min > num_particles_max\n");
   }
+  for (size_t i = 0; i < num_particles_max_; ++i) {
+    particles_[i] = random();
+  }
 }
 
 void MCL::update(const double vel,
@@ -109,16 +113,14 @@ void MCL::update(const double vel,
 
 void MCL::update(const RayScan&& obs)
 {
-  // This might still need to be update(particles_, obs) if we want to only run
-  // the KLD sampling periodically based on how weights are changing
-  //
-  // If we KLD sample every sensor update then update(obs) is better since
-  // sampling recalculates weights
   sensor_model_.update(obs);
   //if (!stopped()) {
-    //sensor_model_.update(particles_, obs);
     update(particles_);
   //}
+  if (iteration++ >= 2) {
+    save("particles.csv");
+    throw std::runtime_error("Finished");
+  }
 }
 
 void MCL::update(ParticleVector& particles)
@@ -129,7 +131,7 @@ void MCL::update(ParticleVector& particles)
   double sum_target = 0.0;
   double sum_curr = 0.0;
   double weight_sum = 0.0;
-  double num_particles_target = num_particles_max_;
+  double num_particles_target = 0.0;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
   bool repeat = false;
@@ -200,13 +202,12 @@ void MCL::update(ParticleVector& particles)
   }
   // Update the number of particles we're using
   num_particles_curr_ = s;
-  printf("Samples: actual = %lu, target %lu\n", s, static_cast<size_t>(num_particles_target));
-  printf("Histogram: count = %lu\n", k);
+  printf("Samples used = %lu\n", s);
+  printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
+  printf("Histogram count = %lu\n", k);
 
   // Normalize weights
-  //save("particles_prenorm.csv");
   normalize(particles, weight_sum);
-  //save("particles_postnorm.csv");
 
   return;
 }

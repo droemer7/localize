@@ -117,9 +117,9 @@ namespace localize
     const double y_res_;        // Resolution for y position (meters per cell)
     const double th_res_;       // Resolution for heading angle (rad per cell)
     const double weight_min_;   // Minimum particle weight required for a histogram cell to be considered occupied
-    const double x_size_;       // Size of x dimension (number of elements)
-    const double y_size_;       // Size of y dimension (number of elements)
-    const double th_size_;      // Size of angular dimension (number of elements)
+    const size_t x_size_;       // Size of x dimension (number of elements)
+    const size_t y_size_;       // Size of y dimension (number of elements)
+    const size_t th_size_;      // Size of angular dimension (number of elements)
     const double x_origin_;     // X translation of origin (cell 0,0) relative to world frame (meters)
     const double y_origin_;     // Y translation of origin (cell 0,0) relative to world frame (meters)
     const double th_origin_;    // Angle relative to world frame (rad)

@@ -214,8 +214,6 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 
   // Save duration
   sensor_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  ros::Duration(1.0).sleep();
-  throw std::runtime_error("Finished");
 }
 
 template <class T>

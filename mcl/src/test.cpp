@@ -11,6 +11,7 @@
 
 using namespace localize;
 
+double temp;
 RNG rng;
 std::uniform_real_distribution<double> x_dist(-10.0, std::nextafter(10.0, DBL_MAX));
 std::uniform_real_distribution<double> y_dist(-10.0, std::nextafter(10.0, DBL_MAX));
@@ -98,11 +99,24 @@ void testGen(size_t num_samples)
 
   start = std::chrono::high_resolution_clock::now();
   for (size_t i = 0; i < particles.size(); ++i) {
-     gen(particles[i]);
+    gen(particles[i]);
   }
   end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
   printf("Generated %lu samples in %.2f ms\n", num_samples, dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
+}
+
+void testSqrt(size_t num_samples)
+{
+  printf("\nTesting std::sqrt() ... \n");
+  start = std::chrono::high_resolution_clock::now();
+  for (size_t i = 2; i < num_samples + 2; ++i) {
+    temp += std::sqrt((2 / 9) * (i - 1.0));
+  }
+  end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  printf("Calculated %lu sqrt in %.2f ms\n", num_samples, dur.count() * 1000.0);
   printf("--- Test complete ---\n");
 }
 
@@ -113,8 +127,9 @@ int main(int argc, char** argv)
   // testSampleNormalDist<float>(iterations, repeats);
   // testSampleNormalDist<double>(iterations, repeats);
   // testAngleWrapping(20, 45 * M_PI / 180.0);
+  // testGen(200'000);
 
-  testGen(200'000);
+  testSqrt(200'000);
 
   return 0;
 }

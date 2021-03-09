@@ -9,7 +9,7 @@
   <arg name="mcl_num_particles_max"     default="200000"/>
   <arg name="mcl_kld_eps"               default="0.02"/>
   <arg name="mcl_hist_occ_weight_min"   default="0.0"/>
-  <arg name="mcl_hist_pos_res"          default="0.5"/>
+  <arg name="mcl_hist_pos_res"          default="0.05"/>
   <arg name="mcl_hist_th_res"           default="0.1745329252"/> <!-- pi/18 (10 deg)-->
   <arg name="motion_lin_vel_n1"         default="0.01"/>
   <arg name="motion_lin_vel_n2"         default="0.01"/>
@@ -18,15 +18,15 @@
   <arg name="motion_th_n1"              default="0.01"/>
   <arg name="motion_th_n2"              default="0.01"/>
   <arg name="sensor_range_no_obj"       default="16.0"/>
-  <arg name="sensor_std_dev"            default="0.5"/>
+  <arg name="sensor_std_dev"            default="0.05"/>
   <arg name="sensor_th_sample_res"      default="0.7853981634"/> <!-- pi/4 (45 deg) -->
   <arg name="sensor_th_raycast_res"     default="0.0314159265"/> <!-- pi/100 -->
   <arg name="sensor_new_obj_decay_rate" default="0.25"/>
   <arg name="sensor_weight_no_obj"      default="6.5"/>
   <arg name="sensor_weight_new_obj"     default="12.5"/>
-  <arg name="sensor_weight_map_obj"     default="80.0"/>
-  <arg name="sensor_weight_rand_effect" default="1.0"/>
-  <arg name="sensor_uncertainty_factor" default="1.2"/>
+  <arg name="sensor_weight_map_obj"     default="75.0"/>
+  <arg name="sensor_weight_rand_effect" default="5.0"/>
+  <arg name="sensor_uncertainty_factor" default="1.1"/>
   <arg name="sensor_table_res"          default="0.005"/>
 
   <!-- Control enabled -->
