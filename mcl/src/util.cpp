@@ -112,9 +112,6 @@ bool ParticleHistogram::update(const Particle& particle)
     if (!hist_[x_i][y_i][th_i]) {
       hist_[x_i][y_i][th_i] = true;
       new_occ = true;
-      //printf("OCCUPIED: %lu, %lu, %lu\n", x_i, y_i, th_i);
-    } else {
-      //printf("FREE: %lu, %lu, %lu\n", x_i, y_i, th_i);
     }
   }
   return new_occ;

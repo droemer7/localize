@@ -11,8 +11,14 @@
 
 using namespace localize;
 
-double start = 0.5;
-float decay = 0.5;
+RNG rng;
+std::uniform_real_distribution<double> x_dist(-10.0, std::nextafter(10.0, DBL_MAX));
+std::uniform_real_distribution<double> y_dist(-10.0, std::nextafter(10.0, DBL_MAX));
+std::uniform_real_distribution<double> th_dist(-M_PI, M_PI);
+std::chrono::_V2::high_resolution_clock::time_point start;
+std::chrono::_V2::high_resolution_clock::time_point end;
+
+ParticleVector particles;
 
 template <class T>
 void testSampleNormalDist(const unsigned int samples,
@@ -49,41 +55,6 @@ void testSampleNormalDist(const unsigned int samples,
   printf("--- Test complete ---\n");
 }
 
-void testVectorReserve(size_t iterations,
-                       const bool reserve_enable
-                      )
-{
-  std::chrono::_V2::high_resolution_clock::time_point start;
-  std::chrono::_V2::high_resolution_clock::time_point end;
-  std::chrono::duration<double> dur;
-  double dur_max = 0.0;
-  double dur_tot = 0.0;
-
-  Particle pose(1.0, 2.0, 3.0, 4.0);
-  ParticleVector v;
-
-  if (reserve_enable) {
-    v.resize(iterations);
-  }
-
-  printf("v.size() = %lu\n", v.size());
-  printf("v.capacity() = %lu\n", v.capacity());
-
-  std::vector<double> dur_v(iterations);
-  for (size_t i = 0; i < iterations; ++i) {
-    start = std::chrono::high_resolution_clock::now();
-    v.push_back(pose);
-    end = std::chrono::high_resolution_clock::now();
-    dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-    dur_v[i] = dur.count() * 1000.0;
-    dur_max = dur_v[i] > dur_max? dur_v[i] : dur_max;
-    dur_tot += dur_v[i];
-  }
-  printf("Max = %f ms\n", dur_max);
-  printf("Total = %f ms\n", dur_tot);
-  printf("--- Test complete ---\n");
-}
-
 void testAngleWrapping(const size_t num_angles,
                        const double angle_inc
                       )
@@ -99,28 +70,6 @@ void testAngleWrapping(const size_t num_angles,
   }
 }
 
-void normalize(ParticleVector& particles)
-{
-  double weight_sum = 0.0;
-  for (size_t i = 0; i < particles.size(); ++i) {
-    weight_sum += particles[i].weight_;
-  }
-  double normalizer = 1 / weight_sum;
-  for (size_t i = 0; i < particles.size(); ++i) {
-    particles[i].weight_ *= normalizer;
-  }
-}
-
-ParticleVector create(size_t num_particles)
-{
-  ParticleVector particles;
-  for (size_t i = 0; i < num_particles; ++i) {
-    particles.push_back(Particle(i, i+1, i+2, 1.0));
-  }
-  normalize(particles);
-  return particles;
-}
-
 void print(ParticleVector& particles)
 {
   for (size_t i = 0; i < particles.size(); ++i) {
@@ -131,89 +80,30 @@ void print(ParticleVector& particles)
   printf("\n");
 }
 
-void sample(size_t init_num_particles,
-            size_t num_particles_min_,
-            size_t num_particles_max_
-           )
+void gen(Particle& particle)
 {
-  ParticleVector particles_ = create(init_num_particles);
-  particles_.resize(num_particles_max_);
+  //Particle particle;
 
-  print(particles_);
+  particle.x_ = x_dist(rng.engine());
+  particle.y_ = y_dist(rng.engine());
+  particle.th_ = th_dist(rng.engine());
 
-  size_t num_particles = init_num_particles;
-  double sample_width = 0.0;
-  double sum_target = 0.0;
-  double sum_curr = 0.0;
-  double weight_sum = 0.0;
-  double num_particles_target = num_particles_max_;
-  size_t s = 0;
-  size_t p = 0;
-
-  // Initialize target and current weight sums
-  if (num_particles > 0) {
-    sample_width = 1.0 / num_particles;
-    sum_target = start * sample_width;
-    sum_curr = particles_[p].weight_;
-  }
-  // Generate samples until we exceed both the minimum and target number of
-  // samples, or reach the maximum number allowed
-  while (   (   s < num_particles_target
-             || s < num_particles_min_
-            )
-         && s < num_particles_max_
-        ) {
-    // Sample from the current distribution until the sampled set
-    // size is equal to the current distribution size
-    if (s < num_particles) {
-      // Sum weights until we reach the target sum
-      while (sum_curr < sum_target) {
-        sum_curr += particles_[++p].weight_;
-      }
-      // Add to sample set and increase target sum
-      printf("s, p = %lu, %lu\n", s, p);
-      printf("sum_curr = %f\n", sum_curr);
-      printf("sum_target = %f\n", sum_target);
-      particles_[s] = particles_[p];
-      sum_target += sample_width;
-    }
-    // Generate a new random particle in free space
-    else {
-      particles_[s] = Particle(99, 99, 99);
-    }
-    // Update weight sum
-    weight_sum += particles_[s].weight_;
-
-    /*KLD stuff*/
-
-    ++s;
-  }
-  // Resize to the actual number of samples used
-  particles_.resize(s);
-
-  // Normalize weights
-  double normalizer = 1 / weight_sum;
-  for (size_t i = 0; i < particles_.size(); ++i) {
-    particles_[i].weight_ *= normalizer;
-  }
-
-  print(particles_);
-
-  return;
+  return;// particle;
 }
 
-double weight(const float range_obs,
-              const float range_map
-             )
+void testGen(size_t num_samples)
 {
-  return (  decay * std::exp(-decay * range_obs)
-          / (1 - decay * std::exp(-decay * range_map))
-         );
-}
+  printf("\nTesting gen() ... \n");
+  particles.resize(num_samples);
 
-double simple(const float a, const float b)
-{
-  return static_cast<double>(a) * static_cast<double>(b);
+  start = std::chrono::high_resolution_clock::now();
+  for (size_t i = 0; i < particles.size(); ++i) {
+     gen(particles[i]);
+  }
+  end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  printf("Generated %lu samples in %.2f ms\n", num_samples, dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
 }
 
 int main(int argc, char** argv)
@@ -222,25 +112,9 @@ int main(int argc, char** argv)
   // unsigned int repeats = 5;
   // testSampleNormalDist<float>(iterations, repeats);
   // testSampleNormalDist<double>(iterations, repeats);
-  // testVectorReserve(10000, true);
-  // testVectorReserve(10000, false);
   // testAngleWrapping(20, 45 * M_PI / 180.0);
-  // sample(10, 15, 20);
 
-  // printf("%d\n", approxEqual(-0.0, 0.0, FLT_EPSILON));
-  // printf("%d\n", approxEqual(10000.00009, 10001.0, FLT_EPSILON));
-  // printf("%d\n", std::abs(10000.000997 - 10000.000) < FLT_EPSILON);
-  // printf("%d\n", approxEqual(2.0, 2.0000000003, FLT_EPSILON));
-  // printf("%d\n", approxEqual(-0.000008, -0.0008, FLT_EPSILON));
-  std::vector<float> ranges_obs = {0.0f, 1.2345e-20f, 15.000001f, 14.99999901f};
-  std::vector<float> ranges_map = {15.0f, 15.0f, 15.0f, 15.0f, 15.0f};
-  for (size_t i = 0; i < ranges_obs.size(); ++i) {
-    printf("weight = %.20e\n", weight(ranges_obs[i], ranges_map[i]));
-  }
-  std::vector<float> as = {1.2345e-20};
-  std::vector<float> bs = {1.2345e-20};
-  for (size_t i = 0; i < as.size(); ++i) {
-    printf("simple = %.20e\n", simple(as[i], bs[i]));
-  }
+  testGen(200'000);
+
   return 0;
 }

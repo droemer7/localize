@@ -76,7 +76,7 @@ namespace localize
     void update(ParticleVector& particles);
 
     // Generate a random particle in free space
-    Particle gen();
+    Particle random();
 
     // Normalize particle weights
     void normalize(ParticleVector& particles,
@@ -86,12 +86,12 @@ namespace localize
     // Normalize particle weights
     void normalize(ParticleVector& particles);
 
-    // Indicates if the robot velocity is approximately zero, and saves the
-    // input value
+    // Indicates if the robot velocity is within the stopped threshold based on
+    // the last saved value
     bool stopped();
 
-    // Indicates if the robot velocity is approximately zero, using the last
-    // saved value
+    // Updates the robot velocity with the input value and returns true if it
+    // is within the stopped threshold
     bool stopped(const double vel);
 
     // Save particle distribution to file in CSV format

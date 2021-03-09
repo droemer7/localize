@@ -137,7 +137,7 @@ void MCL::update(ParticleVector& particles)
   size_t p = 0;
   size_t k = 0;
 
-  // Initialize histogram
+  // Clear histogram
   hist_.reset();
 
   // Initialize target and current weight sums
@@ -168,27 +168,27 @@ void MCL::update(ParticleVector& particles)
       particles[s] = particles[p];
       sum_target += sample_width;
     }
-    // Finished sampling current distribution so generate a new random particle
+    // Exhausted current distribution so generate a new random particle
     else {
       repeat = false;
-      particles[s] = gen();
+      particles[s] = random();
     }
-    // Update particle importance weight
-    // If it's a duplicate, copy the already-recalculated weight
+    // Calculate particle importance weight
+    // If it's a duplicate, copy the weight from the previous sample
     if (repeat) {
       particles[s].weight_ = particles[s - 1].weight_;
     }
-    // If it's a new sample, recalculate the weight
+    // If it's a new sample, calculate the weight using the sensor model
     else {
       sensor_model_.update(particles[s]);
     }
     weight_sum += particles[s].weight_;
 
     // Update histogram, incrementing k if the number of occupied histogram
-    // cells increased
+    // cells increases
     if (hist_.update(particles[s])) {
       ++k;
-      // Update target number of samples
+      // Update target number of samples based on k and error bounds
       // Wilson-Hilferty transformation of chi-square distribution
       if (k > 1) {
         chi_sq_term_1 = (k - 1.0) / (2.0 * kld_eps_);
@@ -198,23 +198,23 @@ void MCL::update(ParticleVector& particles)
     }
     ++s;
   }
+  // Update the number of particles we're using
   num_particles_curr_ = s;
-  printf("Samples: actual = %lu, target %lu\n",
-         s, static_cast<size_t>(num_particles_target)
-        );
+  printf("Samples: actual = %lu, target %lu\n", s, static_cast<size_t>(num_particles_target));
   printf("Histogram: count = %lu\n", k);
 
   // Normalize weights
-  // save("particles_prenorm.csv");
+  //save("particles_prenorm.csv");
   normalize(particles, weight_sum);
-  // save("particles_postnorm.csv");
+  //save("particles_postnorm.csv");
 
   return;
 }
 
-Particle MCL::gen()
+Particle MCL::random()
 {
   Particle particle;
+
   bool occupied = true;
 
   // Regenerate x & y until free space is found
@@ -226,7 +226,7 @@ Particle MCL::gen()
   // Any theta is allowed
   particle.th_ = th_dist_(rng_.engine());
 
-  // Particle weight is initialized to 1.0 in constructor
+  // Particle weight is zero (unknown) until calculated by the sensor model
   return particle;
 }
 

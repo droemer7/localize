@@ -9,7 +9,7 @@
   <arg name="mcl_num_particles_max"     default="200000"/>
   <arg name="mcl_kld_eps"               default="0.02"/>
   <arg name="mcl_hist_occ_weight_min"   default="0.0"/>
-  <arg name="mcl_hist_pos_res"          default="0.2"/>
+  <arg name="mcl_hist_pos_res"          default="0.5"/>
   <arg name="mcl_hist_th_res"           default="0.1745329252"/> <!-- pi/18 (10 deg)-->
   <arg name="motion_lin_vel_n1"         default="0.01"/>
   <arg name="motion_lin_vel_n2"         default="0.01"/>
@@ -27,7 +27,7 @@
   <arg name="sensor_weight_map_obj"     default="80.0"/>
   <arg name="sensor_weight_rand_effect" default="1.0"/>
   <arg name="sensor_uncertainty_factor" default="1.2"/>
-  <arg name="sensor_table_res"          default="0.01"/>
+  <arg name="sensor_table_res"          default="0.005"/>
 
   <!-- Control enabled -->
   <group if="$(arg control)">
