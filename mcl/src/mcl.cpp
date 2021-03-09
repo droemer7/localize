@@ -117,7 +117,7 @@ void MCL::update(const RayScan&& obs)
   //if (!stopped()) {
     update(particles_);
   //}
-  if (iteration++ >= 2) {
+  if (iteration++ >= 100) {
     save("particles.csv");
     throw std::runtime_error("Finished");
   }
@@ -131,7 +131,7 @@ void MCL::update(ParticleVector& particles)
   double sum_target = 0.0;
   double sum_curr = 0.0;
   double weight_sum = 0.0;
-  double num_particles_target = 0.0;
+  double num_particles_target = num_particles_min_;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
   bool repeat = false;
@@ -158,7 +158,7 @@ void MCL::update(ParticleVector& particles)
     // Draw a particle from the current distribution with probability
     // proportional to its weight
     if (s < num_particles_curr_) {
-      repeat = (s > 0);
+      repeat = s > 0;
 
       // Sum weights until we reach the target sum
       while (sum_curr < sum_target) {
@@ -176,7 +176,7 @@ void MCL::update(ParticleVector& particles)
       particles[s] = random();
     }
     // Calculate particle importance weight
-    // If it's a duplicate, copy the weight from the previous sample
+    // If it's a duplicate, copy the weight using the saved sample index
     if (repeat) {
       particles[s].weight_ = particles[s - 1].weight_;
     }
@@ -202,9 +202,11 @@ void MCL::update(ParticleVector& particles)
   }
   // Update the number of particles we're using
   num_particles_curr_ = s;
+  printf("*** Iteration %lu ***\n", iteration);
   printf("Samples used = %lu\n", s);
   printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
   printf("Histogram count = %lu\n", k);
+  printf("---------------------------------\n");
 
   // Normalize weights
   normalize(particles, weight_sum);
