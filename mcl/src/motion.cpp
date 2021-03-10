@@ -22,6 +22,7 @@ VelModel::VelModel(const double car_length,
 {}
 
 void VelModel::update(ParticleVector& particles,
+                      const size_t num_particles,
                       const double lin_vel,
                       const double steering_angle,
                       const double dt
@@ -40,7 +41,11 @@ void VelModel::update(ParticleVector& particles,
   if (   lin_vel_sq > DBL_EPSILON
       || ang_vel_sq > DBL_EPSILON
      ) {
-    for (Particle& particle : particles) {
+    // TBD restore num_particles
+    for (size_t i = 0; i < num_particles; ++i) {
+      if (i >= 200000) {
+        printf("Invalid index i=%lu", i);
+      }
       // Calculate noise for velocities and rotation
       lin_vel_noise = sampler_.gen(0.0, std::sqrt(  lin_vel_n1_ * lin_vel_sq
                                                   + lin_vel_n2_ * ang_vel_sq
@@ -60,14 +65,14 @@ void VelModel::update(ParticleVector& particles,
       ang_vel_adj = ang_vel + ang_vel_noise;
 
       // Calculate new pose x and y using noisy velocities
-      particle.x_ += (  (lin_vel_adj / ang_vel_adj)
-                      * (-std::sin(particle.th_) + std::sin(particle.th_ + ang_vel_adj * dt))
-                     );
-      particle.y_ += (  (lin_vel_adj / ang_vel_adj)
-                      * ( std::cos(particle.th_) - std::cos(particle.th_ + ang_vel_adj * dt))
-                     );
+      particles[i].x_ += (  (lin_vel_adj / ang_vel_adj)
+                          * (-std::sin(particles[i].th_) + std::sin(particles[i].th_ + ang_vel_adj * dt))
+                         );
+      particles[i].y_ += (  (lin_vel_adj / ang_vel_adj)
+                          * ( std::cos(particles[i].th_) - std::cos(particles[i].th_ + ang_vel_adj * dt))
+                         );
       // Calculate new pose rotation, adding additional noise
-      particle.th_ += wrapAngle((ang_vel_adj + th_noise) * dt);
+      particles[i].th_ += wrapAngle((ang_vel_adj + th_noise) * dt);
     }
   }
   return;

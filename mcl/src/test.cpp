@@ -131,5 +131,9 @@ int main(int argc, char** argv)
 
   testSqrt(200'000);
 
+  std::vector<int> test(5);
+
+  printf("%lu", (size_t)-1);
+
   return 0;
 }

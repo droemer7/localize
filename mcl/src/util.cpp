@@ -71,13 +71,11 @@ Map::Map(const unsigned int width,
 ParticleHistogram::ParticleHistogram(const double x_res,
                                      const double y_res,
                                      const double th_res,
-                                     const double weight_min,
                                      const Map& map
                                     ) :
   x_res_(x_res),
   y_res_(y_res),
   th_res_(th_res),
-  weight_min_(weight_min),
   x_size_(std::round(map.width * map.scale / x_res_)),
   y_size_(std::round(map.height * map.scale / y_res_)),
   th_size_(std::round((M_2PI + map.th) / th_res)),
@@ -95,25 +93,21 @@ bool ParticleHistogram::update(const Particle& particle)
 {
   bool new_occ = false;
 
-  // Ignore particle if its unnormalized weight is low
-  // TBD remove weight condition
-  //if (particle.weight_ >= weight_min_) {
-    // Calculate indexes
-    size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / x_res_),
-                          static_cast<double>(x_size_ - 1)
-                         );
-    size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / y_res_),
-                          static_cast<double>(y_size_ - 1)
-                         );
-    size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / th_res_),
-                           static_cast<double>(th_size_ - 1)
-                          );
-    // Update histogram
-    if (!hist_[x_i][y_i][th_i]) {
-      hist_[x_i][y_i][th_i] = true;
-      new_occ = true;
-    }
-  //}
+  // Calculate indexes
+  size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / x_res_),
+                        static_cast<double>(x_size_ - 1)
+                       );
+  size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / y_res_),
+                        static_cast<double>(y_size_ - 1)
+                       );
+  size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / th_res_),
+                         static_cast<double>(th_size_ - 1)
+                        );
+  // Update histogram
+  if (!hist_[x_i][y_i][th_i]) {
+    hist_[x_i][y_i][th_i] = true;
+    new_occ = true;
+  }
   return new_occ;
 }
 

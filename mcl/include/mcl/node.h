@@ -90,12 +90,11 @@ namespace localize
     std::unique_ptr<MCL> mcl_ptr_;
 
     // MCL parameters
-    double mcl_num_particles_min_;    // Minimum number of particles
-    double mcl_num_particles_max_;    // Maximum number of particles
-    double mcl_kld_eps_;              // KL distance threshold
-    double mcl_hist_occ_weight_min_;  // Minimum particle weight required for a histogram cell to be considered occupied
-    double mcl_hist_pos_res_;         // Histogram bin size for x and y position
-    double mcl_hist_th_res_;          // Histogram bin size for heading angle
+    double mcl_num_particles_min_;  // Minimum number of particles
+    double mcl_num_particles_max_;  // Maximum number of particles
+    double mcl_kld_eps_;            // KL distance threshold
+    double mcl_hist_pos_res_;       // Histogram bin size for x and y position
+    double mcl_hist_th_res_;        // Histogram bin size for heading angle
 
     // Motion model parameters
     double car_length_;                           // Car length
@@ -110,7 +109,8 @@ namespace localize
     double motion_ang_vel_n2_;                    // Motion model angular velocity noise coefficient 2
     double motion_th_n1_;                         // Motion model final rotation noise coefficient 1
     double motion_th_n2_;                         // Motion model final rotation noise coefficient 2
-    double motion_dur_last_msec_;                 // Motion model update time (milliseconds)
+    double motion_dur_last_msec_;                 // Motion model last update time (milliseconds)
+    double motion_dur_worst_msec_;                // Motion model worst update time (milliseconds)
 
     // Sensor model parameters
     float sensor_range_min_;            // Sensor min range in meters
@@ -126,7 +126,8 @@ namespace localize
     double sensor_weight_rand_effect_;  // Sensor model weight for random effect probability
     double sensor_uncertainty_factor_;  // Sensor model uncertainty factor - extra noise added to calculation
     double sensor_table_res_;           // Sensor model table resolution (meters per cell)
-    double sensor_dur_last_msec_;       // Sensor model update time (milliseconds)
+    double sensor_dur_last_msec_;       // Sensor model last update time (milliseconds)
+    double sensor_dur_worst_msec_;      // Sensor model worst update time (milliseconds)
 
     // Map parameters
     unsigned int map_width_;        // Map number of pixels along x axis

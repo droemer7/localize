@@ -35,6 +35,7 @@ namespace localize
     // p(x[t] | u[t], x[t-1])
     // Algorithm 5.3 from Probabilistic Robotics (Thrun 2006, page 124)
     void update(ParticleVector& particles,
+                const size_t num_particles,
                 const double lin_vel,
                 const double steering_angle,
                 const double dt

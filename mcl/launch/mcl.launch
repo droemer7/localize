@@ -2,15 +2,16 @@
   <!-- Launch arguments -->
   <arg name="car_name" default="car"/>
   <arg name="real"     default="false"/>
-  <arg name="control"  default="false"/>
+  <arg name="control"  default="true"/>
 
   <!-- MCL arguments -->
   <arg name="mcl_num_particles_min"     default="1000"/>
   <arg name="mcl_num_particles_max"     default="200000"/>
   <arg name="mcl_kld_eps"               default="0.01"/>
-  <arg name="mcl_hist_occ_weight_min"   default="0.0"/>
-  <arg name="mcl_hist_pos_res"          default="0.05"/>
-  <arg name="mcl_hist_th_res"           default="0.0872664626"/> <!-- pi/36 (5 deg)-->
+  <arg name="mcl_hist_pos_res"          default="0.1"/>
+  <arg name="mcl_hist_th_res"           default="0.1745329252"/> <!-- pi/18 (10 deg)-->
+  <!-- <arg name="mcl_hist_pos_res"          default="0.05"/>
+  <arg name="mcl_hist_th_res"           default="0.0872664626"/> --> <!-- pi/36 (5 deg)-->
   <arg name="motion_lin_vel_n1"         default="0.01"/>
   <arg name="motion_lin_vel_n2"         default="0.01"/>
   <arg name="motion_ang_vel_n1"         default="0.01"/>
@@ -18,7 +19,7 @@
   <arg name="motion_th_n1"              default="0.01"/>
   <arg name="motion_th_n2"              default="0.01"/>
   <arg name="sensor_range_no_obj"       default="16.0"/>
-  <arg name="sensor_std_dev"            default="0.5"/>
+  <arg name="sensor_std_dev"            default="0.02"/>
   <arg name="sensor_th_sample_res"      default="0.7853981634"/> <!-- pi/4 (45 deg) -->
   <arg name="sensor_th_raycast_res"     default="0.0314159265"/> <!-- pi/100 -->
   <arg name="sensor_new_obj_decay_rate" default="0.25"/>
@@ -77,7 +78,6 @@
       <param name="mcl_num_particles_min"     type="int"    value="$(arg mcl_num_particles_min)"/>
       <param name="mcl_num_particles_max"     type="int"    value="$(arg mcl_num_particles_max)"/>
       <param name="mcl_kld_eps"               type="double" value="$(arg mcl_kld_eps)"/>
-      <param name="mcl_hist_occ_weight_min"   type="double" value="$(arg mcl_hist_occ_weight_min)"/>
       <param name="mcl_hist_pos_res"          type="double" value="$(arg mcl_hist_pos_res)"/>
       <param name="mcl_hist_th_res"           type="double" value="$(arg mcl_hist_th_res)"/>
       <param name="motion_lin_vel_n1"         type="double" value="$(arg motion_lin_vel_n1)"/>

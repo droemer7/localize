@@ -23,7 +23,6 @@ namespace localize
     MCL(const unsigned int mcl_num_particles_min, // Minimum number of particles
         const unsigned int mcl_num_particles_max, // Maximum number of particles
         const double mcl_kld_eps,                 // KL distance threshold
-        const double mcl_hist_occ_weight_min,     // Minimum particle weight required for a histogram cell to be considered occupied
         const double mcl_hist_pos_res,            // Histogram resolution for x and y position (meters per cell)
         const double mcl_hist_th_res,             // Histogram resolution for heading angle (rad per cell)
         const double car_length,                  // Car length
@@ -80,7 +79,7 @@ namespace localize
 
     // Normalize particle weights
     void normalize(ParticleVector& particles,
-                   double weight_sum
+                   double particles_weight_sum
                   );
 
     // Normalize particle weights
