@@ -8,6 +8,9 @@ static const double STOPPED_THRESHOLD = 1e-10; // Threshold for considering robo
 static const double Z_P_99 = 2.3263478740;     // Z score for P(0.99) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;             // Fraction 2/9
 
+// TBD remove
+static const int LAST_ITERATION = 1;
+
 using namespace localize;
 
 MCL::MCL(const unsigned int mcl_num_particles_min,
@@ -44,10 +47,12 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const std::vector<int8_t> map_data
         ) :
   iteration(0),
-  particles_(mcl_num_particles_max),
+  dist_(ParticleVector(mcl_num_particles_max),
+        0.01,
+        0.9
+       ),
   num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
   num_particles_max_(mcl_num_particles_max),
-  num_particles_(0),
   kld_eps_(mcl_kld_eps),
   vel_(0.0),
   map_(map_width,
@@ -95,7 +100,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
     throw std::runtime_error("MCL: num_particles_min > num_particles_max\n");
   }
   for (size_t i = 0; i < num_particles_max_; ++i) {
-    particles_[i] = random();
+    dist_.particles_[i] = random();
   }
 }
 
@@ -106,12 +111,7 @@ void MCL::update(const double vel,
 {
   if (!stopped(vel)) {
     RecursiveLock lock(particles_mtx_);
-    motion_model_.update(particles_,
-                         num_particles_,
-                         vel,
-                         steering_angle,
-                         dt
-                        );
+    motion_model_.update(dist_.particles_, dist_.num_particles_, vel, steering_angle, dt);
   }
 }
 
@@ -119,22 +119,26 @@ void MCL::update(const RayScan&& obs)
 {
   sensor_model_.update(obs);
 
-  if (!stopped()) {
+  // TBD remove true
+  if (true || !stopped()) {
     RecursiveLock lock(particles_mtx_);
-    update(particles_);
+    update(dist_);
     ++iteration;
   }
-  if (iteration >= 15000) {
+  if (iteration > LAST_ITERATION) {
     save("particles.csv");
     throw std::runtime_error("Finished");
   }
 }
 
-void MCL::update(ParticleVector& particles)
+void MCL::update(ParticleDistribution& dist)
 {
   RecursiveLock lock(particles_mtx_);
   Particle particle_p;
   bool repeat = false;
+
+  // Move target into ParticleDistribution
+  // Create a second ParticleDistribution for sample
   double sample_weight_width = 0.0;
   double sample_weight_sum_target = 0.0;
   double sample_weight_sum = 0.0;
@@ -151,51 +155,56 @@ void MCL::update(ParticleVector& particles)
   hist_.reset();
 
   // Initialize target and current weight sums
-  if (num_particles_ > 0) {
-    sample_weight_width = 1.0 / num_particles_;
+  if (dist.num_particles_ > 0) {
+    sample_weight_width = 1.0 / dist.num_particles_;
     sample_weight_sum_target = sample_dist_(rng_.engine()) * sample_weight_width;
-    sample_weight_sum = particles[0].weight_;
+    sample_weight_sum = dist.particles_[0].weight_;
   }
-  // Generate samples until we exceed both the minimum and target number of
-  // samples, or reach the maximum allowed
+  // Generate samples until we exceed both the minimum and target number of samples, or reach the maximum allowed
   while (   (   s < num_particles_target
              || s < num_particles_min_
             )
          && s < num_particles_max_
         ) {
-    // Draw a particle from the current distribution with probability
-    // proportional to its weight
-    if (   s < num_particles_
-        && p < num_particles_
+    // Draw a particle from the current distribution with probability proportional to its weight
+    // TBD **********
+    // Try draw without low variance technique? without replacement?
+    // Implement slow and fast weight average to draw random samples
+    if (   s < dist.num_particles_
+        && p < dist.num_particles_
        ) {
-      // Sum weights until we reach the target sum
-      while (sample_weight_sum < sample_weight_sum_target) {
-        sample_weight_sum += particles[++p].weight_;
+      // Sum weights until we reach the target
+      while (   sample_weight_sum < sample_weight_sum_target
+             && p + 1 < dist.num_particles_
+            ) {
+        sample_weight_sum += dist.particles_[++p].weight_;
       }
-      // If it's not a repeat particle, update its weight and save to avoid
-      // recalculating the weight repeatedly for the same particle
-      if (p != p_prev) {
-        particle_p = particles[p];
-        sensor_model_.update(particle_p);
-        p_prev = p;
+      // Make sure we actually did reach the target weight sum
+      if (sample_weight_sum >= sample_weight_sum_target) {
+        // If it's not a repeat particle, update its weight and save to avoid recalculating the weight repeatedly for
+        // the same particle
+        if (p != p_prev) {
+          particle_p = dist.particles_[p];
+          sensor_model_.update(particle_p);
+          p_prev = p;
+        }
+        // Add to sample set and increase target sum
+        dist.particles_[s] = particle_p;
+        sample_weight_sum_target += sample_weight_width;
       }
-      // Add to sample set and increase target sum
-      particles[s] = particle_p;
-      sample_weight_sum_target += sample_weight_width;
     }
-    // Exhausted current distribution so generate a new random particle and
-    // update its weight
+    // Exhausted current distribution so generate a new random particle and update its weight
     else {
       repeat = false;
-      particles[s] = random();
-      sensor_model_.update(particles[s]);
+      dist.particles_[s] = random();
+      sensor_model_.update(dist.particles_[s]);
     }
-    // Update total weight
-    particles_weight_sum += particles[s].weight_;
+    // Update weight terms
+    particles_weight_sum += dist.particles_[s].weight_;
 
-    // Update histogram, incrementing k if the number of occupied histogram
-    // cells increases
-    if (hist_.update(particles[s])) {
+
+    // Update histogram, incrementing k if the number of occupied histogram cells increases
+    if (hist_.update(dist.particles_[s])) {
       ++hist_count;
       // Update target number of samples based on k and error bounds
       // Wilson-Hilferty transformation of chi-square distribution
@@ -208,7 +217,7 @@ void MCL::update(ParticleVector& particles)
     ++s;
   }
   // Update the number of particles we're using
-  num_particles_ = s;
+  dist.num_particles_ = s;
   printf("*** Iteration %lu ***\n", iteration);
   printf("Samples used = %lu\n", s);
   printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
@@ -216,7 +225,10 @@ void MCL::update(ParticleVector& particles)
   printf("---------------------------------\n");
 
   // Normalize weights
-  normalize(particles, particles_weight_sum);
+  if (iteration == LAST_ITERATION) {
+    save("particles_prenorm_last_iteration.csv");
+  }
+  normalize(dist);
 
   return;
 }
@@ -239,32 +251,22 @@ Particle MCL::random()
   return particle;
 }
 
-void MCL::normalize(ParticleVector& particles,
-                    double particles_weight_sum
-                   )
+void MCL::normalize(ParticleDistribution& dist)
 {
   RecursiveLock lock(particles_mtx_);
   double normalizer = 0.0;
 
-  if (particles_weight_sum > 0.0) {
-    normalizer = 1 / particles_weight_sum;
+  if (dist.weight_sum_ > 0.0) {
+    normalizer = 1 / dist.weight_sum_;
   }
-  for (size_t i = 0; i < num_particles_; ++i) {
-    particles[i].weight_ *= normalizer;
+  else {
+    for (size_t i = 0; i < dist.num_particles_; ++i) {
+      dist.weight_sum_ += dist.particles_[i].weight_;
+    }
   }
-  return;
-}
-
-void MCL::normalize(ParticleVector& particles)
-{
-  RecursiveLock lock(particles_mtx_);
-  double particles_weight_sum = 0.0;
-
-  for (size_t i = 0; i < num_particles_; ++i) {
-    particles_weight_sum += particles[i].weight_;
+  for (size_t i = 0; i < dist.num_particles_; ++i) {
+    dist.particles_[i].weight_ *= normalizer;
   }
-  normalize(particles, particles_weight_sum);
-
   return;
 }
 
@@ -290,8 +292,8 @@ void MCL::save(const std::string filename,
               )
 {
   RecursiveLock lock(particles_mtx_);
-  ParticleVector particles = particles_;
-  particles.resize(num_particles_);
+  ParticleVector particles = dist_.particles_;
+  particles.resize(dist_.num_particles_);
 
   if (sort) {
     localize::sort(particles);

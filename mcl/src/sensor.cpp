@@ -44,7 +44,7 @@ BeamModel::BeamModel(const float range_min,
   rays_obs_sample_size_(std::round(M_2PI / th_sample_res_)),
   raycaster_(map,
              range_max / map.scale,
-             std::round(M_2PI / th_raycast_res)
+             656//std::round(M_2PI / th_raycast_res)
             ),
   th_sample_dist_(0.0, th_sample_res_)
 {
@@ -85,6 +85,9 @@ void BeamModel::update(ParticleVector& particles,
                        const bool calc_enable
                       )
 {
+  // TBD remove
+  // std::vector<double> results;
+
   double weight = 1.0;
   float range_obs = 0.0;
   float range_map = 0.0;
@@ -97,6 +100,7 @@ void BeamModel::update(ParticleVector& particles,
 
   for (Particle& particle : particles) {
     weight = 1.0;
+    // bool save = approxEqual(particle.x_, 0.0, static_cast<double>(RANGE_EPSILON));  // TBD remove
 
     for (Ray& ray_obs : rays_obs_sample_) {
       // Compute range from the map
@@ -111,9 +115,21 @@ void BeamModel::update(ParticleVector& particles,
       // Update partial weight with this measurement's probability
       weight *= calc_enable ? calcProb(range_obs, range_map) :
                               lookupProb(range_obs, range_map);
+      // if (save) {
+      //   results.push_back(range_obs);
+      //   results.push_back(range_map);
+      //   results.push_back(lookupProb(range_obs, range_map));
+      // }
     }
     // Update full weight, applying overall model uncertainty
     particle.weight_ = std::pow(weight, uncertainty_factor_);
+    // TBD remove
+    // if (save) {
+    //   results.push_back(0.0);
+    //   results.push_back(0.0);
+    //   results.push_back(particle.weight_);
+    //   localize::save(results, "results.csv", 3);
+    // }
   }
   return;
 }

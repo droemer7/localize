@@ -39,6 +39,25 @@ namespace localize
 
   typedef std::vector<Particle> ParticleVector;
 
+  struct ParticleDistribution
+  {
+    ParticleDistribution(const ParticleVector particles,    // Particles
+                         const double weight_avg_slow_rate, // Particle weight average slow smoothing rate
+                         const double weight_avg_fast_rate, // Particle weight average fast smoothing rate
+                         const double weight_avg = 0.0,     // Particle weight average
+                         const double weight_sum = 0.0      // Particle weight sum
+                        );
+
+    ParticleVector particles_;    // Particles
+    double num_particles_;        // Number of particles (this is <= particles.size())
+    double weight_avg_slow_rate_; // Particle weight average slow smoothing rate
+    double weight_avg_fast_rate_; // Particle weight average fast smoothing rate
+    double weight_avg_;           // Particle weight average
+    double weight_avg_slow_;      // Particle weight average, smoothed at slow rate
+    double weight_avg_fast_;      // Particle weight average, smoothed at fast rate
+    double weight_sum_;           // Particle weight sum
+  };
+
   // A range sensor ray with range and angle
   struct Ray
   {

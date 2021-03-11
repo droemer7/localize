@@ -72,18 +72,18 @@ namespace localize
     // reference distribution (estimated by sampling and counting the number
     // of histogram bins with support) is reduced to acceptable bounds
     // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void update(ParticleVector& particles);
+    void update(ParticleDistribution& dist);
 
     // Generate a random particle in free space
     Particle random();
 
     // Normalize particle weights
-    void normalize(ParticleVector& particles,
+    void normalize(ParticleDistribution& dist,
                    double particles_weight_sum
                   );
 
     // Normalize particle weights
-    void normalize(ParticleVector& particles);
+    void normalize(ParticleDistribution& dist);
 
     // Indicates if the robot velocity is within the stopped threshold based on
     // the last saved value
@@ -105,10 +105,9 @@ namespace localize
     std::recursive_mutex particles_mtx_;  // Particle distribution mutex
     std::recursive_mutex vel_mtx_;        // Velocity mutex
 
-    ParticleVector particles_;        // Particle distribution
+    ParticleDistribution dist_;       // Particle distribution
     const size_t num_particles_min_;  // Minimum number of particles
     const size_t num_particles_max_;  // Maximum number of particles
-    size_t num_particles_;            // Current number of particles ** not equal to size() in general **
     const double kld_eps_;            // KL distance threshold
     double vel_;                      // Robot velocity
 

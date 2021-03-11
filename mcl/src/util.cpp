@@ -18,6 +18,22 @@ Particle::Particle(const double x,
   weight_(weight)
 {}
 
+ParticleDistribution::ParticleDistribution(const ParticleVector particles,
+                                           const double weight_avg_slow_rate,
+                                           const double weight_avg_fast_rate,
+                                           const double weight_avg,
+                                           const double weight_sum
+                                          ) :
+  particles_(particles),
+  num_particles_(0),
+  weight_avg_slow_rate_(weight_avg_slow_rate),
+  weight_avg_fast_rate_(weight_avg_fast_rate),
+  weight_avg_(weight_avg),
+  weight_avg_slow_(weight_avg),
+  weight_avg_fast_(weight_avg),
+  weight_sum_(weight_sum)
+{}
+
 Ray::Ray(const float range,
          const float th
         ) :

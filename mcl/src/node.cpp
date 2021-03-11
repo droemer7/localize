@@ -33,7 +33,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
   servo_spinner_(1, &servo_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  timer_cb_dur_(0.25),
+  timer_cb_dur_(1.0),
   motor_t_prev_(ros::Time::now()),
   motion_dur_msec_(0.0),
   motion_dur_worst_msec_(0.0),
@@ -85,8 +85,8 @@ MCLNode::MCLNode(const std::string& motor_topic,
   const nav_msgs::OccupancyGrid& map_msg = get_map_msg.response.map;
   map_width_ = map_msg.info.width;
   map_height_ = map_msg.info.height;
-  map_x_ = map_msg.info.origin.position.x;
-  map_y_ = map_msg.info.origin.position.y;
+  map_x_origin_ = map_msg.info.origin.position.x;
+  map_y_origin_ = map_msg.info.origin.position.y;
   map_th_ = tf2::getYaw(map_msg.info.origin.orientation);
   map_scale_ = map_msg.info.resolution;
   map_data_ = map_msg.data;
@@ -120,8 +120,8 @@ MCLNode::MCLNode(const std::string& motor_topic,
                                             sensor_table_res_,
                                             map_width_,
                                             map_height_,
-                                            map_x_,
-                                            map_y_,
+                                            map_x_origin_,
+                                            map_y_origin_,
                                             map_th_,
                                             map_scale_,
                                             map_data_
@@ -238,14 +238,14 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
 {
-  if (motion_dur_msec_ > 0.01) {
-    ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_dur_msec_);
-  }
+  // if (motion_dur_msec_ > 0.01) {
+  //   ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_dur_msec_);
+  // }
   //ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_dur_worst_msec_);
 
-  if (sensor_dur_msec_ > 0.01) {
-    ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_dur_msec_);
-  }
+  // if (sensor_dur_msec_ > 0.01) {
+  //   ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_dur_msec_);
+  // }
   //ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_dur_worst_msec_);
 }
 
@@ -281,8 +281,8 @@ void MCLNode::printMapParams()
 {
   ROS_INFO("MCL: map_width_ = %d", map_width_);
   ROS_INFO("MCL: map_height_ = %d", map_height_);
-  ROS_INFO("MCL: map_x_ = %f", map_x_);
-  ROS_INFO("MCL: map_y_ = %f", map_y_);
+  ROS_INFO("MCL: map_x_ = %f", map_x_origin_);
+  ROS_INFO("MCL: map_y_ = %f", map_y_origin_);
   ROS_INFO("MCL: map_th_ = %f", map_th_);
   ROS_INFO("MCL: map_scale_ = %f", map_scale_);
 }

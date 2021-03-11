@@ -2,16 +2,16 @@
   <!-- Launch arguments -->
   <arg name="car_name" default="car"/>
   <arg name="real"     default="false"/>
-  <arg name="control"  default="true"/>
+  <arg name="control"  default="false"/>
 
   <!-- MCL arguments -->
   <arg name="mcl_num_particles_min"     default="1000"/>
   <arg name="mcl_num_particles_max"     default="200000"/>
   <arg name="mcl_kld_eps"               default="0.01"/>
-  <arg name="mcl_hist_pos_res"          default="0.1"/>
-  <arg name="mcl_hist_th_res"           default="0.1745329252"/> <!-- pi/18 (10 deg)-->
-  <!-- <arg name="mcl_hist_pos_res"          default="0.05"/>
-  <arg name="mcl_hist_th_res"           default="0.0872664626"/> --> <!-- pi/36 (5 deg)-->
+  <!-- <arg name="mcl_hist_pos_res"          default="0.1"/>
+  <arg name="mcl_hist_th_res"           default="0.1745329252"/> --><!-- pi/18 (10 deg)-->
+  <arg name="mcl_hist_pos_res"          default="0.05"/>
+  <arg name="mcl_hist_th_res"           default="0.0872664626"/> <!-- pi/36 (5 deg)-->
   <arg name="motion_lin_vel_n1"         default="0.01"/>
   <arg name="motion_lin_vel_n2"         default="0.01"/>
   <arg name="motion_ang_vel_n1"         default="0.01"/>
@@ -19,13 +19,13 @@
   <arg name="motion_th_n1"              default="0.01"/>
   <arg name="motion_th_n2"              default="0.01"/>
   <arg name="sensor_range_no_obj"       default="16.0"/>
-  <arg name="sensor_std_dev"            default="0.02"/>
+  <arg name="sensor_std_dev"            default="1.0"/>
   <arg name="sensor_th_sample_res"      default="0.7853981634"/> <!-- pi/4 (45 deg) -->
   <arg name="sensor_th_raycast_res"     default="0.0314159265"/> <!-- pi/100 -->
   <arg name="sensor_new_obj_decay_rate" default="0.25"/>
-  <arg name="sensor_weight_no_obj"      default="20.0"/>
+  <arg name="sensor_weight_no_obj"      default="15.0"/>
   <arg name="sensor_weight_new_obj"     default="4.0"/>
-  <arg name="sensor_weight_map_obj"     default="75.0"/>
+  <arg name="sensor_weight_map_obj"     default="80.0"/>
   <arg name="sensor_weight_rand_effect" default="1.0"/>
   <arg name="sensor_uncertainty_factor" default="1.1"/>
   <arg name="sensor_table_res"          default="0.005"/>
