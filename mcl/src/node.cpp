@@ -33,11 +33,11 @@ MCLNode::MCLNode(const std::string& motor_topic,
   servo_spinner_(1, &servo_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  dur_1s_(0.25),
+  timer_cb_dur_(0.25),
   motor_t_prev_(ros::Time::now()),
-  motion_dur_last_msec_(0.0),
+  motion_dur_msec_(0.0),
   motion_dur_worst_msec_(0.0),
-  sensor_dur_last_msec_(0.0),
+  sensor_dur_msec_(0.0),
   sensor_dur_worst_msec_(0.0),
   servo_pos_(0.0)
 {
@@ -158,7 +158,7 @@ MCLNode::MCLNode(const std::string& motor_topic,
                                      ros::TransportHints().tcpNoDelay()
                                     );
   // Create timer to handle printing status info
-  status_timer_ = status_nh_.createTimer(dur_1s_,
+  status_timer_ = status_nh_.createTimer(timer_cb_dur_,
                                          &MCLNode::statusCb,
                                          this
                                         );
@@ -195,9 +195,9 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   mcl_ptr_->update(lin_vel, steering_angle, dt);
 
   // Save duration
-  motion_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  motion_dur_worst_msec_ = motion_dur_last_msec_ > motion_dur_worst_msec_?
-                           motion_dur_last_msec_ : motion_dur_worst_msec_;
+  motion_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  motion_dur_worst_msec_ = motion_dur_msec_ > motion_dur_worst_msec_?
+                           motion_dur_msec_ : motion_dur_worst_msec_;
 }
 
 void MCLNode::servoCb(const std_msgs::Float64::ConstPtr& msg)
@@ -216,9 +216,9 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   mcl_ptr_->update(RayScanMsg(msg));
 
   // Save duration
-  sensor_dur_last_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  sensor_dur_worst_msec_ = sensor_dur_last_msec_ > sensor_dur_worst_msec_?
-                           sensor_dur_last_msec_ : sensor_dur_worst_msec_;
+  sensor_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  sensor_dur_worst_msec_ = sensor_dur_msec_ > sensor_dur_worst_msec_?
+                           sensor_dur_msec_ : sensor_dur_worst_msec_;
 }
 
 template <class T>
@@ -238,13 +238,13 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
 {
-  if (motion_dur_last_msec_ > 0.01) {
-    ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_dur_last_msec_);
+  if (motion_dur_msec_ > 0.01) {
+    ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_dur_msec_);
   }
   //ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_dur_worst_msec_);
 
-  if (sensor_dur_last_msec_ > 0.01) {
-    ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_dur_last_msec_);
+  if (sensor_dur_msec_ > 0.01) {
+    ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_dur_msec_);
   }
   //ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_dur_worst_msec_);
 }

@@ -108,7 +108,7 @@ namespace localize
     ParticleVector particles_;        // Particle distribution
     const size_t num_particles_min_;  // Minimum number of particles
     const size_t num_particles_max_;  // Maximum number of particles
-    size_t num_particles_curr_;       // Current number of particles (not necessarily equal to size()!)
+    size_t num_particles_;            // Current number of particles ** not equal to size() in general **
     const double kld_eps_;            // KL distance threshold
     double vel_;                      // Robot velocity
 

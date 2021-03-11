@@ -82,7 +82,7 @@ namespace localize
     ros::AsyncSpinner servo_spinner_;
     ros::AsyncSpinner sensor_spinner_;
     ros::AsyncSpinner status_spinner_;
-    ros::Duration dur_1s_;
+    ros::Duration timer_cb_dur_;
     ros::Time motor_t_prev_;
     ros::Timer status_timer_;
 
@@ -109,7 +109,7 @@ namespace localize
     double motion_ang_vel_n2_;                    // Motion model angular velocity noise coefficient 2
     double motion_th_n1_;                         // Motion model final rotation noise coefficient 1
     double motion_th_n2_;                         // Motion model final rotation noise coefficient 2
-    double motion_dur_last_msec_;                 // Motion model last update time (milliseconds)
+    double motion_dur_msec_;                      // Motion model last update time (milliseconds)
     double motion_dur_worst_msec_;                // Motion model worst update time (milliseconds)
 
     // Sensor model parameters
@@ -126,7 +126,7 @@ namespace localize
     double sensor_weight_rand_effect_;  // Sensor model weight for random effect probability
     double sensor_uncertainty_factor_;  // Sensor model uncertainty factor - extra noise added to calculation
     double sensor_table_res_;           // Sensor model table resolution (meters per cell)
-    double sensor_dur_last_msec_;       // Sensor model last update time (milliseconds)
+    double sensor_dur_msec_;            // Sensor model last update time (milliseconds)
     double sensor_dur_worst_msec_;      // Sensor model worst update time (milliseconds)
 
     // Map parameters

@@ -47,7 +47,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   particles_(mcl_num_particles_max),
   num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
   num_particles_max_(mcl_num_particles_max),
-  num_particles_curr_(0),
+  num_particles_(0),
   kld_eps_(mcl_kld_eps),
   vel_(0.0),
   map_(map_width,
@@ -87,8 +87,8 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
         map_
        ),
   sample_dist_(0.0, 1.0),
-  x_dist_(map_.x, std::nextafter(map_.width * map_.scale + map_.x, DBL_MAX)),
-  y_dist_(map_.y, std::nextafter(map_.height * map_.scale + map_.y, DBL_MAX)),
+  x_dist_(map_.x_origin, std::nextafter(map_.width * map_.scale + map_.x_origin, DBL_MAX)),
+  y_dist_(map_.y_origin, std::nextafter(map_.height * map_.scale + map_.y_origin, DBL_MAX)),
   th_dist_(-M_PI, M_PI)
 {
   if (num_particles_min_ > num_particles_max_) {
@@ -107,7 +107,7 @@ void MCL::update(const double vel,
   if (!stopped(vel)) {
     RecursiveLock lock(particles_mtx_);
     motion_model_.update(particles_,
-                         num_particles_curr_,
+                         num_particles_,
                          vel,
                          steering_angle,
                          dt
@@ -137,24 +137,24 @@ void MCL::update(ParticleVector& particles)
   bool repeat = false;
   double sample_weight_width = 0.0;
   double sample_weight_sum_target = 0.0;
-  double sample_weight_sum_curr = 0.0;
+  double sample_weight_sum = 0.0;
   double particles_weight_sum = 0.0;
   double num_particles_target = num_particles_min_;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
   size_t hist_count = 0;
   size_t s = 0;
-  size_t p_curr = 0;
+  size_t p = 0;
   size_t p_prev = (size_t)-1;
 
   // Reset histogram
   hist_.reset();
 
   // Initialize target and current weight sums
-  if (num_particles_curr_ > 0) {
-    sample_weight_width = 1.0 / num_particles_curr_;
+  if (num_particles_ > 0) {
+    sample_weight_width = 1.0 / num_particles_;
     sample_weight_sum_target = sample_dist_(rng_.engine()) * sample_weight_width;
-    sample_weight_sum_curr = particles[0].weight_;
+    sample_weight_sum = particles[0].weight_;
   }
   // Generate samples until we exceed both the minimum and target number of
   // samples, or reach the maximum allowed
@@ -165,17 +165,19 @@ void MCL::update(ParticleVector& particles)
         ) {
     // Draw a particle from the current distribution with probability
     // proportional to its weight
-    if (s < num_particles_curr_) {
+    if (   s < num_particles_
+        && p < num_particles_
+       ) {
       // Sum weights until we reach the target sum
-      while (sample_weight_sum_curr < sample_weight_sum_target) {
-        sample_weight_sum_curr += particles[++p_curr].weight_;
+      while (sample_weight_sum < sample_weight_sum_target) {
+        sample_weight_sum += particles[++p].weight_;
       }
       // If it's not a repeat particle, update its weight and save to avoid
       // recalculating the weight repeatedly for the same particle
-      if (p_curr != p_prev) {
-        particle_p = particles[p_curr];
+      if (p != p_prev) {
+        particle_p = particles[p];
         sensor_model_.update(particle_p);
-        p_prev = p_curr;
+        p_prev = p;
       }
       // Add to sample set and increase target sum
       particles[s] = particle_p;
@@ -206,7 +208,7 @@ void MCL::update(ParticleVector& particles)
     ++s;
   }
   // Update the number of particles we're using
-  num_particles_curr_ = s;
+  num_particles_ = s;
   printf("*** Iteration %lu ***\n", iteration);
   printf("Samples used = %lu\n", s);
   printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
@@ -247,7 +249,7 @@ void MCL::normalize(ParticleVector& particles,
   if (particles_weight_sum > 0.0) {
     normalizer = 1 / particles_weight_sum;
   }
-  for (size_t i = 0; i < num_particles_curr_; ++i) {
+  for (size_t i = 0; i < num_particles_; ++i) {
     particles[i].weight_ *= normalizer;
   }
   return;
@@ -258,7 +260,7 @@ void MCL::normalize(ParticleVector& particles)
   RecursiveLock lock(particles_mtx_);
   double particles_weight_sum = 0.0;
 
-  for (size_t i = 0; i < num_particles_curr_; ++i) {
+  for (size_t i = 0; i < num_particles_; ++i) {
     particles_weight_sum += particles[i].weight_;
   }
   normalize(particles, particles_weight_sum);
@@ -289,7 +291,7 @@ void MCL::save(const std::string filename,
 {
   RecursiveLock lock(particles_mtx_);
   ParticleVector particles = particles_;
-  particles.resize(num_particles_curr_);
+  particles.resize(num_particles_);
 
   if (sort) {
     localize::sort(particles);

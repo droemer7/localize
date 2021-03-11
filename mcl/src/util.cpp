@@ -60,9 +60,9 @@ Map::Map(const unsigned int width,
       }
     }
   }
-  this->x = x_origin;
-  this->y = y_origin;
-  this->th = -th_origin;
+  this->x_origin = x_origin;
+  this->y_origin = y_origin;
+  this->th_origin = -th_origin;
   this->sin_th = std::sin(-th_origin);
   this->cos_th = std::cos(-th_origin);
   this->scale = scale;
@@ -78,10 +78,10 @@ ParticleHistogram::ParticleHistogram(const double x_res,
   th_res_(th_res),
   x_size_(std::round(map.width * map.scale / x_res_)),
   y_size_(std::round(map.height * map.scale / y_res_)),
-  th_size_(std::round((M_2PI + map.th) / th_res)),
-  x_origin_(map.x),
-  y_origin_(map.y),
-  th_origin_(map.th),
+  th_size_(std::round((M_2PI + map.th_origin) / th_res)),
+  x_origin_(map.x_origin),
+  y_origin_(map.y_origin),
+  th_origin_(map.th_origin),
   hist_(x_size_,
         std::vector<std::vector<bool>>(y_size_,
                                        std::vector<bool>(th_size_, false)

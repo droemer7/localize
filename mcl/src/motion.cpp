@@ -41,11 +41,7 @@ void VelModel::update(ParticleVector& particles,
   if (   lin_vel_sq > DBL_EPSILON
       || ang_vel_sq > DBL_EPSILON
      ) {
-    // TBD restore num_particles
     for (size_t i = 0; i < num_particles; ++i) {
-      if (i >= 200000) {
-        printf("Invalid index i=%lu", i);
-      }
       // Calculate noise for velocities and rotation
       lin_vel_noise = sampler_.gen(0.0, std::sqrt(  lin_vel_n1_ * lin_vel_sq
                                                   + lin_vel_n2_ * ang_vel_sq
