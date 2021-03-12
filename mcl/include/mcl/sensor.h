@@ -16,8 +16,8 @@ namespace localize
   // 2) A probability for detecting a new, unmapped object
   // 3) A probability for detecting a known, mapped object
   // 4) A probability for an unexplainable, random result
-  // These are evaluated for the range observed vs. the range expected from the
-  // map to determine the probability p(ranges[t] | pose[t], map)
+  // These are evaluated for the range observed vs. the range expected from the map to determine the probability
+  // p(ranges[t] | pose[t], map)
   //
   // Ref: Probabilistic Robotics (Thrun 2006)
   class BeamModel
@@ -40,10 +40,9 @@ namespace localize
               const Map map                     // Map
              );
 
-    // Applies the sensor model to determine particle importance weights from
-    // p(ranges[t] | pose[t], map)
+    // Applies the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void update(ParticleVector& particles,
+    void update(ParticleDistribution& dist,
                 const RayScan& obs = RayScan(),
                 const bool calc_enable = false
                );
@@ -53,64 +52,52 @@ namespace localize
                 const bool calc_enable = false
                );
 
-    // Updates the latest saved observation by sampling from the input
-    // observation
+    // Updates the latest saved observation by sampling from the input observation
     void update(const RayScan& obs);
 
   private:
-    // Generate a subset of ranges sampled from the full scan using the
-    // preset angle sample increment
+    // Generate a subset of ranges sampled from the full scan using the preset angle sample increment
     RayVector sample(const RayScan& obs);
 
-    // Convert NaN, negative ranges and any range beyond the configured max
-    // to the range reported when nothing is detected by the sensor
+    // Convert NaN, negative ranges and any range beyond the configured max to the range reported when nothing is
+    // detected by the sensor
     float repair(const float range);
 
-    // Precalculate weights given by the model for a discrete set of ranges
-    // and load this into the model lookup table
+    // Precalculate weights given by the model for a discrete set of ranges and load this into the model lookup table
     // First axis is incremented by ranges observed from the sensor
     // Second axis is incremented by ranges calculated from the map
     void precalcProb();
 
-    // Retrieve from the model lookup table the overall probability of the
-    // observed range given the 'true' range determined from the map
+    // Retrieve from the model lookup table the overall probability of the observed range given the 'true' range
+    // determined from the map
     double lookupProb(const float range_obs,
                       const float range_map
                      );
 
-    // Calculate the overall probability of the observed range given the
-    // 'true' range determined from the map
+    // Calculate the overall probability of the observed range given the 'true' range determined from the map
     double calcProb(const float range_obs,
                     const float range_map
                    );
 
-    // Calculate the probability the observed range occurred due to the
-    // sensor failing to detect an object. This may occur due to reflections
-    // or an object being too close to the sensor to be detectable.
-    //
-    // Returns 1 if the observed range is equal to the range returned by the
-    // sensor when no object is found, or 0 if not.
+    // Calculate the probability the observed range occurred due to the sensor failing to detect an object. This may
+    // occur due to reflections or an object being too close to the sensor to be detectable.
+    // Returns 1 if the observed range matches the range the sensor reports when no object is found
     double calcProbNoObj(const float range_obs);
 
-    // Calculate the probability the observed range occured due to a new,
-    // unmapped object, such as a person walking by the sensor.
+    // Calculate the probability the observed range occured due to a new, unmapped object, such as a person walking by
+    // the sensor.
     double calcProbNewObj(const float range_obs,
                           const float range_map
                          );
 
-    // Calculate the probability the observed range occurred due to detecting
-    // a mapped object. This probability assumes sensor noise is normally
-    // distributed with a mean equal to the range of the nearest mapped
-    // object.
+    // Calculate the probability the observed range occurred due to detecting a mapped object. This probability assumes
+    // sensor noise is normally distributed with a mean equal to the range of the nearest mapped object.
     double calcProbMapObj(const float range_obs,
                           const float range_map
                          );
 
-    // Calculate the probability the observed range occurred due to random
-    // effects (reflections, interferences, etc).
-    //
-    // Returns a constant value if the observed range is within bounds of the
-    // sensor's min and max range.
+    // Calculate the probability the observed range occurred due to random effects (reflections, interferences, etc).
+    // Returns a constant value if the observed range is within bounds of the sensor's min and max range.
     double calcProbRandEffect(const float range_obs);
 
   private:

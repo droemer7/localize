@@ -9,7 +9,7 @@ static const double Z_P_99 = 2.3263478740;     // Z score for P(0.99) of Normal(
 static const double F_2_9 = 2 / 9;             // Fraction 2/9
 
 // TBD remove
-static const int LAST_ITERATION = 1;
+static const int LAST_ITERATION = 1000;
 
 using namespace localize;
 
@@ -47,14 +47,14 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const std::vector<int8_t> map_data
         ) :
   iteration(0),
-  dist_(ParticleVector(mcl_num_particles_max),
-        0.01,
-        0.9
-       ),
   num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
   num_particles_max_(mcl_num_particles_max),
   kld_eps_(mcl_kld_eps),
+  prob_sample_random_(1.0),
   vel_(0.0),
+  dist_(mcl_num_particles_max),
+  weight_avg_fast_(0.5),
+  weight_avg_slow_(0.005),
   map_(map_width,
        map_height,
        map_x,
@@ -91,7 +91,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
         mcl_hist_th_res,
         map_
        ),
-  sample_dist_(0.0, 1.0),
+  prob_dist_(0.0, 1.0),
   x_dist_(map_.x_origin, std::nextafter(map_.width * map_.scale + map_.x_origin, DBL_MAX)),
   y_dist_(map_.y_origin, std::nextafter(map_.height * map_.scale + map_.y_origin, DBL_MAX)),
   th_dist_(-M_PI, M_PI)
@@ -100,7 +100,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
     throw std::runtime_error("MCL: num_particles_min > num_particles_max\n");
   }
   for (size_t i = 0; i < num_particles_max_; ++i) {
-    dist_.particles_[i] = random();
+    dist_.particle(i) = random();
   }
 }
 
@@ -110,8 +110,8 @@ void MCL::update(const double vel,
                 )
 {
   if (!stopped(vel)) {
-    RecursiveLock lock(particles_mtx_);
-    motion_model_.update(dist_.particles_, dist_.num_particles_, vel, steering_angle, dt);
+    RecursiveLock lock(dist_mtx_);
+    motion_model_.update(dist_, vel, steering_angle, dt);
   }
 }
 
@@ -121,28 +121,23 @@ void MCL::update(const RayScan&& obs)
 
   // TBD remove true
   if (true || !stopped()) {
-    RecursiveLock lock(particles_mtx_);
-    update(dist_);
-    ++iteration;
+    RecursiveLock lock(dist_mtx_);
+    sample(dist_);
   }
-  if (iteration > LAST_ITERATION) {
-    save("particles.csv");
+
+  if (iteration > LAST_ITERATION && stopped()) {
     throw std::runtime_error("Finished");
   }
 }
 
-void MCL::update(ParticleDistribution& dist)
+void MCL::sample(ParticleDistribution& dist)
 {
-  RecursiveLock lock(particles_mtx_);
+  //printf("*** Iteration %lu ***\n", iteration++);
+  RecursiveLock lock(dist_mtx_);
   Particle particle_p;
-  bool repeat = false;
-
-  // Move target into ParticleDistribution
-  // Create a second ParticleDistribution for sample
   double sample_weight_width = 0.0;
   double sample_weight_sum_target = 0.0;
   double sample_weight_sum = 0.0;
-  double particles_weight_sum = 0.0;
   double num_particles_target = num_particles_min_;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
@@ -154,11 +149,34 @@ void MCL::update(ParticleDistribution& dist)
   // Reset histogram
   hist_.reset();
 
+  // Calculate the probability to draw random samples
+  // If the fast-changing (recent) weight average is lower than the slower-changing (old) weight average,
+  // our estimate is poor and more random samples are needed to recover
+  // double weight_avg = dist.weightAvg();
+  // double weight_avg_slow = weight_avg_slow_.update(weight_avg);
+  // double weight_avg_fast = weight_avg_fast_.update(weight_avg);
+  // printf("weight_avg = %.4e\n", weight_avg);
+  // printf("weight_avg_slow = %.4e\n", weight_avg_slow);
+  // printf("weight_avg_fast = %.4e\n", weight_avg_fast);
+
+  // if (weight_avg_slow > DBL_EPSILON) {
+  //   double weight_ratio = (  weight_avg_fast_.update(weight_avg)
+  //                          / weight_avg_slow_.update(weight_avg)
+  //                         );
+  //   prob_sample_random_ = std::max(0.0, 1.0 - weight_ratio);
+  //   printf("weight_ratio = %.4e\n", weight_ratio);
+  //   printf("prob_sample_random_ = %.4e\n", prob_sample_random_);
+  // }
+  prob_sample_random_ = 1.0;
+
+  // Normalize weights
+  //dist.normWeights();
+
   // Initialize target and current weight sums
-  if (dist.num_particles_ > 0) {
-    sample_weight_width = 1.0 / dist.num_particles_;
-    sample_weight_sum_target = sample_dist_(rng_.engine()) * sample_weight_width;
-    sample_weight_sum = dist.particles_[0].weight_;
+  if (dist.size() > 0) {
+    sample_weight_width = 1.0 / dist.size();
+    sample_weight_sum_target = prob_dist_(rng_.engine()) * sample_weight_width;
+    sample_weight_sum = dist.particle(0).weight_;
   }
   // Generate samples until we exceed both the minimum and target number of samples, or reach the maximum allowed
   while (   (   s < num_particles_target
@@ -167,48 +185,43 @@ void MCL::update(ParticleDistribution& dist)
          && s < num_particles_max_
         ) {
     // Draw a particle from the current distribution with probability proportional to its weight
-    // TBD **********
-    // Try draw without low variance technique? without replacement?
-    // Implement slow and fast weight average to draw random samples
-    if (   s < dist.num_particles_
-        && p < dist.num_particles_
+    if (   false/*prob_dist_(rng_.engine()) > prob_sample_random_*/ // TBD restore
+        && s < dist.size()
+        && p < dist.size()
        ) {
       // Sum weights until we reach the target
       while (   sample_weight_sum < sample_weight_sum_target
-             && p + 1 < dist.num_particles_
+             && p + 1 < dist.size()
             ) {
-        sample_weight_sum += dist.particles_[++p].weight_;
+        sample_weight_sum += dist.particle(++p).weight_;
       }
       // Make sure we actually did reach the target weight sum
       if (sample_weight_sum >= sample_weight_sum_target) {
-        // If it's not a repeat particle, update its weight and save to avoid recalculating the weight repeatedly for
-        // the same particle
+        // If it's not a repeat particle, update its weight and save it in case this particle is sampled again
         if (p != p_prev) {
-          particle_p = dist.particles_[p];
+          particle_p = dist.particle(p);
           sensor_model_.update(particle_p);
           p_prev = p;
         }
         // Add to sample set and increase target sum
-        dist.particles_[s] = particle_p;
+        dist.particle(s) = particle_p;
         sample_weight_sum_target += sample_weight_width;
       }
     }
     // Exhausted current distribution so generate a new random particle and update its weight
     else {
-      repeat = false;
-      dist.particles_[s] = random();
-      sensor_model_.update(dist.particles_[s]);
+      dist.particle(s) = random();
+      sensor_model_.update(dist.particle(s));
     }
-    // Update weight terms
-    particles_weight_sum += dist.particles_[s].weight_;
+    // Update histogram with the sampled particle
+    hist_.update(dist.particle(s));
 
+    // If the histogram occupancy count increased with the sampled particle, update the target number of samples
+    if (hist_.count() > hist_count) {
+      hist_count = hist_.count();
 
-    // Update histogram, incrementing k if the number of occupied histogram cells increases
-    if (hist_.update(dist.particles_[s])) {
-      ++hist_count;
-      // Update target number of samples based on k and error bounds
-      // Wilson-Hilferty transformation of chi-square distribution
       if (hist_count > 1) {
+        // Wilson-Hilferty transformation of chi-square distribution
         chi_sq_term_1 = (hist_count - 1.0) / (2.0 * kld_eps_);
         chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_99 * std::sqrt(F_2_9 / (hist_count - 1.0));
         num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
@@ -216,21 +229,32 @@ void MCL::update(ParticleDistribution& dist)
     }
     ++s;
   }
-  // Update the number of particles we're using
-  dist.num_particles_ = s;
-  printf("*** Iteration %lu ***\n", iteration);
-  printf("Samples used = %lu\n", s);
-  printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
-  printf("Histogram count = %lu\n", hist_count);
-  printf("---------------------------------\n");
+  // Update distribution size to sample set size
+  dist.resize(s);
 
-  // Normalize weights
-  if (iteration == LAST_ITERATION) {
-    save("particles_prenorm_last_iteration.csv");
-  }
-  normalize(dist);
+  // printf("Samples used = %lu\n", s);
+  // printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
+  // printf("Histogram count = %lu\n", hist_count);
+  // printf("---------------------------------\n");
 
   return;
+}
+
+void MCL::save(const std::string filename,
+               const bool sort,
+               const bool overwrite
+              )
+{
+  RecursiveLock lock(dist_mtx_);
+  ParticleVector particles;
+
+  for (size_t i = 0; i < dist_.size(); ++i) {
+    particles[i] = dist_.particle(i);
+  }
+  if (sort) {
+    localize::sort(particles);
+  }
+  localize::save(particles, filename, overwrite);
 }
 
 Particle MCL::random()
@@ -251,25 +275,6 @@ Particle MCL::random()
   return particle;
 }
 
-void MCL::normalize(ParticleDistribution& dist)
-{
-  RecursiveLock lock(particles_mtx_);
-  double normalizer = 0.0;
-
-  if (dist.weight_sum_ > 0.0) {
-    normalizer = 1 / dist.weight_sum_;
-  }
-  else {
-    for (size_t i = 0; i < dist.num_particles_; ++i) {
-      dist.weight_sum_ += dist.particles_[i].weight_;
-    }
-  }
-  for (size_t i = 0; i < dist.num_particles_; ++i) {
-    dist.particles_[i].weight_ *= normalizer;
-  }
-  return;
-}
-
 bool MCL::stopped()
 {
   RecursiveLock lock(vel_mtx_);
@@ -283,24 +288,4 @@ bool MCL::stopped(const double vel)
   vel_ = vel;
 
   return stopped();
-}
-
-void MCL::save(const std::string filename,
-               const bool sort,
-               const unsigned int precision,
-               const bool overwrite
-              )
-{
-  RecursiveLock lock(particles_mtx_);
-  ParticleVector particles = dist_.particles_;
-  particles.resize(dist_.num_particles_);
-
-  if (sort) {
-    localize::sort(particles);
-  }
-  localize::save(particles,
-                 filename,
-                 precision,
-                 overwrite
-                );
 }

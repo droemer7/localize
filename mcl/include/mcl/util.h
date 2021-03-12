@@ -37,25 +37,43 @@ namespace localize
     double weight_; // Importance weight
   };
 
+  // TBD use std::array instead since we never want to reallocate larger sizes
   typedef std::vector<Particle> ParticleVector;
 
-  struct ParticleDistribution
+  class ParticleDistribution
   {
-    ParticleDistribution(const ParticleVector particles,    // Particles
-                         const double weight_avg_slow_rate, // Particle weight average slow smoothing rate
-                         const double weight_avg_fast_rate, // Particle weight average fast smoothing rate
-                         const double weight_avg = 0.0,     // Particle weight average
-                         const double weight_sum = 0.0      // Particle weight sum
+  public:
+    explicit ParticleDistribution(const size_t num_particles_max); // Maximum number of particles
+
+    ParticleDistribution(const ParticleVector& particles, // Particles
+                         const size_t num_particles       // Number of particles currently in use
                         );
 
-    ParticleVector particles_;    // Particles
-    double num_particles_;        // Number of particles (this is <= particles.size())
-    double weight_avg_slow_rate_; // Particle weight average slow smoothing rate
-    double weight_avg_fast_rate_; // Particle weight average fast smoothing rate
-    double weight_avg_;           // Particle weight average
-    double weight_avg_slow_;      // Particle weight average, smoothed at slow rate
-    double weight_avg_fast_;      // Particle weight average, smoothed at fast rate
-    double weight_sum_;           // Particle weight sum
+    // Particle
+    Particle& particle(size_t p);
+
+    // Number of particles in use (<= size of the particle vector)
+    size_t size() const;
+
+    // Update the number of particles in use
+    // For efficiency this will not destroy elements when the new desired size is less than the current
+    void resize(size_t num_particles);
+
+    // Sum of particle weights
+    double weightSum();
+
+    // Average particle weight
+    double weightAvg();
+
+    // Variance of particle weights
+    double weightVar();
+
+    // Normalize particle weights
+    void normWeights();
+
+  private:
+    ParticleVector particles_;  // Particles in distribution
+    size_t num_particles_;      // Number of particles in use (<= particles_.size())
   };
 
   // A range sensor ray with range and angle
@@ -105,11 +123,7 @@ namespace localize
         const std::vector<int8_t> data  // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
-    inline bool occupied(float x, float y) const
-    {
-      rosWorldToGrid(x, y);
-      return isOccupiedNT(x, y);
-    }
+    bool occupied(float x, float y) const;
   };
 
   // 3D boolean histogram representing occupancy of pose space (x, y, th)
@@ -123,11 +137,13 @@ namespace localize
                       const Map& map        // Map
                      );
 
-    // Update occupancy with the particle's location if its
-    // weight is larger than the minimum required threshold
-    bool update(const Particle& particle);
+    // Update histogram occupancy with the particle's location
+    void update(const Particle& particle);
 
-    // Resets all cell occupancy counts
+    // Histogram occupancy count
+    size_t count();
+
+    // Reset histogram occupancy
     void reset();
 
   private:
@@ -140,7 +156,27 @@ namespace localize
     const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
     const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
     const double th_origin_;  // Angle relative to world frame (rad)
-    std::vector<std::vector<std::vector<bool>>> hist_;  // Histogram
+
+    std::vector<std::vector<std::vector<int>>> hist_; // Histogram
+    size_t count_;                                    // Histogram occupancy count
+  };
+
+  class SmoothedValue
+  {
+  public:
+    SmoothedValue(const double rate,      // Smoothing rate
+                  const double val = 0.0  // Initial value
+                 );
+
+    // Update and return the new value
+    double update(const double val);
+
+    // Return the current value
+    double val();
+
+  private:
+    double rate_;
+    double val_;
   };
 
   // RNG wrapper to seed properly
@@ -163,8 +199,7 @@ namespace localize
   class NormalDistributionSampler
   {
   public:
-    // Generates a random sample from a normal distribution specified by the
-    // mean and standard deviation
+    // Generates a random sample from a normal distribution specified by the mean and standard deviation
     T gen(const T mean,
           const T std_dev
          )
@@ -179,7 +214,6 @@ namespace localize
   };
 
   // Approximate equality check for floating point values
-  // For MCL
   // The Art of Comptuer Programming, Volume 2, Seminumeric Algorithms (Knuth 1997)
   // Section 4.2.2. Equation 22
   inline bool approxEqual(const float a,
@@ -216,7 +250,6 @@ namespace localize
   template <class T>
   void save(const std::vector<std::vector<T>>& data_matrix,
             const std::string filename,
-            const unsigned int precision = 0,
             const bool overwrite = true
            )
   {
@@ -224,9 +257,6 @@ namespace localize
                          overwrite ? std::ofstream::trunc :
                                      std::ofstream::ate
                         );
-    if (precision > 0) {
-      output << std::fixed << std::setprecision(precision);
-    }
     for (const std::vector<T>& row : data_matrix) {
       for (const T& val : row) {
         output << static_cast<double>(val) << ",";
@@ -274,7 +304,6 @@ namespace localize
   // Save data to file in CSV format
   inline void save(const ParticleVector& particles,
                    const std::string filename,
-                   const unsigned int precision = 0,
                    const bool overwrite = true
                   )
   {
@@ -282,18 +311,14 @@ namespace localize
                          overwrite ? std::ofstream::trunc :
                                      std::ofstream::ate
                         );
-    if (precision > 0) {
-      output << std::fixed << std::setprecision(precision);
-    }
     output << "Particles\n";
-    output << "x,y,theta (deg),weight\n";
+    output << "x, y, theta (deg), weight\n";
 
     for (const Particle& particle : particles) {
-      output << particle.x_ << ","
-             << particle.y_ << ","
-             << particle.th_ * 180.0 / M_PI << ","
-             << particle.weight_ << ","
-             << "\n";
+      output << std::fixed << std::setprecision(3) << particle.x_ << ","
+                                                   << particle.y_ << ","
+                                                   << particle.th_ * 180.0 / M_PI << ","
+             << std::scientific << std::setprecision(4) << particle.weight_ << "," << "\n";
     }
     output.close();
   }
@@ -301,7 +326,6 @@ namespace localize
   // Save data to file in CSV format
   inline void save(const RayVector& rays,
                    const std::string filename,
-                   const unsigned int precision = 0,
                    const bool overwrite = true
                   )
   {
@@ -309,15 +333,10 @@ namespace localize
                          overwrite ? std::ofstream::trunc :
                                      std::ofstream::ate
                         );
-    if (precision > 0) {
-      output << std::fixed << std::setprecision(precision);
-    }
     output << "Rays\n";
-    output << "range,theta (deg)\n";
+    output << "range, theta (deg)\n";
     for (const Ray& ray : rays) {
-      output << ray.range_ << ","
-             << ray.th_ * 180.0 / M_PI << ","
-             << "\n";
+      output << std::fixed << std::setprecision(3) << ray.range_ << "," << ray.th_ * 180.0 / M_PI << "," << "\n";
     }
     output.close();
   }

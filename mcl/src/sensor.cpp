@@ -80,14 +80,11 @@ BeamModel::BeamModel(const float range_min,
   precalcProb();
 }
 
-void BeamModel::update(ParticleVector& particles,
+void BeamModel::update(ParticleDistribution& dist,
                        const RayScan& obs,
                        const bool calc_enable
                       )
 {
-  // TBD remove
-  // std::vector<double> results;
-
   double weight = 1.0;
   float range_obs = 0.0;
   float range_map = 0.0;
@@ -98,38 +95,25 @@ void BeamModel::update(ParticleVector& particles,
     rays_obs_sample_ = sample(obs);
   }
 
-  for (Particle& particle : particles) {
+  for (size_t i = 0; i < dist.size(); ++i) {
     weight = 1.0;
-    // bool save = approxEqual(particle.x_, 0.0, static_cast<double>(RANGE_EPSILON));  // TBD remove
 
-    for (Ray& ray_obs : rays_obs_sample_) {
+    for (size_t j = 0; j < rays_obs_sample_.size(); ++j) {
       // Compute range from the map
-      range_map = raycaster_.calc_range(particle.x_,
-                                        particle.y_,
-                                        particle.th_ + ray_obs.th_
+      range_map = raycaster_.calc_range(dist.particle(i).x_,
+                                        dist.particle(i).y_,
+                                        dist.particle(i).th_ + rays_obs_sample_[j].th_
                                        );
       // Make sure ranges are valid (NaNs, negative values, etc)
-      range_obs = repair(ray_obs.range_);
+      range_obs = repair(rays_obs_sample_[j].range_);
       range_map = repair(range_map);
 
       // Update partial weight with this measurement's probability
       weight *= calc_enable ? calcProb(range_obs, range_map) :
                               lookupProb(range_obs, range_map);
-      // if (save) {
-      //   results.push_back(range_obs);
-      //   results.push_back(range_map);
-      //   results.push_back(lookupProb(range_obs, range_map));
-      // }
     }
     // Update full weight, applying overall model uncertainty
-    particle.weight_ = std::pow(weight, uncertainty_factor_);
-    // TBD remove
-    // if (save) {
-    //   results.push_back(0.0);
-    //   results.push_back(0.0);
-    //   results.push_back(particle.weight_);
-    //   localize::save(results, "results.csv", 3);
-    // }
+    dist.particle(i).weight_ = std::pow(weight, uncertainty_factor_);
   }
   return;
 }
@@ -139,13 +123,10 @@ void BeamModel::update(Particle& particle,
                        const bool calc_enable
                       )
 {
-  ParticleVector particles(1, particle);
+  ParticleDistribution dist(ParticleVector(1, particle), 1);
 
-  update(particles,
-         obs,
-         calc_enable
-        );
-  particle = particles[0];
+  update(dist, obs, calc_enable);
+  particle = dist.particle(0);
 
   return;
 }
@@ -166,7 +147,7 @@ RayVector BeamModel::sample(const RayScan& obs)
      ) {
     // Generate a random offset for the sampled set to start from
     size_t o_step_size = static_cast<size_t>(th_sample_res_ / obs.th_inc_);
-    size_t o = 0;//th_sample_dist_(rng_.engine()) / obs.th_inc_;
+    size_t o = th_sample_dist_(rng_.engine()) / obs.th_inc_;
     size_t s = 0;
 
     // Iterate through both arrays selecting the desired amount of samples

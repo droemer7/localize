@@ -1,3 +1,57 @@
+// #include <iostream>
+// #include <utility>
+// #include <chrono>
+
+// using namespace std::chrono;
+// //const size_t length = 23'068'672;
+// const size_t length = 5'000'000;
+
+// typedef high_resolution_clock::duration dur_t;
+// std::pair<dur_t, dur_t> stack()
+// {
+//         auto start = high_resolution_clock::now();
+//         volatile int eathalfastack[length] = {};
+//         auto mid = high_resolution_clock::now();
+//         for( size_t i = 0; i < length; ++i ){
+//                 eathalfastack[i] = i;
+//         }
+//         auto end = high_resolution_clock::now();
+//     return {mid-start, end-mid};
+// }
+
+// std::pair<dur_t, dur_t> heap()
+// {
+//         auto start = high_resolution_clock::now();
+//         volatile int* heaparr = new volatile int[length]();
+//         auto mid = high_resolution_clock::now();
+//         for( size_t i = 0; i < length ; i++ ){
+//                 heaparr[i] = i;
+//         }
+//         auto end = high_resolution_clock::now();
+//         delete[] heaparr;
+//         return make_pair(mid - start, end - mid);
+// }
+
+// int main()
+// {
+//     dur_t stack_alloc, stack_write, heap_alloc, heap_write;
+//     for(int cnt = 0; cnt < 100; ++cnt)
+//     {
+//         std::pair<dur_t, dur_t> timing = stack();
+//         stack_alloc += timing.first;
+//         stack_write += timing.second;
+//         timing = heap();
+//         heap_alloc += timing.first;
+//         heap_write += timing.second;
+//     }
+
+//         std::cout << "Time taken in ms:\n"
+//               << "stack alloc: " << duration_cast<milliseconds>(stack_alloc).count() << "ms\n"
+//               << "stack write: " << duration_cast<milliseconds>(stack_write).count() << "ms\n"
+//               << "Heap  alloc: " << duration_cast<milliseconds>(heap_alloc).count() << "ms\n"
+//               << "Heap  write: " << duration_cast<milliseconds>(heap_write).count() << "ms\n";
+// }
+
 #include <chrono>
 #include <float.h>
 #include <stdio.h>
@@ -107,16 +161,26 @@ void testGen(size_t num_samples)
   printf("--- Test complete ---\n");
 }
 
-void testSqrt(size_t num_samples)
+void testParticleHistogram()
 {
-  printf("\nTesting std::sqrt() ... \n");
+  printf("\nTesting ParticleHistogram ... \n");
+  std::vector<std::vector<std::vector<int>>> hist_(400,
+                                                    std::vector<std::vector<int>>(400,
+                                                    std::vector<int>(72, false)
+                                                   ));
+  size_t count = 0;
   start = std::chrono::high_resolution_clock::now();
-  for (size_t i = 2; i < num_samples + 2; ++i) {
-    temp += std::sqrt((2 / 9) * (i - 1.0));
+  for (size_t i = 0; i < hist_.size(); ++i) {
+    for (size_t j = 0; j < hist_[0].size(); ++j) {
+      for (size_t k = 0; k < hist_[0][0].size(); ++k) {
+        hist_[i][j][k] = false;
+      }
+    }
   }
+  count = 0;
   end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-  printf("Calculated %lu sqrt in %.2f ms\n", num_samples, dur.count() * 1000.0);
+  printf("Reset histogram in %.2f ms\n", dur.count() * 1000.0);
   printf("--- Test complete ---\n");
 }
 
@@ -129,11 +193,17 @@ int main(int argc, char** argv)
   // testAngleWrapping(20, 45 * M_PI / 180.0);
   // testGen(200'000);
 
-  testSqrt(200'000);
+  testParticleHistogram();
 
-  std::vector<int> test(5);
-
-  printf("%lu", (size_t)-1);
+  // ParticleVector particles(10'000'000);
+  // start = std::chrono::high_resolution_clock::now();
+  // for (size_t i = 0; i < particles.size(); ++i) {
+  //   particles[i].weight_ = 2.0;
+  // }
+  // end = std::chrono::high_resolution_clock::now();
+  // std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  // printf("Done: %.2f ms\n", dur.count() * 1000.0);
+  // printf("--- Test complete ---\n");
 
   return 0;
 }

@@ -54,73 +54,61 @@ namespace localize
         const std::vector<int8_t> map_data        // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
-    // Apply the motion model to update particle locations using
-    // p(x[t] | u[t], x[t-1])
+    // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
     void update(const double vel,
                 const double steering_angle,
                 const double dt
                );
 
-    // Apply the sensor model to update particle weights using
-    // p(obs[t] | pose[t], map)
+    // Apply the sensor model to update particle weights using p(obs[t] | pose[t], map)
     void update(const RayScan&& obs);
-
-  private:
-    // Update particle distribution
-    // Samples from the current distribution using a low variance technique
-    // until the relative entropy between the current distribution and the
-    // reference distribution (estimated by sampling and counting the number
-    // of histogram bins with support) is reduced to acceptable bounds
-    // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void update(ParticleDistribution& dist);
-
-    // Generate a random particle in free space
-    Particle random();
-
-    // Normalize particle weights
-    void normalize(ParticleDistribution& dist,
-                   double particles_weight_sum
-                  );
-
-    // Normalize particle weights
-    void normalize(ParticleDistribution& dist);
-
-    // Indicates if the robot velocity is within the stopped threshold based on
-    // the last saved value
-    bool stopped();
-
-    // Updates the robot velocity with the input value and returns true if it
-    // is within the stopped threshold
-    bool stopped(const double vel);
 
     // Save particle distribution to file in CSV format
     void save(const std::string filename,
               const bool sort = true,
-              const unsigned int precision = 0,
               const bool overwrite = true
              );
+  private:
+    // Sample particle distribution
+    // Sample from the current distribution until the relative entropy between the current distribution and the
+    // reference distribution (estimated by sampling and counting the number of histogram bins with support) is reduced
+    // to acceptable bounds
+    // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
+    void sample(ParticleDistribution& dist);
+
+    // Generate a random particle in free space
+    Particle random();
+
+    // Indicates if the robot velocity is within the stopped threshold based on the last saved value
+    bool stopped();
+
+    // Updates the robot velocity with the input value and returns true if it is within the stopped threshold
+    bool stopped(const double vel);
 
   private:
     size_t iteration; // TBD remove
-    std::recursive_mutex particles_mtx_;  // Particle distribution mutex
-    std::recursive_mutex vel_mtx_;        // Velocity mutex
+    std::recursive_mutex dist_mtx_; // Particle distribution mutex
+    std::recursive_mutex vel_mtx_;  // Velocity mutex
 
-    ParticleDistribution dist_;       // Particle distribution
     const size_t num_particles_min_;  // Minimum number of particles
     const size_t num_particles_max_;  // Maximum number of particles
     const double kld_eps_;            // KL distance threshold
+    double prob_sample_random_;       // Probability to sample a random particle instead of one from the current distribution
     double vel_;                      // Robot velocity
 
-    const Map map_;             // Map
-    VelModel motion_model_;     // Motion model
-    BeamModel sensor_model_;    // Sensor model
-    ParticleHistogram hist_;    // Histogram for estimating relative entropy
+    ParticleDistribution dist_;     // Particle distribution
+    SmoothedValue weight_avg_fast_; // Smoothed weight average, fast rate
+    SmoothedValue weight_avg_slow_; // Smoothed weight average, slow rate
+    const Map map_;                 // Map
+    VelModel motion_model_;         // Motion model
+    BeamModel sensor_model_;        // Sensor model
+    ParticleHistogram hist_;        // Histogram for estimating relative entropy
 
     RNG rng_;  // Random number engine
-    std::uniform_real_distribution<double> sample_dist_;  // Distribution [0, 1) for sampling
-    std::uniform_real_distribution<double> x_dist_;       // Distribution of map x locations relative to world frame
-    std::uniform_real_distribution<double> y_dist_;       // Distribution of map y locations relative to world frame
-    std::uniform_real_distribution<double> th_dist_;      // Distribution of theta [-pi, +pi) relative to world frame
+    std::uniform_real_distribution<double> prob_dist_;  // Distribution for sampling random numbers in [0, 1)
+    std::uniform_real_distribution<double> x_dist_;     // Distribution of map x locations relative to world frame
+    std::uniform_real_distribution<double> y_dist_;     // Distribution of map y locations relative to world frame
+    std::uniform_real_distribution<double> th_dist_;    // Distribution of theta [-pi, +pi) relative to world frame
   };
 
 } // namespace localize

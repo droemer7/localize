@@ -18,21 +18,79 @@ Particle::Particle(const double x,
   weight_(weight)
 {}
 
-ParticleDistribution::ParticleDistribution(const ParticleVector particles,
-                                           const double weight_avg_slow_rate,
-                                           const double weight_avg_fast_rate,
-                                           const double weight_avg,
-                                           const double weight_sum
+ParticleDistribution::ParticleDistribution(const size_t num_particles_max) :
+  particles_(num_particles_max),
+  num_particles_(0)
+{}
+
+ParticleDistribution::ParticleDistribution(const ParticleVector& particles,
+                                           const size_t num_particles
                                           ) :
   particles_(particles),
-  num_particles_(0),
-  weight_avg_slow_rate_(weight_avg_slow_rate),
-  weight_avg_fast_rate_(weight_avg_fast_rate),
-  weight_avg_(weight_avg),
-  weight_avg_slow_(weight_avg),
-  weight_avg_fast_(weight_avg),
-  weight_sum_(weight_sum)
+  num_particles_(num_particles)
 {}
+
+Particle& ParticleDistribution::particle(size_t p)
+{
+  return particles_[p];
+}
+
+size_t ParticleDistribution::size() const
+{
+  return num_particles_;
+}
+
+void ParticleDistribution::resize(size_t num_particles)
+{
+  if (num_particles > particles_.size()) {
+    particles_.resize(num_particles);
+  }
+  num_particles_ = num_particles;
+}
+
+double ParticleDistribution::weightSum()
+{
+  double sum = 0.0;
+
+  for (size_t i = 0; i < size(); ++i) {
+    sum += particles_[i].weight_;
+  }
+  return sum;
+}
+
+double ParticleDistribution::weightAvg()
+{
+  double avg = 0.0;
+
+  if (size() > 0) {
+    avg = weightSum() / size();
+  }
+  return avg;
+}
+
+double ParticleDistribution::weightVar()
+{
+  double var = 0.0;
+  double avg = weightAvg();
+
+  for (size_t i = 0; i < size(); ++i) {
+    var += (  (particles_[i].weight_ - avg)
+            * (particles_[i].weight_ - avg)
+           );
+  }
+  return var;
+}
+
+void ParticleDistribution::normWeights()
+{
+  double sum = weightSum();
+  double norm = sum > 0.0 ? 1 / sum : 0.0;
+
+  for (size_t i = 0; i < num_particles_; ++i) {
+    particles_[i].weight_ *= norm;
+  }
+  return;
+}
 
 Ray::Ray(const float range,
          const float th
@@ -84,6 +142,12 @@ Map::Map(const unsigned int width,
   this->scale = scale;
 }
 
+bool Map::occupied(float x, float y) const
+{
+  rosWorldToGrid(x, y);
+  return isOccupiedNT(x, y);
+}
+
 ParticleHistogram::ParticleHistogram(const double x_res,
                                      const double y_res,
                                      const double th_res,
@@ -99,16 +163,15 @@ ParticleHistogram::ParticleHistogram(const double x_res,
   y_origin_(map.y_origin),
   th_origin_(map.th_origin),
   hist_(x_size_,
-        std::vector<std::vector<bool>>(y_size_,
-                                       std::vector<bool>(th_size_, false)
-                                      )
-       )
+        std::vector<std::vector<int>>(y_size_,
+                                      std::vector<int>(th_size_, false)
+                                     )
+       ),
+  count_(0)
 {}
 
-bool ParticleHistogram::update(const Particle& particle)
+void ParticleHistogram::update(const Particle& particle)
 {
-  bool new_occ = false;
-
   // Calculate indexes
   size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / x_res_),
                         static_cast<double>(x_size_ - 1)
@@ -122,9 +185,14 @@ bool ParticleHistogram::update(const Particle& particle)
   // Update histogram
   if (!hist_[x_i][y_i][th_i]) {
     hist_[x_i][y_i][th_i] = true;
-    new_occ = true;
+    ++count_;
   }
-  return new_occ;
+  return;
+}
+
+size_t ParticleHistogram::count()
+{
+  return count_;
 }
 
 void ParticleHistogram::reset()
@@ -136,6 +204,25 @@ void ParticleHistogram::reset()
       }
     }
   }
+  count_ = 0;
+}
+
+SmoothedValue::SmoothedValue(const double rate,
+                             const double val
+                            ) :
+  rate_(rate),
+  val_(val)
+{}
+
+double SmoothedValue::update(const double val)
+{
+  val_ += rate_ * (val - val_);
+  return val_;
+}
+
+double SmoothedValue::val()
+{
+  return val_;
 }
 
 RNG::RNG()

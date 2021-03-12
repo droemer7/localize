@@ -213,7 +213,14 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   ros::Time start = ros::Time::now();
 
   // Perform sensor update
-  mcl_ptr_->update(RayScanMsg(msg));
+  // TBD remove try
+  try {
+    mcl_ptr_->update(RayScanMsg(msg));
+  }
+  catch (std::runtime_error error) {
+    mcl_ptr_->save("particles.csv");
+    throw std::runtime_error(error);
+  }
 
   // Save duration
   sensor_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
@@ -238,15 +245,15 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
 {
-  // if (motion_dur_msec_ > 0.01) {
-  //   ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_dur_msec_);
-  // }
-  //ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_dur_worst_msec_);
+  if (motion_dur_msec_ > 0.01) {
+    ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_dur_msec_);
+    ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_dur_worst_msec_);
+  }
 
-  // if (sensor_dur_msec_ > 0.01) {
-  //   ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_dur_msec_);
-  // }
-  //ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_dur_worst_msec_);
+  if (sensor_dur_msec_ > 0.01) {
+    ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_dur_msec_);
+    ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_dur_worst_msec_);
+  }
 }
 
 void MCLNode::printMotionParams()

@@ -9,13 +9,11 @@ namespace localize
 {
   // Velocity-based probabilistic model for an Ackermann drive robot
   //
-  // The model assumes the robot is driven with linear and angular velocity
-  // commands and the resulting motion obeys a circular motion kinematic
-  // constraint (linear motion is described by a circle of infinite radius).
-  // Note that this is a _kinematic_ model, and as such it ignores dynamics
-  // which generate important effects such as tire slip (i.e., a violation) of
-  // the circular motion assumption). Ultimately these effects are treated
-  // as model uncertainty and accounted for in the noise parameters.
+  // The model assumes the robot is driven with linear and angular velocity commands and the resulting motion obeys a
+  // circular motion kinematic constraint (linear motion is described by a circle of infinite radius).
+  // Note that this is a _kinematic_ model, and as such it ignores dynamics which generate important effects such as
+  // tire slip (i.e., a violation) of the circular motion assumption). Ultimately these effects are treated as model
+  // uncertainty and accounted for in the noise parameters.
   //
   // Ref: Probabilistic Robotics (Thrun 2006)
   class VelModel
@@ -31,11 +29,9 @@ namespace localize
              const double th_n2       // Model final rotation noise coefficient 2
             );
 
-    // Apply the motion model to generate new samples of particles from
-    // p(x[t] | u[t], x[t-1])
+    // Apply the motion model to generate new samples of particles from p(x[t] | u[t], x[t-1])
     // Algorithm 5.3 from Probabilistic Robotics (Thrun 2006, page 124)
-    void update(ParticleVector& particles,
-                const size_t num_particles,
+    void update(ParticleDistribution& dist,
                 const double lin_vel,
                 const double steering_angle,
                 const double dt
