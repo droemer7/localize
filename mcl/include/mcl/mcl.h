@@ -93,7 +93,6 @@ namespace localize
     const size_t num_particles_min_;  // Minimum number of particles
     const size_t num_particles_max_;  // Maximum number of particles
     const double kld_eps_;            // KL distance threshold
-    double prob_sample_random_;       // Probability to sample a random particle instead of one from the current distribution
     double vel_;                      // Robot linear velocity
 
     ParticleDistribution dist_;     // Particle distribution

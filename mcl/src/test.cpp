@@ -132,13 +132,38 @@ void test3Dto1DVector()
   printf("\n");
 }
 
+ParticleVector particles;
+
+void resize(const size_t count)
+{
+  start = std::chrono::high_resolution_clock::now();
+  particles.resize(count);
+  end = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  printf("Resized to %lu in %.2f ms\n", count, dur.count() * 1000.0);
+}
+
 int main(int argc, char** argv)
 {
   // testParticleHistogramArray();
   // testParticleHistogramVector3D();
-  testParticleHistogramArray1D();
-  testParticleHistogramVector1D();
-  //test3Dto1DVector();
+  // testParticleHistogramArray1D();
+  // testParticleHistogramVector1D();
+  // test3Dto1DVector();
+
+  printf("\nTesting resize... \n");
+  particles.reserve(200'000);
+
+  for (size_t i = 0; i < 20; ++i) {
+    if (i % 2) {
+      resize(200'000);
+    }
+    else{
+      resize(0);
+    }
+  }
+  printf("--- Test complete ---\n");
 
   return 0;
 }

@@ -50,7 +50,6 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
   num_particles_max_(mcl_num_particles_max),
   kld_eps_(mcl_kld_eps),
-  prob_sample_random_(1.0),
   vel_(0.0),
   dist_(mcl_num_particles_max),
   map_(map_width,
@@ -100,6 +99,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   for (size_t i = 0; i < num_particles_max_; ++i) {
     dist_.particle(i) = random();
   }
+  dist_.updateCount(num_particles_max_);
 }
 
 void MCL::update(const double vel,
@@ -130,9 +130,10 @@ void MCL::update(const RayScan&& obs)
 
 void MCL::sample(ParticleDistribution& dist)
 {
-  //printf("*** Iteration %lu ***\n", iteration++);
+  printf("\n*** Iteration %lu ***\n", iteration++);
   RecursiveLock lock(dist_mtx_);
   Particle particle_p;
+  double prob_sample_random = 1.0;
   double sample_weight_width = 0.0;
   double sample_weight_sum_target = 0.0;
   double sample_weight_sum = 0.0;
@@ -144,35 +145,28 @@ void MCL::sample(ParticleDistribution& dist)
   size_t p = 0;
   size_t p_prev = (size_t)-1;
 
-  // Reset histogram
-  hist_.reset();
+  // Clear histogram
+  hist_.clear();
 
   // Calculate the probability to draw random samples
-  // If the fast-changing (recent) weight average is lower than the slower-changing (old) weight average,
-  // our estimate is poor and more random samples are needed to recover
-  double weight_avg = dist.weightAvg();
-  double weight_avg_slow = weight_avg_slow_.update(weight_avg);
-  double weight_avg_fast = weight_avg_fast_.update(weight_avg);
-  // printf("weight_avg = %.4e\n", weight_avg);
-  // printf("weight_avg_slow = %.4e\n", weight_avg_slow);
-  // printf("weight_avg_fast = %.4e\n", weight_avg_fast);
+  // If the fast-changing (recent) weight average is lower than the slower-changing (old) weight average, our estimate
+  // is poor and more random samples are needed to recover
+  dist.updateWeightStats();
 
-  if (weight_avg_slow > DBL_MIN) {
-    double weight_avg_ratio = (  weight_avg_fast_.update(weight_avg)
-                               / weight_avg_slow_.update(weight_avg)
-                              );
-    prob_sample_random_ = std::max(0.0, 1.0 - weight_avg_ratio);
-    // printf("weight_ratio = %.4e\n", weight_ratio);
-    // printf("prob_sample_random_ = %.4e\n", prob_sample_random_);
+  if (dist.weightAvgSlow() > DBL_MIN) {
+    prob_sample_random = std::max(0.0, 1.0 - dist.weightAvgFast() / dist.weightAvgSlow());
   }
-  prob_sample_random_ = 1.0;  // TBD remove
-
-  // Normalize weights
-  dist.normWeights();
+  else {
+    prob_sample_random = 1.0;
+  }
+  printf("P(random) = %.4f\n", prob_sample_random * 100.0);
+  printf("W fast = %.4e\n", dist.weightAvgFast());
+  printf("W slow = %.4e\n", dist.weightAvgSlow());
+  dist.normalizeWeights();
 
   // Initialize target and current weight sums
-  if (dist.size() > 0) {
-    sample_weight_width = 1.0 / dist.size();
+  if (dist.count() > 0) {
+    sample_weight_width = 1.0 / dist.count();
     sample_weight_sum_target = prob_dist_(rng_.engine()) * sample_weight_width;
     sample_weight_sum = dist.particle(0).weight_;
   }
@@ -183,13 +177,13 @@ void MCL::sample(ParticleDistribution& dist)
          && s < num_particles_max_
         ) {
     // Draw a particle from the current distribution with probability proportional to its weight
-    if (   false/*prob_dist_(rng_.engine()) > prob_sample_random_*/ // TBD restore
-        && s < dist.size()
-        && p < dist.size()
+    if (   prob_dist_(rng_.engine()) > prob_sample_random
+        && s < dist.count()
+        && p < dist.count()
        ) {
       // Sum weights until we reach the target
       while (   sample_weight_sum < sample_weight_sum_target
-             && p + 1 < dist.size()
+             && p + 1 < dist.count()
             ) {
         sample_weight_sum += dist.particle(++p).weight_;
       }
@@ -208,8 +202,14 @@ void MCL::sample(ParticleDistribution& dist)
     }
     // Exhausted current distribution so generate a new random particle and update its weight
     else {
-      dist.particle(s) = random();
-      sensor_model_.update(dist.particle(s));
+      // TBD remove
+      // if (s == 0 && iteration == 0) {
+      //   dist.particle(s) = Particle();
+      // }
+      // else {
+        dist.particle(s) = random();
+      //}
+        sensor_model_.update(dist.particle(s));
     }
     // Update histogram with the sampled particle
     hist_.update(dist.particle(s));
@@ -227,13 +227,13 @@ void MCL::sample(ParticleDistribution& dist)
     }
     ++s;
   }
-  // Update distribution size to sample set size
-  dist.resize(s);
+  // Update distribution with new particle count
+  dist.updateCount(s);
 
-  // printf("Samples used = %lu\n", s);
-  // printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
-  // printf("Histogram count = %lu\n", hist_count);
-  // printf("---------------------------------\n");
+  printf("Samples used = %lu\n", s);
+  printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
+  printf("Histogram count = %lu\n", hist_count);
+  printf("---------------------------------\n");
 
   return;
 }
@@ -246,7 +246,7 @@ void MCL::save(const std::string filename,
   RecursiveLock lock(dist_mtx_);
   ParticleVector particles;
 
-  for (size_t i = 0; i < dist_.size(); ++i) {
+  for (size_t i = 0; i < dist_.count(); ++i) {
     particles[i] = dist_.particle(i);
   }
   if (sort) {

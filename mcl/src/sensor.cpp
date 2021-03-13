@@ -44,7 +44,7 @@ BeamModel::BeamModel(const float range_min,
   rays_obs_sample_size_(std::round(M_2PI / th_sample_res_)),
   raycaster_(map,
              range_max / map.scale,
-             656//std::round(M_2PI / th_raycast_res)
+             std::round(M_2PI / th_raycast_res)
             ),
   th_sample_dist_(0.0, th_sample_res_)
 {
@@ -101,6 +101,12 @@ void BeamModel::update(Particle& particle,
     // Update partial weight with this measurement's probability
     weight *= calc_enable ? calcProb(range_obs, range_map) :
                             lookupProb(range_obs, range_map);
+    // TBD remove
+    // if (approxEqual(particle.x_, 0.0, DBL_EPSILON) && approxEqual(particle.y_, 0.0, DBL_EPSILON)) {
+    //   printf("angle = %.2f | ranges = %.6f, %.6f \n",
+    //           rays_obs_sample_[j].th_ * 180.0 / M_PI, range_obs, range_map
+    //         );
+    // }
   }
   // Update full weight, applying overall model uncertainty
   particle.weight_ = std::pow(weight, uncertainty_factor_);
@@ -131,7 +137,7 @@ void BeamModel::update(ParticleDistribution& dist,
   update(obs);
 
   // Update all particle weights
-  for (size_t i = 0; i < dist.size(); ++i) {
+  for (size_t i = 0; i < dist.count(); ++i) {
     update(dist.particle(i));
   }
   return;

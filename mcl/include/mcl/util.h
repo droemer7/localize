@@ -40,48 +40,96 @@ namespace localize
   // TBD use std::array instead since we never want to reallocate larger sizes
   typedef std::vector<Particle> ParticleVector;
 
+  template <class T>
+  class SmoothedValue
+  {
+  public:
+    SmoothedValue(const T val,      // Initial value
+                  const double rate // Smoothing rate
+                 ):
+      val_(val),
+      rate_(rate)
+    {}
+
+    // Update and return the new value
+    void operator=(const T val)
+    {
+      val_ += rate_ * (val - val_);
+      return;
+    }
+
+    // Return the current value
+    operator T() const
+    { return val_; }
+
+  private:
+    T val_;
+    double rate_;
+  };
+
   class ParticleDistribution
   {
   public:
+    ParticleDistribution();
+
     explicit ParticleDistribution(const size_t num_particles_max); // Maximum number of particles
 
     ParticleDistribution(const ParticleVector& particles, // Particles
                          const size_t num_particles       // Number of particles currently in use
                         );
-
-    // Update the distribution size and weight statistics, using the number of particles provided as the new size
-    // This should be called after modifying the particles in the distribution
-    void update(const size_t new_num_particles);
+    // Update the number of particles in the distribution, recalculate weight statistics and normalize weights
+    void update(const size_t num_particles);
 
     // Reference to a particle in the distribution
     Particle& particle(size_t p);
 
     // Number of particles in use (<= size of the particle vector)
-    size_t size() const;
+    size_t count() const;
 
-    // Update the number of particles in use
-    // For efficiency this will not destroy elements when the new desired size is less than the current
-    void resize(size_t num_particles);
+    // Update the number of particles in the distribution
+    // This will not destroy elements when the number is less than current
+    void updateCount(size_t num_particles);
 
-    // Sum of particle weights
+    // The sum of current particle weights
     double weightSum();
 
-    // Average particle weight
+    // The current average particle weight
     double weightAvg();
 
-    // Variance of particle weights
+    // The slow rate of change weight average
+    double weightAvgSlow();
+
+    // The fast rate of change weight average
+    double weightAvgFast();
+
+    // The variance of particle weights
     double weightVar();
 
+    // Update particle distribution weight statistics
+    void updateWeightStats();
+
+    // Calculate the sum of particle weights
+    double calcWeightSum();
+
+    // Calculate the average particle weight
+    double calcWeightAvg();
+
+    // Calculate the variance of particle weights
+    double calcWeightVar(const double weight_avg);
+
+    double calcWeightVar();
+
     // Normalize particle weights
-    void normWeights();
+    void normalizeWeights();
 
   private:
-    ParticleVector particles_;      // Particles in distribution
-    size_t num_particles_;          // Number of particles in use (<= particles_.size())
-    double weight_avg_curr_;        // Weight average
-    SmoothedValue weight_avg_fast_; // Smoothed weight average, fast rate
-    SmoothedValue weight_avg_slow_; // Smoothed weight average, slow rate
-    double weight_var_;             // Weight variance
+    ParticleVector particles_;              // Particles in distribution
+    size_t num_particles_;                  // Number of particles in use (<= particles_.size())
+    double weight_sum_;                     // Sum of particle weights
+    double weight_avg_;                     // Weight average
+    SmoothedValue<double> weight_avg_slow_; // Smoothed weight average, slow rate
+    SmoothedValue<double> weight_avg_fast_; // Smoothed weight average, fast rate
+    double weight_var_;                     // Weight variance
   };
 
   // A range sensor ray with range and angle
@@ -152,8 +200,8 @@ namespace localize
     // Histogram occupancy count
     size_t count();
 
-    // Reset histogram occupancy
-    void reset();
+    // Clear histogram and reset occupancy count
+    void clear();
 
   private:
     // Reference a cell by index
@@ -161,7 +209,6 @@ namespace localize
                                       const size_t y_i,
                                       const size_t th_i
                                      );
-
   private:
     const double x_res_;      // Resolution for x position (meters per cell)
     const double y_res_;      // Resolution for y position (meters per cell)
@@ -175,24 +222,6 @@ namespace localize
 
     std::vector<bool> hist_;  // Histogram
     size_t count_;            // Histogram occupancy count
-  };
-
-  class SmoothedValue
-  {
-  public:
-    SmoothedValue(const double val,   // Initial value
-                  const double rate   // Smoothing rate
-                 );
-
-    // Update and return the new value
-    double update(const double val);
-
-    // Return the current value
-    double val();
-
-  private:
-    double val_;
-    double rate_;
   };
 
   // RNG wrapper to seed properly

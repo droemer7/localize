@@ -7,6 +7,9 @@ using namespace localize;
 
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
 
+static const double WEIGHT_AVG_SLOW_RATE = 0.009;
+static const double WEIGHT_AVG_FAST_RATE = 0.90;
+
 Particle::Particle(const double x,
                    const double y,
                    const double th,
@@ -18,28 +21,36 @@ Particle::Particle(const double x,
   weight_(weight)
 {}
 
-ParticleDistribution::ParticleDistribution(const size_t num_particles_max) :
-  particles_(num_particles_max),
+ParticleDistribution::ParticleDistribution() :
   num_particles_(0),
-  weight_avg_curr_(0.0),
-  weight_avg_fast_(0.0, 0.5),
-  weight_avg_slow_(0.0, 0.005)
+  weight_sum_(0.0),
+  weight_avg_(0.0),
+  weight_avg_slow_(0.0, WEIGHT_AVG_SLOW_RATE),
+  weight_avg_fast_(0.0, WEIGHT_AVG_FAST_RATE),
+  weight_var_(0.0)
 {}
+
+ParticleDistribution::ParticleDistribution(const size_t num_particles_max) :
+  ParticleDistribution()
+{
+  particles_.resize(num_particles_max);
+}
 
 ParticleDistribution::ParticleDistribution(const ParticleVector& particles,
                                            const size_t num_particles
                                           ) :
-  particles_(particles),
-  num_particles_(num_particles),
-  weight_avg_curr_(0.0),
-  weight_avg_fast_(0.0, 0.5),
-  weight_avg_slow_(0.0, 0.005)
-{}
-
-void ParticleDistribution::update(const size_t new_num_particles)
+  ParticleDistribution()
 {
-  resize(new_num_particles);
-  TBD;
+  particles_ = particles;
+  updateCount(num_particles);
+  updateWeightStats();
+}
+
+void ParticleDistribution::update(const size_t num_particles)
+{
+  updateCount(num_particles_);
+  updateWeightStats();
+  normalizeWeights();
 }
 
 Particle& ParticleDistribution::particle(size_t p)
@@ -47,12 +58,12 @@ Particle& ParticleDistribution::particle(size_t p)
   return particles_[p];
 }
 
-size_t ParticleDistribution::size() const
+size_t ParticleDistribution::count() const
 {
   return num_particles_;
 }
 
-void ParticleDistribution::resize(size_t num_particles)
+void ParticleDistribution::updateCount(size_t num_particles)
 {
   if (num_particles > particles_.size()) {
     particles_.resize(num_particles);
@@ -62,40 +73,78 @@ void ParticleDistribution::resize(size_t num_particles)
 
 double ParticleDistribution::weightSum()
 {
+  return weight_sum_;
+}
+
+double ParticleDistribution::weightAvg()
+{
+  return weight_avg_;
+}
+
+double ParticleDistribution::weightAvgSlow()
+{
+  return weight_avg_slow_;
+}
+
+double ParticleDistribution::weightAvgFast()
+{
+  return weight_avg_fast_;
+}
+
+double ParticleDistribution::weightVar()
+{
+  return weight_var_;
+}
+
+void ParticleDistribution::updateWeightStats()
+{
+  weight_sum_ = calcWeightSum();
+  weight_avg_ = num_particles_ > 0 ? weight_sum_ / num_particles_ : 0.0;
+  weight_var_ = calcWeightVar(weight_avg_);
+  weight_avg_slow_ = weight_avg_;
+  weight_avg_fast_ = weight_avg_;
+}
+
+double ParticleDistribution::calcWeightSum()
+{
   double sum = 0.0;
 
-  for (size_t i = 0; i < size(); ++i) {
+  for (size_t i = 0; i < count(); ++i) {
     sum += particles_[i].weight_;
   }
   return sum;
 }
 
-double ParticleDistribution::weightAvg()
+double ParticleDistribution::calcWeightAvg()
 {
   double avg = 0.0;
 
-  if (size() > 0) {
-    avg = weightSum() / size();
+  if (count() > 0) {
+    avg = calcWeightSum() / count();
   }
   return avg;
 }
 
-double ParticleDistribution::weightVar()
+double ParticleDistribution::calcWeightVar(double weight_avg)
 {
   double var = 0.0;
-  double avg = weightAvg();
 
-  for (size_t i = 0; i < size(); ++i) {
-    var += (  (particles_[i].weight_ - avg)
-            * (particles_[i].weight_ - avg)
+  for (size_t i = 0; i < count(); ++i) {
+    var += (  (particles_[i].weight_ - weight_avg)
+            * (particles_[i].weight_ - weight_avg)
            );
   }
   return var;
 }
 
-void ParticleDistribution::normWeights()
+double ParticleDistribution::calcWeightVar()
 {
-  double sum = weightSum();
+  return calcWeightVar(calcWeightAvg());
+}
+
+void ParticleDistribution::normalizeWeights()
+{
+  double sum = calcWeightSum();
   double norm = sum > 0.0 ? 1 / sum : 0.0;
 
   for (size_t i = 0; i < num_particles_; ++i) {
@@ -207,7 +256,7 @@ size_t ParticleHistogram::count()
   return count_;
 }
 
-void ParticleHistogram::reset()
+void ParticleHistogram::clear()
 {
   if (count_ > 0) {
     std::fill(hist_.begin(), hist_.end(), false);
@@ -221,25 +270,6 @@ std::vector<bool>::reference ParticleHistogram::cell(const size_t x_i,
                                                     )
 {
   return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
-}
-
-SmoothedValue::SmoothedValue(const double val,
-                             const double rate
-                            ) :
-  val_(val),
-  rate_(rate)
-{}
-
-double SmoothedValue::update(const double val)
-{
-  val_ += rate_ * (val - val_);
-
-  return val_;
-}
-
-double SmoothedValue::val()
-{
-  return val_;
 }
 
 RNG::RNG()
