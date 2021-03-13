@@ -49,7 +49,11 @@ namespace localize
                          const size_t num_particles       // Number of particles currently in use
                         );
 
-    // Particle
+    // Update the distribution size and weight statistics, using the number of particles provided as the new size
+    // This should be called after modifying the particles in the distribution
+    void update(const size_t new_num_particles);
+
+    // Reference to a particle in the distribution
     Particle& particle(size_t p);
 
     // Number of particles in use (<= size of the particle vector)
@@ -72,8 +76,12 @@ namespace localize
     void normWeights();
 
   private:
-    ParticleVector particles_;  // Particles in distribution
-    size_t num_particles_;      // Number of particles in use (<= particles_.size())
+    ParticleVector particles_;      // Particles in distribution
+    size_t num_particles_;          // Number of particles in use (<= particles_.size())
+    double weight_avg_curr_;        // Weight average
+    SmoothedValue weight_avg_fast_; // Smoothed weight average, fast rate
+    SmoothedValue weight_avg_slow_; // Smoothed weight average, slow rate
+    double weight_var_;             // Weight variance
   };
 
   // A range sensor ray with range and angle
@@ -138,13 +146,21 @@ namespace localize
                      );
 
     // Update histogram occupancy with the particle's location
-    void update(const Particle& particle);
+    // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
+    bool update(const Particle& particle);
 
     // Histogram occupancy count
     size_t count();
 
     // Reset histogram occupancy
     void reset();
+
+  private:
+    // Reference a cell by index
+    std::vector<bool>::reference cell(const size_t x_i,
+                                      const size_t y_i,
+                                      const size_t th_i
+                                     );
 
   private:
     const double x_res_;      // Resolution for x position (meters per cell)
@@ -157,15 +173,15 @@ namespace localize
     const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
     const double th_origin_;  // Angle relative to world frame (rad)
 
-    std::vector<std::vector<std::vector<int>>> hist_; // Histogram
-    size_t count_;                                    // Histogram occupancy count
+    std::vector<bool> hist_;  // Histogram
+    size_t count_;            // Histogram occupancy count
   };
 
   class SmoothedValue
   {
   public:
-    SmoothedValue(const double rate,      // Smoothing rate
-                  const double val = 0.0  // Initial value
+    SmoothedValue(const double val,   // Initial value
+                  const double rate   // Smoothing rate
                  );
 
     // Update and return the new value
@@ -175,8 +191,8 @@ namespace localize
     double val();
 
   private:
-    double rate_;
     double val_;
+    double rate_;
   };
 
   // RNG wrapper to seed properly
@@ -195,7 +211,7 @@ namespace localize
   };
 
   // Generate random samples from a normal distribution
-  template <class T=double>
+  template <class T>
   class NormalDistributionSampler
   {
   public:

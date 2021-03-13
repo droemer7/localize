@@ -53,8 +53,6 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   prob_sample_random_(1.0),
   vel_(0.0),
   dist_(mcl_num_particles_max),
-  weight_avg_fast_(0.5),
-  weight_avg_slow_(0.005),
   map_(map_width,
        map_height,
        map_x,
@@ -124,7 +122,7 @@ void MCL::update(const RayScan&& obs)
     RecursiveLock lock(dist_mtx_);
     sample(dist_);
   }
-
+  // TBD remove
   if (iteration > LAST_ITERATION && stopped()) {
     throw std::runtime_error("Finished");
   }
@@ -152,25 +150,25 @@ void MCL::sample(ParticleDistribution& dist)
   // Calculate the probability to draw random samples
   // If the fast-changing (recent) weight average is lower than the slower-changing (old) weight average,
   // our estimate is poor and more random samples are needed to recover
-  // double weight_avg = dist.weightAvg();
-  // double weight_avg_slow = weight_avg_slow_.update(weight_avg);
-  // double weight_avg_fast = weight_avg_fast_.update(weight_avg);
+  double weight_avg = dist.weightAvg();
+  double weight_avg_slow = weight_avg_slow_.update(weight_avg);
+  double weight_avg_fast = weight_avg_fast_.update(weight_avg);
   // printf("weight_avg = %.4e\n", weight_avg);
   // printf("weight_avg_slow = %.4e\n", weight_avg_slow);
   // printf("weight_avg_fast = %.4e\n", weight_avg_fast);
 
-  // if (weight_avg_slow > DBL_EPSILON) {
-  //   double weight_ratio = (  weight_avg_fast_.update(weight_avg)
-  //                          / weight_avg_slow_.update(weight_avg)
-  //                         );
-  //   prob_sample_random_ = std::max(0.0, 1.0 - weight_ratio);
-  //   printf("weight_ratio = %.4e\n", weight_ratio);
-  //   printf("prob_sample_random_ = %.4e\n", prob_sample_random_);
-  // }
-  prob_sample_random_ = 1.0;
+  if (weight_avg_slow > DBL_MIN) {
+    double weight_avg_ratio = (  weight_avg_fast_.update(weight_avg)
+                               / weight_avg_slow_.update(weight_avg)
+                              );
+    prob_sample_random_ = std::max(0.0, 1.0 - weight_avg_ratio);
+    // printf("weight_ratio = %.4e\n", weight_ratio);
+    // printf("prob_sample_random_ = %.4e\n", prob_sample_random_);
+  }
+  prob_sample_random_ = 1.0;  // TBD remove
 
   // Normalize weights
-  //dist.normWeights();
+  dist.normWeights();
 
   // Initialize target and current weight sums
   if (dist.size() > 0) {

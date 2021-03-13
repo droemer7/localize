@@ -5,7 +5,7 @@
   <arg name="control"  default="false"/>
 
   <!-- MCL arguments -->
-  <arg name="mcl_num_particles_min"     default="999"/>
+  <arg name="mcl_num_particles_min"     default="1000"/>
   <arg name="mcl_num_particles_max"     default="1000"/>
   <arg name="mcl_kld_eps"               default="0.01"/>
   <arg name="mcl_hist_pos_res"          default="0.10"/>

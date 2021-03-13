@@ -1,57 +1,3 @@
-// #include <iostream>
-// #include <utility>
-// #include <chrono>
-
-// using namespace std::chrono;
-// //const size_t length = 23'068'672;
-// const size_t length = 5'000'000;
-
-// typedef high_resolution_clock::duration dur_t;
-// std::pair<dur_t, dur_t> stack()
-// {
-//         auto start = high_resolution_clock::now();
-//         volatile int eathalfastack[length] = {};
-//         auto mid = high_resolution_clock::now();
-//         for( size_t i = 0; i < length; ++i ){
-//                 eathalfastack[i] = i;
-//         }
-//         auto end = high_resolution_clock::now();
-//     return {mid-start, end-mid};
-// }
-
-// std::pair<dur_t, dur_t> heap()
-// {
-//         auto start = high_resolution_clock::now();
-//         volatile int* heaparr = new volatile int[length]();
-//         auto mid = high_resolution_clock::now();
-//         for( size_t i = 0; i < length ; i++ ){
-//                 heaparr[i] = i;
-//         }
-//         auto end = high_resolution_clock::now();
-//         delete[] heaparr;
-//         return make_pair(mid - start, end - mid);
-// }
-
-// int main()
-// {
-//     dur_t stack_alloc, stack_write, heap_alloc, heap_write;
-//     for(int cnt = 0; cnt < 100; ++cnt)
-//     {
-//         std::pair<dur_t, dur_t> timing = stack();
-//         stack_alloc += timing.first;
-//         stack_write += timing.second;
-//         timing = heap();
-//         heap_alloc += timing.first;
-//         heap_write += timing.second;
-//     }
-
-//         std::cout << "Time taken in ms:\n"
-//               << "stack alloc: " << duration_cast<milliseconds>(stack_alloc).count() << "ms\n"
-//               << "stack write: " << duration_cast<milliseconds>(stack_write).count() << "ms\n"
-//               << "Heap  alloc: " << duration_cast<milliseconds>(heap_alloc).count() << "ms\n"
-//               << "Heap  write: " << duration_cast<milliseconds>(heap_write).count() << "ms\n";
-// }
-
 #include <chrono>
 #include <float.h>
 #include <stdio.h>
@@ -65,145 +11,134 @@
 
 using namespace localize;
 
-double temp;
-RNG rng;
-std::uniform_real_distribution<double> x_dist(-10.0, std::nextafter(10.0, DBL_MAX));
-std::uniform_real_distribution<double> y_dist(-10.0, std::nextafter(10.0, DBL_MAX));
-std::uniform_real_distribution<double> th_dist(-M_PI, M_PI);
 std::chrono::_V2::high_resolution_clock::time_point start;
 std::chrono::_V2::high_resolution_clock::time_point end;
 
-ParticleVector particles;
+const size_t x_size = 500;
+const size_t y_size = 500;
+const size_t th_size = 500;
 
-template <class T>
-void testSampleNormalDist(const unsigned int samples,
-                          const unsigned int repeats
-                         )
+void testParticleHistogramArray()
 {
-  printf("\nTesting NormalDistributionSampler ... \n");
-  NormalDistributionSampler<T> sampler;
-  std::chrono::_V2::high_resolution_clock::time_point start;
-  std::chrono::_V2::high_resolution_clock::time_point end;
-  std::chrono::duration<double> dur;
-  T mean = 0;
-  T std_dev = 0;
-  unsigned int count = 0;
-
-  for (unsigned int i = 0; i < repeats; ++i) {
-    mean = (i + 1) % 10;
-    std_dev = (i + 1) % 10;
-    count = 0;
-    start = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-    for (unsigned int j = 0; j < samples; ++j) {
-      if (std::abs(sampler.gen(mean, std_dev) - mean) > 2.0 * std_dev)
-      {
-        ++count;
-      }
-    }
-    end = std::chrono::high_resolution_clock::now();
-    dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-    printf("%u samples generated in %.2f ms with %.2f%% outside of 2 standard deviations\n",
-           samples, dur.count() * 1000, 100.0 * count / samples
-          );
-  }
-  printf("--- Test complete ---\n");
-}
-
-void testAngleWrapping(const size_t num_angles,
-                       const double angle_inc
-                      )
-{
-  double angle = 0.0;
-
-  for (size_t i = 0; i < num_angles; ++i) {
-    angle = i * angle_inc;
-    printf("Wrap(%f) = %f\n",
-           angle * 180.0 / M_PI,
-           wrapAngle(angle) * 180.0 / M_PI
-          );
-  }
-}
-
-void print(ParticleVector& particles)
-{
-  for (size_t i = 0; i < particles.size(); ++i) {
-    printf("sample[%lu] = (%f, %f, %f, %f)\n",
-           i, particles[i].x_, particles[i].y_, particles[i].th_, particles[i].weight_
-          );
-  }
-  printf("\n");
-}
-
-void gen(Particle& particle)
-{
-  //Particle particle;
-
-  particle.x_ = x_dist(rng.engine());
-  particle.y_ = y_dist(rng.engine());
-  particle.th_ = th_dist(rng.engine());
-
-  return;// particle;
-}
-
-void testGen(size_t num_samples)
-{
-  printf("\nTesting gen() ... \n");
-  particles.resize(num_samples);
+  printf("\nTesting ParticleHistogram (array) ... \n");
+  //typedef std::array<std::array<std::array<unsigned char, x_size>, y_size>, th_size> Histogram;
+  typedef std::array<unsigned char, x_size * y_size * th_size> Histogram;
+  std::unique_ptr<Histogram> hist_ptr = std::unique_ptr<Histogram>(new Histogram);
 
   start = std::chrono::high_resolution_clock::now();
-  for (size_t i = 0; i < particles.size(); ++i) {
-    gen(particles[i]);
-  }
+  std::fill((*hist_ptr).begin(), (*hist_ptr).end(), false);
   end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-  printf("Generated %lu samples in %.2f ms\n", num_samples, dur.count() * 1000.0);
-  printf("--- Test complete ---\n");
-}
 
-void testParticleHistogram()
-{
-  printf("\nTesting ParticleHistogram ... \n");
-  std::vector<std::vector<std::vector<int>>> hist_(400,
-                                                    std::vector<std::vector<int>>(400,
-                                                    std::vector<int>(72, false)
-                                                   ));
-  size_t count = 0;
-  start = std::chrono::high_resolution_clock::now();
-  for (size_t i = 0; i < hist_.size(); ++i) {
-    for (size_t j = 0; j < hist_[0].size(); ++j) {
-      for (size_t k = 0; k < hist_[0][0].size(); ++k) {
-        hist_[i][j][k] = false;
-      }
-    }
-  }
-  count = 0;
-  end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
   printf("Reset histogram in %.2f ms\n", dur.count() * 1000.0);
   printf("--- Test complete ---\n");
 }
 
+void testParticleHistogramVector3D()
+{
+  printf("\nTesting ParticleHistogram (3D vector) ... \n");
+  std::vector<std::vector<std::vector<unsigned char>>> hist(x_size,
+                                                            std::vector<std::vector<unsigned char>>(y_size,
+                                                            std::vector<unsigned char>(th_size, false)
+                                                           ));
+  start = std::chrono::high_resolution_clock::now();
+  for (size_t i = 0; i < hist.size(); ++i) {
+    for (size_t j = 0; j < hist[0].size(); ++j) {
+      std::fill(hist[i][j].begin(), hist[i][j].end(), false);
+    }
+  }
+  end = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  printf("Reset histogram in %.2f ms\n", dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
+}
+
+void testParticleHistogramArray1D()
+{
+  printf("\nTesting ParticleHistogram (1D array) ... \n");
+  std::array<bool, x_size * y_size * th_size> hist;
+
+  start = std::chrono::high_resolution_clock::now();
+  std::fill(hist.begin(), hist.end(), true);
+  end = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+
+  // for (size_t i = 0; i < hist.size(); ++i) {
+  //   printf("%d, ", static_cast<bool>(hist[i]));
+  // }
+  printf("Reset histogram in %.2f ms\n", dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
+}
+
+void testParticleHistogramVector1D()
+{
+  printf("\nTesting ParticleHistogram (1D vector) ... \n");
+  std::vector<bool> hist(x_size * y_size * th_size, false);
+
+  start = std::chrono::high_resolution_clock::now();
+  std::fill(hist.begin(), hist.end(), true);
+  end = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+
+  // for (size_t i = 0; i < hist.size(); ++i) {
+  //   printf("%d, ", static_cast<bool>(hist[i]));
+  // }
+  printf("Reset histogram in %.2f ms\n", dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
+}
+
+void test3Dto1DVector()
+{
+  printf("\nTesting 3D to 1D vector ... \n");
+  size_t x_len = 4;
+  size_t y_len = 6;
+  size_t th_len = 3;
+  std::vector<std::vector<std::vector<int>>> vector3d(x_len,
+                                                      std::vector<std::vector<int>>(y_len,
+                                                      std::vector<int>(th_len, false)
+                                                     ));
+  std::vector<bool> vector1d(x_len * y_len * th_len);
+
+  int v = 0;
+  printf("vector3d = ");
+  for (size_t i = 0; i < vector3d.size(); ++i) {
+    for (size_t j = 0; j < vector3d[0].size(); ++j) {
+      for (size_t k = 0; k < vector3d[0][0].size(); ++k) {
+        printf("%d, ", v);
+        vector3d[i][j][k] = ++v % 2;
+      }
+    }
+  }
+  printf("\n");
+  v = 0;
+  printf("vector1d = ");
+  for (size_t i = 0; i < vector1d.size(); ++i) {
+    printf("%d, ", v);
+    vector1d[i] = ++v % 2;
+  }
+  printf("\n");
+
+  printf("vector1d = ");
+  for (size_t i = 0; i < vector3d.size(); ++i) {
+    for (size_t j = 0; j < vector3d[0].size(); ++j) {
+      for (size_t k = 0; k < vector3d[0][0].size(); ++k) {
+        printf("%d, ", static_cast<bool>(vector1d[i * y_len * th_len + j * th_len + k]));
+      }
+    }
+  }
+  printf("\n");
+}
+
 int main(int argc, char** argv)
 {
-  // unsigned int iterations = 3 * 10000;
-  // unsigned int repeats = 5;
-  // testSampleNormalDist<float>(iterations, repeats);
-  // testSampleNormalDist<double>(iterations, repeats);
-  // testAngleWrapping(20, 45 * M_PI / 180.0);
-  // testGen(200'000);
-
-  testParticleHistogram();
-
-  // ParticleVector particles(10'000'000);
-  // start = std::chrono::high_resolution_clock::now();
-  // for (size_t i = 0; i < particles.size(); ++i) {
-  //   particles[i].weight_ = 2.0;
-  // }
-  // end = std::chrono::high_resolution_clock::now();
-  // std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-  // printf("Done: %.2f ms\n", dur.count() * 1000.0);
-  // printf("--- Test complete ---\n");
+  // testParticleHistogramArray();
+  // testParticleHistogramVector3D();
+  testParticleHistogramArray1D();
+  testParticleHistogramVector1D();
+  //test3Dto1DVector();
 
   return 0;
 }

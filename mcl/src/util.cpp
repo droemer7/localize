@@ -20,15 +20,27 @@ Particle::Particle(const double x,
 
 ParticleDistribution::ParticleDistribution(const size_t num_particles_max) :
   particles_(num_particles_max),
-  num_particles_(0)
+  num_particles_(0),
+  weight_avg_curr_(0.0),
+  weight_avg_fast_(0.0, 0.5),
+  weight_avg_slow_(0.0, 0.005)
 {}
 
 ParticleDistribution::ParticleDistribution(const ParticleVector& particles,
                                            const size_t num_particles
                                           ) :
   particles_(particles),
-  num_particles_(num_particles)
+  num_particles_(num_particles),
+  weight_avg_curr_(0.0),
+  weight_avg_fast_(0.0, 0.5),
+  weight_avg_slow_(0.0, 0.005)
 {}
+
+void ParticleDistribution::update(const size_t new_num_particles)
+{
+  resize(new_num_particles);
+  TBD;
+}
 
 Particle& ParticleDistribution::particle(size_t p)
 {
@@ -145,6 +157,7 @@ Map::Map(const unsigned int width,
 bool Map::occupied(float x, float y) const
 {
   rosWorldToGrid(x, y);
+
   return isOccupiedNT(x, y);
 }
 
@@ -162,17 +175,15 @@ ParticleHistogram::ParticleHistogram(const double x_res,
   x_origin_(map.x_origin),
   y_origin_(map.y_origin),
   th_origin_(map.th_origin),
-  hist_(x_size_,
-        std::vector<std::vector<int>>(y_size_,
-                                      std::vector<int>(th_size_, false)
-                                     )
-       ),
+  hist_(x_size_ * y_size_ * th_size_, false),
   count_(0)
 {}
 
-void ParticleHistogram::update(const Particle& particle)
+bool ParticleHistogram::update(const Particle& particle)
 {
-  // Calculate indexes
+  bool count_inc = false;
+
+  // Calculate index
   size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / x_res_),
                         static_cast<double>(x_size_ - 1)
                        );
@@ -183,11 +194,12 @@ void ParticleHistogram::update(const Particle& particle)
                          static_cast<double>(th_size_ - 1)
                         );
   // Update histogram
-  if (!hist_[x_i][y_i][th_i]) {
-    hist_[x_i][y_i][th_i] = true;
+  if (!cell(x_i, y_i, th_i)) {
+    cell(x_i, y_i, th_i) = true;
+    count_inc = true;
     ++count_;
   }
-  return;
+  return count_inc;
 }
 
 size_t ParticleHistogram::count()
@@ -197,26 +209,31 @@ size_t ParticleHistogram::count()
 
 void ParticleHistogram::reset()
 {
-  for (size_t i = 0; i < hist_.size(); ++i) {
-    for (size_t j = 0; j < hist_[0].size(); ++j) {
-      for (size_t k = 0; k < hist_[0][0].size(); ++k) {
-        hist_[i][j][k] = false;
-      }
-    }
+  if (count_ > 0) {
+    std::fill(hist_.begin(), hist_.end(), false);
+    count_ = 0;
   }
-  count_ = 0;
 }
 
-SmoothedValue::SmoothedValue(const double rate,
-                             const double val
+std::vector<bool>::reference ParticleHistogram::cell(const size_t x_i,
+                                                     const size_t y_i,
+                                                     const size_t th_i
+                                                    )
+{
+  return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
+}
+
+SmoothedValue::SmoothedValue(const double val,
+                             const double rate
                             ) :
-  rate_(rate),
-  val_(val)
+  val_(val),
+  rate_(rate)
 {}
 
 double SmoothedValue::update(const double val)
 {
   val_ += rate_ * (val - val_);
+
   return val_;
 }
 

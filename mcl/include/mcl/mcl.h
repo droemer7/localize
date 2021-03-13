@@ -94,11 +94,9 @@ namespace localize
     const size_t num_particles_max_;  // Maximum number of particles
     const double kld_eps_;            // KL distance threshold
     double prob_sample_random_;       // Probability to sample a random particle instead of one from the current distribution
-    double vel_;                      // Robot velocity
+    double vel_;                      // Robot linear velocity
 
     ParticleDistribution dist_;     // Particle distribution
-    SmoothedValue weight_avg_fast_; // Smoothed weight average, fast rate
-    SmoothedValue weight_avg_slow_; // Smoothed weight average, slow rate
     const Map map_;                 // Map
     VelModel motion_model_;         // Motion model
     BeamModel sensor_model_;        // Sensor model

@@ -176,9 +176,9 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   ros::Time start = ros::Time::now();
 
   // Calculate velocity
-  double lin_vel = (  (msg->state.speed - motor_speed_to_erpm_offset_)
-                    / motor_speed_to_erpm_gain_
-                   );
+  double vel = (  (msg->state.speed - motor_speed_to_erpm_offset_)
+                / motor_speed_to_erpm_gain_
+               );
   // Calculate steering angle
   double steering_angle = 0.0;
   {
@@ -192,7 +192,7 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   motor_t_prev_ = msg->header.stamp;
 
   // Perform motion update
-  mcl_ptr_->update(lin_vel, steering_angle, dt);
+  mcl_ptr_->update(vel, steering_angle, dt);
 
   // Save duration
   motion_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;

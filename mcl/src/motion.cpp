@@ -27,39 +27,51 @@ void VelModel::update(ParticleDistribution& dist,
                       const double dt
                      )
 {
+  // Calculate angular velocity from steering angle and linear velocity
   double ang_vel = (lin_vel / car_length_) * std::tan(steering_angle);
+
+  // Calculate standard deviation of noise
   double lin_vel_sq = lin_vel * lin_vel;
   double ang_vel_sq = ang_vel * ang_vel;
+
+  double lin_vel_var = lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq;
+  double ang_vel_var = ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq;
+  double th_var = th_n1_ * lin_vel_sq + th_n2_ * ang_vel_sq;
+
+  double lin_vel_std_dev = lin_vel_var > DBL_MIN ? std::sqrt(lin_vel_var) : 0.0;
+  double ang_vel_std_dev = ang_vel_var > DBL_MIN ? std::sqrt(ang_vel_var) : 0.0;
+  double th_std_dev = th_var > DBL_MIN ? std::sqrt(th_var) : 0.0;
+
   double lin_vel_noise = 0.0;
   double ang_vel_noise = 0.0;
   double th_noise = 0.0;
   double lin_vel_adj = 0.0;
   double ang_vel_adj = 0.0;
 
-  // Numerical check for square root
-  if (   lin_vel_sq > DBL_EPSILON
-      || ang_vel_sq > DBL_EPSILON
-     ) {
-    for (size_t i = 0; i < dist.size(); ++i) {
-      // Calculate noise for velocities and rotation
-      lin_vel_noise = sampler_.gen(0.0, std::sqrt(lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq));
-      ang_vel_noise = sampler_.gen(0.0, std::sqrt(ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq));
-      th_noise = sampler_.gen(0.0, std::sqrt(th_n1_ * lin_vel_sq + th_n2_ * ang_vel_sq));
+  // Update each particle
+  for (size_t i = 0; i < dist.size(); ++i) {
 
-      // Add noise to velocities
-      lin_vel_adj = lin_vel + lin_vel_noise;
-      ang_vel_adj = ang_vel + ang_vel_noise;
+    // Calculate noise for velocities and rotation
+    lin_vel_noise = lin_vel_std_dev > DBL_MIN ? sampler_.gen(0.0, lin_vel_std_dev) : 0.0;
+    ang_vel_noise = ang_vel_std_dev > DBL_MIN ? sampler_.gen(0.0, ang_vel_std_dev) : 0.0;
+    th_noise = th_std_dev > DBL_MIN ? sampler_.gen(0.0, th_std_dev) : 0.0;
 
-      // Calculate new pose x and y using noisy velocities
-      dist.particle(i).x_ += (  (lin_vel_adj / ang_vel_adj)
-                              * (-std::sin(dist.particle(i).th_) + std::sin(dist.particle(i).th_ + ang_vel_adj * dt))
-                             );
-      dist.particle(i).y_ += (  (lin_vel_adj / ang_vel_adj)
-                              * ( std::cos(dist.particle(i).th_) - std::cos(dist.particle(i).th_ + ang_vel_adj * dt))
-                             );
-      // Calculate new pose rotation, adding additional noise
-      dist.particle(i).th_ += wrapAngle((ang_vel_adj + th_noise) * dt);
-    }
+    // Add noise to velocities
+    lin_vel_adj = lin_vel + lin_vel_noise;
+    ang_vel_adj = ang_vel + ang_vel_noise;
+
+    // Calculate new x and y using noisy velocities
+    dist.particle(i).x_ += (  (lin_vel_adj / ang_vel_adj)
+                            * (-std::sin(dist.particle(i).th_) + std::sin(dist.particle(i).th_ + ang_vel_adj * dt))
+                           );
+    dist.particle(i).y_ += (  (lin_vel_adj / ang_vel_adj)
+                            * ( std::cos(dist.particle(i).th_) - std::cos(dist.particle(i).th_ + ang_vel_adj * dt))
+                           );
+    // Calculate new orientation, adding additional noise
+    dist.particle(i).th_ += (ang_vel_adj + th_noise) * dt;
+
+    // Wrap orientation to (-pi, pi]
+    dist.particle(i).th_ = wrapAngle(dist.particle(i).th_);
   }
   return;
 }

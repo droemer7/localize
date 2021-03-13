@@ -80,8 +80,7 @@ BeamModel::BeamModel(const float range_min,
   precalcProb();
 }
 
-void BeamModel::update(ParticleDistribution& dist,
-                       const RayScan& obs,
+void BeamModel::update(Particle& particle,
                        const bool calc_enable
                       )
 {
@@ -89,32 +88,23 @@ void BeamModel::update(ParticleDistribution& dist,
   float range_obs = 0.0;
   float range_map = 0.0;
 
-  // Downsample the full ray list according to the angle sample increment
-  // If empty, use the most recent sample
-  if (obs.rays_.size() > 0) {
-    rays_obs_sample_ = sample(obs);
+  for (size_t j = 0; j < rays_obs_sample_.size(); ++j) {
+    // Compute range from the map
+    range_map = raycaster_.calc_range(particle.x_,
+                                      particle.y_,
+                                      particle.th_ + rays_obs_sample_[j].th_
+                                     );
+    // Make sure ranges are valid (NaNs, negative values, etc)
+    range_obs = repair(rays_obs_sample_[j].range_);
+    range_map = repair(range_map);
+
+    // Update partial weight with this measurement's probability
+    weight *= calc_enable ? calcProb(range_obs, range_map) :
+                            lookupProb(range_obs, range_map);
   }
+  // Update full weight, applying overall model uncertainty
+  particle.weight_ = std::pow(weight, uncertainty_factor_);
 
-  for (size_t i = 0; i < dist.size(); ++i) {
-    weight = 1.0;
-
-    for (size_t j = 0; j < rays_obs_sample_.size(); ++j) {
-      // Compute range from the map
-      range_map = raycaster_.calc_range(dist.particle(i).x_,
-                                        dist.particle(i).y_,
-                                        dist.particle(i).th_ + rays_obs_sample_[j].th_
-                                       );
-      // Make sure ranges are valid (NaNs, negative values, etc)
-      range_obs = repair(rays_obs_sample_[j].range_);
-      range_map = repair(range_map);
-
-      // Update partial weight with this measurement's probability
-      weight *= calc_enable ? calcProb(range_obs, range_map) :
-                              lookupProb(range_obs, range_map);
-    }
-    // Update full weight, applying overall model uncertainty
-    dist.particle(i).weight_ = std::pow(weight, uncertainty_factor_);
-  }
   return;
 }
 
@@ -123,11 +113,27 @@ void BeamModel::update(Particle& particle,
                        const bool calc_enable
                       )
 {
-  ParticleDistribution dist(ParticleVector(1, particle), 1);
+  // Sample from the observation
+  update(obs);
 
-  update(dist, obs, calc_enable);
-  particle = dist.particle(0);
+  // Update particle weight
+  update(particle, calc_enable);
 
+  return;
+}
+
+void BeamModel::update(ParticleDistribution& dist,
+                       const RayScan& obs,
+                       const bool calc_enable
+                      )
+{
+  // Sample from the observation
+  update(obs);
+
+  // Update all particle weights
+  for (size_t i = 0; i < dist.size(); ++i) {
+    update(dist.particle(i));
+  }
   return;
 }
 
