@@ -39,7 +39,6 @@ namespace localize
     double weight_normed_;  // Normalized importance weight
   };
 
-  // TBD use std::array instead since we never want to reallocate larger sizes
   typedef std::vector<Particle> ParticleVector;
 
   template <class T>

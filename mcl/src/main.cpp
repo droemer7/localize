@@ -5,7 +5,6 @@
 
 using namespace localize;
 
-// TBD remove stack checks
 int main(int argc, char** argv)
 {
   // Initialize ROS
@@ -19,7 +18,7 @@ int main(int argc, char** argv)
                      "laser/scan",
                      "/static_map"
                     );
-    // Stack usage
+    // Memory usage
     rusage stackusage;
     getrusage(RUSAGE_SELF, &stackusage);
     ROS_INFO("MCL: Memory usage = %ld MB", stackusage.ru_maxrss / 1024);

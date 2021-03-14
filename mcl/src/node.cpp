@@ -219,7 +219,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   }
   catch (std::runtime_error error) {
     save();
-    throw std::runtime_error(error);
+    throw error;
   }
 
   // Save duration
