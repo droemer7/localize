@@ -292,7 +292,7 @@ namespace localize
                         );
     for (const std::vector<T>& row : data_matrix) {
       for (const T& val : row) {
-        output << static_cast<double>(val) << ",";
+        output << static_cast<double>(val) << ", ";
       }
       output << "\n";
     }
@@ -345,13 +345,16 @@ namespace localize
                                      std::ofstream::ate
                         );
     output << "Particles\n";
-    output << "x, y, theta (deg), weight\n";
+    output << "x, y, theta (deg), weight, normalized weight\n";
 
     for (const Particle& particle : particles) {
-      output << std::fixed << std::setprecision(3) << particle.x_ << ","
-                                                   << particle.y_ << ","
-                                                   << particle.th_ * 180.0 / M_PI << ","
-             << std::scientific << std::setprecision(4) << particle.weight_ << "," << "\n";
+      output << std::fixed << std::setprecision(3)
+             << particle.x_ << ", "
+             << particle.y_ << ", "
+             << particle.th_ * 180.0 / M_PI << ", "
+             << std::scientific << std::setprecision(4)
+             << particle.weight_ << ", "
+             << particle.weight_normed_ << ", " << "\n";
     }
     output.close();
   }
@@ -369,7 +372,7 @@ namespace localize
     output << "Rays\n";
     output << "range, theta (deg)\n";
     for (const Ray& ray : rays) {
-      output << std::fixed << std::setprecision(3) << ray.range_ << "," << ray.th_ * 180.0 / M_PI << "," << "\n";
+      output << std::fixed << std::setprecision(3) << ray.range_ << ", " << ray.th_ * 180.0 / M_PI << ", " << "\n";
     }
     output.close();
   }

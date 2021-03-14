@@ -42,19 +42,23 @@ namespace localize
 
     // Applies the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void update(Particle& particle,
-                const bool calc_enable = false
-               );
+    void apply(Particle& particle,
+               const bool calc_enable = false
+              );
 
-    void update(Particle& particle,
-                const RayScan& obs,
-                const bool calc_enable = false
-               );
+    void apply(Particle& particle,
+               const RayScan& obs,
+               const bool calc_enable = false
+              );
 
-    void update(ParticleDistribution& dist,
-                const RayScan& obs,
-                const bool calc_enable = false
-               );
+    void apply(ParticleDistribution& dist,
+               const bool calc_enable = false
+              );
+
+    void apply(ParticleDistribution& dist,
+               const RayScan& obs,
+               const bool calc_enable = false
+              );
 
     // Updates the latest saved observation by sampling from the input observation
     void update(const RayScan& obs);

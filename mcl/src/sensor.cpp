@@ -80,9 +80,9 @@ BeamModel::BeamModel(const float range_min,
   precalcProb();
 }
 
-void BeamModel::update(Particle& particle,
-                       const bool calc_enable
-                      )
+void BeamModel::apply(Particle& particle,
+                      const bool calc_enable
+                     )
 {
   double weight = 1.0;
   float range_obs = 0.0;
@@ -101,45 +101,46 @@ void BeamModel::update(Particle& particle,
     // Update partial weight with this measurement's probability
     weight *= calc_enable ? calcProb(range_obs, range_map) :
                             lookupProb(range_obs, range_map);
-    // TBD remove
-    // if (approxEqual(particle.x_, 0.0, DBL_EPSILON) && approxEqual(particle.y_, 0.0, DBL_EPSILON)) {
-    //   printf("angle = %.2f | ranges = %.6f, %.6f \n",
-    //           rays_obs_sample_[j].th_ * 180.0 / M_PI, range_obs, range_map
-    //         );
-    // }
   }
   // Update full weight, applying overall model uncertainty
-  particle.weight_ *= std::pow(weight, uncertainty_factor_);
+  particle.weight_ = std::pow(weight, uncertainty_factor_);
 
   return;
 }
 
-void BeamModel::update(Particle& particle,
-                       const RayScan& obs,
-                       const bool calc_enable
-                      )
+void BeamModel::apply(Particle& particle,
+                      const RayScan& obs,
+                      const bool calc_enable
+                     )
 {
   // Sample from the observation
   update(obs);
 
   // Update particle weight
-  update(particle, calc_enable);
+  apply(particle, calc_enable);
 
   return;
 }
 
-void BeamModel::update(ParticleDistribution& dist,
-                       const RayScan& obs,
-                       const bool calc_enable
-                      )
+void BeamModel::apply(ParticleDistribution& dist,
+                      const bool calc_enable
+                     )
 {
-  // Sample from the observation
-  update(obs);
-
   // Update all particle weights
   for (size_t i = 0; i < dist.size(); ++i) {
-    update(dist.particle(i));
+    apply(dist.particle(i));
   }
+  return;
+}
+
+void BeamModel::apply(ParticleDistribution& dist,
+                      const RayScan& obs,
+                      const bool calc_enable
+                     )
+{
+  update(obs);
+  apply(dist, calc_enable);
+
   return;
 }
 

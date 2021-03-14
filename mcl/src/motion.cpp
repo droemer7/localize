@@ -21,11 +21,11 @@ VelModel::VelModel(const double car_length,
   th_n2_(th_n2)
 {}
 
-void VelModel::update(ParticleDistribution& dist,
-                      const double lin_vel,
-                      const double steering_angle,
-                      const double dt
-                     )
+void VelModel::apply(ParticleDistribution& dist,
+                     const double lin_vel,
+                     const double steering_angle,
+                     const double dt
+                    )
 {
   // Calculate angular velocity from steering angle and linear velocity
   double ang_vel = (lin_vel / car_length_) * std::tan(steering_angle);

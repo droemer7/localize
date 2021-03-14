@@ -63,17 +63,17 @@ void ParticleDistribution::update()
     weight_avg_slow_.update(weight_avg_);
     weight_avg_fast_.update(weight_avg_);
 
-    double weight = 0.0;
-    double weight_diff = 0.0;
     double weight_normalizer = weight_sum_ > 0.0 ? 1 / weight_sum_ : 0.0;
+    double weight_avg_normed = 1 / size();
+    double weight_diff = 0.0;
 
-    // Calculate weight variance and update normalized weights
+    // Normalize weights and calculate weight variance based on the normalized weights
     for (size_t i = 0; i < size(); ++i) {
-      weight = particles_[i].weight_;
-      weight_diff = weight - weight_avg_;
+      particles_[i].weight_normed_ = particles_[i].weight_ * weight_normalizer;
+      weight_diff = particles_[i].weight_normed_ - weight_avg_normed;
       weight_var_ += weight_diff * weight_diff;
-      particles_[i].weight_normed_ = weight * weight_normalizer;
     }
+    weight_var_ /= size();
   }
   else {
     weight_sum_ = 0.0;
@@ -82,11 +82,10 @@ void ParticleDistribution::update()
     weight_avg_fast_.reset();
     weight_var_ = 0.0;
   }
-  printf("weight_sum_ = %.4e\n", weight_sum_);
-  printf("weight_avg_ = %.4e\n", weight_avg_);
-  printf("weight_avg_fast_ = %.4e\n", double(weight_avg_fast_));
-  printf("weight_avg_slow_ = %.4e\n", double(weight_avg_slow_));
-  printf("weight_var_ = %.4e\n", weight_var_);
+  printf("Confidence ratio = %.4f\n", confidenceRatio());
+  printf("Confidence average = %.4e\n", confidenceAvg());
+  printf("Confidence variance = %.4e\n", confidenceVar());
+  printf("---------------------------------\n");
 }
 
 

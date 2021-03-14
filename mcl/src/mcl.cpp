@@ -5,11 +5,11 @@
 #include "mcl/mcl.h"
 
 static const double STOPPED_THRESHOLD = 1e-10; // Threshold for considering robot stopped (defers updates)
-static const double Z_P_01 = -2.3263478740;    // Z score for P(0.01) of Normal(0,1) distribution
+static const double Z_P_01 = 2.3263478740;    // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;             // Fraction 2/9
 
 // TBD remove
-static const int LAST_ITERATION = 1000;
+static const int LAST_ITERATION = 50;
 
 using namespace localize;
 
@@ -112,7 +112,7 @@ void MCL::update(const double vel,
 {
   if (!stopped(vel)) {
     RecursiveLock lock(dist_mtx_);
-    motion_model_.update(dist_, vel, steering_angle, dt);
+    motion_model_.apply(dist_, vel, steering_angle, dt);
   }
 }
 
@@ -120,10 +120,15 @@ void MCL::update(const RayScan&& obs)
 {
   sensor_model_.update(obs);
 
-  // TBD remove true
-  if (true || !stopped()) {
+  if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
-    sample();
+    sensor_model_.apply(dist_, obs);
+    dist_.update();
+
+    if (dist_.confidenceAvg() < 1e-4) {
+      sample();
+    }
+    iteration++;
   }
   // TBD remove
   if (iteration > LAST_ITERATION && stopped()) {
@@ -133,7 +138,6 @@ void MCL::update(const RayScan&& obs)
 
 void MCL::sample()
 {
-  printf("\n*** Iteration %lu ***\n", iteration++);
   RecursiveLock lock(dist_mtx_);
   Particle particle_p;
   double prob_sample_random = 1.0;
@@ -153,7 +157,6 @@ void MCL::sample()
 
   // Calculate the probability to draw random samples
   prob_sample_random = 1.0 - dist_.confidenceRatio();
-  printf("Confidence ratio = %.4f\n", 1.0 - prob_sample_random);
 
   // Initialize target and current weight sums
   if (dist_.size() > 0) {
@@ -181,7 +184,7 @@ void MCL::sample()
         // If it's not a repeat particle, update its weight and save it in case this particle is sampled again
         if (p != p_prev) {
           particle_p = dist_.particle(p);
-          sensor_model_.update(particle_p);
+          //sensor_model_.update(particle_p); // TBD probably remove
           p_prev = p;
         }
         // Add to sample set and increase target sum
@@ -191,14 +194,8 @@ void MCL::sample()
     }
     // Exhausted current distribution so generate a new random particle and update its weight
     else {
-      // TBD remove
-      // if (s == 0 && iteration == 0) {
-      //   samples_[s] = Particle();
-      // }
-      // else {
-        samples_[s] = random();
-      //}
-        sensor_model_.update(samples_[s]);
+      samples_[s] = random();
+      sensor_model_.apply(samples_[s]);
     }
     // Update histogram with the sampled particle
     hist_.update(samples_[s]);
@@ -221,6 +218,7 @@ void MCL::sample()
   // Update distribution with new samples
   dist_.update(samples_, s);
 
+  printf("\n*** Iteration %lu ***\n", iteration + 1);
   printf("Samples used = %lu\n", s);
   printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
   printf("Histogram count = %lu\n", hist_count);
@@ -235,7 +233,7 @@ void MCL::save(const std::string filename,
               )
 {
   RecursiveLock lock(dist_mtx_);
-  ParticleVector particles;
+  ParticleVector particles(dist_.size());
 
   for (size_t i = 0; i < dist_.size(); ++i) {
     particles[i] = dist_.particle(i);
