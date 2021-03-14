@@ -218,7 +218,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
     mcl_ptr_->update(RayScanMsg(msg));
   }
   catch (std::runtime_error error) {
-    mcl_ptr_->save("particles.csv");
+    save();
     throw std::runtime_error(error);
   }
 
@@ -226,6 +226,11 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   sensor_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
   sensor_dur_worst_msec_ = sensor_dur_msec_ > sensor_dur_worst_msec_?
                            sensor_dur_msec_ : sensor_dur_worst_msec_;
+}
+
+void MCLNode::save()
+{
+  mcl_ptr_->save("particles.csv");
 }
 
 template <class T>

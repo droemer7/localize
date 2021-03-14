@@ -25,16 +25,18 @@ namespace localize
   struct Particle
   {
     // Constructors
-    explicit Particle(const double x = 0.0,     // X position (meters)
-                      const double y = 0.0,     // Y position (meters)
-                      const double th = 0.0,    // Heading angle (rad)
-                      const double weight = 0.0 // Importance weight
+    explicit Particle(const double x = 0.0,             // X position (meters)
+                      const double y = 0.0,             // Y position (meters)
+                      const double th = 0.0,            // Heading angle (rad)
+                      const double weight = 1.0,        // Importance weight
+                      const double weight_normed = 0.0  // Normalized importance weight
                      );
 
-    double x_;      // X position (meters)
-    double y_;      // Y position (meters)
-    double th_;     // Heading angle (rad)
-    double weight_; // Importance weight
+    double x_;              // X position (meters)
+    double y_;              // Y position (meters)
+    double th_;             // Heading angle (rad)
+    double weight_;         // Importance weight (not normalized)
+    double weight_normed_;  // Normalized importance weight
   };
 
   // TBD use std::array instead since we never want to reallocate larger sizes
@@ -52,7 +54,7 @@ namespace localize
     {}
 
     // Update and return the new value
-    void operator=(const T val)
+    void update(const T val)
     {
       val_ += rate_ * (val - val_);
       return;
@@ -62,6 +64,10 @@ namespace localize
     operator T() const
     { return val_; }
 
+    // Resets the internal value to 0
+    void reset()
+    { val_ = 0; }
+
   private:
     T val_;
     double rate_;
@@ -70,66 +76,48 @@ namespace localize
   class ParticleDistribution
   {
   public:
+    // Constructors
     ParticleDistribution();
 
-    explicit ParticleDistribution(const size_t num_particles_max); // Maximum number of particles
+    ParticleDistribution(const size_t max_size);  // Number of particles for which to reserve space
 
     ParticleDistribution(const ParticleVector& particles, // Particles
-                         const size_t num_particles       // Number of particles currently in use
+                         const size_t size                // Number of particles in use
                         );
-    // Update the number of particles in the distribution, recalculate weight statistics and normalize weights
-    void update(const size_t num_particles);
+
+    // Recalculate distribution statistics, does not modify particles
+    void update();
+
+    // Update the distribution with a new particle set and recalculate statistics
+    void update(const ParticleVector& particles,
+                const size_t size
+               );
 
     // Reference to a particle in the distribution
     Particle& particle(size_t p);
 
-    // Number of particles in use (<= size of the particle vector)
-    size_t count() const;
+    // Number of particles
+    size_t size() const;
 
-    // Update the number of particles in the distribution
-    // This will not destroy elements when the number is less than current
-    void updateCount(size_t num_particles);
-
-    // The sum of current particle weights
-    double weightSum();
-
-    // The current average particle weight
-    double weightAvg();
-
-    // The slow rate of change weight average
-    double weightAvgSlow();
-
-    // The fast rate of change weight average
-    double weightAvgFast();
+    // The average particle weight (confidence)
+    double confidenceAvg() const;
 
     // The variance of particle weights
-    double weightVar();
+    double confidenceVar() const;
 
-    // Update particle distribution weight statistics
-    void updateWeightStats();
-
-    // Calculate the sum of particle weights
-    double calcWeightSum();
-
-    // Calculate the average particle weight
-    double calcWeightAvg();
-
-    // Calculate the variance of particle weights
-    double calcWeightVar(const double weight_avg);
-
-    double calcWeightVar();
-
-    // Normalize particle weights
-    void normalizeWeights();
+    // Outputs a value [0.0, 1.0] indicating how the distribution's overall confidence is changing
+    // A value of 1.0 indicates the distribution's confidence is better now compared to the past
+    // Values less than 1.0 indicate the distribution's confidence is worse now compared to the past
+    double confidenceRatio() const;
 
   private:
     ParticleVector particles_;              // Particles in distribution
-    size_t num_particles_;                  // Number of particles in use (<= particles_.size())
+    size_t size_;                           // Number of particles in the distribution
     double weight_sum_;                     // Sum of particle weights
-    double weight_avg_;                     // Weight average
-    SmoothedValue<double> weight_avg_slow_; // Smoothed weight average, slow rate
-    SmoothedValue<double> weight_avg_fast_; // Smoothed weight average, fast rate
-    double weight_var_;                     // Weight variance
+    double weight_avg_;                     // Average particle weight
+    SmoothedValue<double> weight_avg_slow_; // Smoothed average particle weight, slow rate
+    SmoothedValue<double> weight_avg_fast_; // Smoothed average particle weight, fast rate
+    double weight_var_;                     // Particle weight variance
   };
 
   // A range sensor ray with range and angle
@@ -198,7 +186,7 @@ namespace localize
     bool update(const Particle& particle);
 
     // Histogram occupancy count
-    size_t count();
+    size_t count() const;
 
     // Clear histogram and reset occupancy count
     void clear();

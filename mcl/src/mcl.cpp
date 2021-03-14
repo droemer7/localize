@@ -5,7 +5,7 @@
 #include "mcl/mcl.h"
 
 static const double STOPPED_THRESHOLD = 1e-10; // Threshold for considering robot stopped (defers updates)
-static const double Z_P_99 = 2.3263478740;     // Z score for P(0.99) of Normal(0,1) distribution
+static const double Z_P_01 = -2.3263478740;    // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;             // Fraction 2/9
 
 // TBD remove
@@ -51,7 +51,8 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   num_particles_max_(mcl_num_particles_max),
   kld_eps_(mcl_kld_eps),
   vel_(0.0),
-  dist_(mcl_num_particles_max),
+  dist_(num_particles_max_),
+  samples_(num_particles_max_),
   map_(map_width,
        map_height,
        map_x,
@@ -96,10 +97,12 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   if (num_particles_min_ > num_particles_max_) {
     throw std::runtime_error("MCL: num_particles_min > num_particles_max\n");
   }
-  for (size_t i = 0; i < num_particles_max_; ++i) {
-    dist_.particle(i) = random();
+  // Initialize distribution with random samples in the map's free space
+  for (size_t i = 0; i < samples_.size(); ++i) {
+    samples_[i] = random();
   }
-  dist_.updateCount(num_particles_max_);
+  // Update the distribution with the new samples
+  dist_.update(samples_, samples_.size());
 }
 
 void MCL::update(const double vel,
@@ -120,7 +123,7 @@ void MCL::update(const RayScan&& obs)
   // TBD remove true
   if (true || !stopped()) {
     RecursiveLock lock(dist_mtx_);
-    sample(dist_);
+    sample();
   }
   // TBD remove
   if (iteration > LAST_ITERATION && stopped()) {
@@ -128,7 +131,7 @@ void MCL::update(const RayScan&& obs)
   }
 }
 
-void MCL::sample(ParticleDistribution& dist)
+void MCL::sample()
 {
   printf("\n*** Iteration %lu ***\n", iteration++);
   RecursiveLock lock(dist_mtx_);
@@ -149,54 +152,40 @@ void MCL::sample(ParticleDistribution& dist)
   hist_.clear();
 
   // Calculate the probability to draw random samples
-  // If the fast-changing (recent) weight average is lower than the slower-changing (old) weight average, our estimate
-  // is poor and more random samples are needed to recover
-  dist.updateWeightStats();
-
-  if (dist.weightAvgSlow() > DBL_MIN) {
-    prob_sample_random = std::max(0.0, 1.0 - dist.weightAvgFast() / dist.weightAvgSlow());
-  }
-  else {
-    prob_sample_random = 1.0;
-  }
-  printf("P(random) = %.4f\n", prob_sample_random * 100.0);
-  printf("W fast = %.4e\n", dist.weightAvgFast());
-  printf("W slow = %.4e\n", dist.weightAvgSlow());
-  dist.normalizeWeights();
+  prob_sample_random = 1.0 - dist_.confidenceRatio();
+  printf("Confidence ratio = %.4f\n", 1.0 - prob_sample_random);
 
   // Initialize target and current weight sums
-  if (dist.count() > 0) {
-    sample_weight_width = 1.0 / dist.count();
+  if (dist_.size() > 0) {
+    sample_weight_width = 1.0 / dist_.size();
     sample_weight_sum_target = prob_dist_(rng_.engine()) * sample_weight_width;
-    sample_weight_sum = dist.particle(0).weight_;
+    sample_weight_sum = dist_.particle(0).weight_normed_;
   }
-  // Generate samples until we exceed both the minimum and target number of samples, or reach the maximum allowed
-  while (   (   s < num_particles_target
-             || s < num_particles_min_
-            )
+  // Generate samples until we exceed the target number of samples, or reach the maximum allowed
+  while (   s < num_particles_target
          && s < num_particles_max_
         ) {
     // Draw a particle from the current distribution with probability proportional to its weight
     if (   prob_dist_(rng_.engine()) > prob_sample_random
-        && s < dist.count()
-        && p < dist.count()
+        && s < dist_.size()
+        && p < dist_.size()
        ) {
       // Sum weights until we reach the target
       while (   sample_weight_sum < sample_weight_sum_target
-             && p + 1 < dist.count()
+             && p + 1 < dist_.size()
             ) {
-        sample_weight_sum += dist.particle(++p).weight_;
+        sample_weight_sum += dist_.particle(++p).weight_normed_;
       }
       // Make sure we actually did reach the target weight sum
       if (sample_weight_sum >= sample_weight_sum_target) {
         // If it's not a repeat particle, update its weight and save it in case this particle is sampled again
         if (p != p_prev) {
-          particle_p = dist.particle(p);
+          particle_p = dist_.particle(p);
           sensor_model_.update(particle_p);
           p_prev = p;
         }
         // Add to sample set and increase target sum
-        dist.particle(s) = particle_p;
+        samples_[s] = particle_p;
         sample_weight_sum_target += sample_weight_width;
       }
     }
@@ -204,15 +193,15 @@ void MCL::sample(ParticleDistribution& dist)
     else {
       // TBD remove
       // if (s == 0 && iteration == 0) {
-      //   dist.particle(s) = Particle();
+      //   samples_[s] = Particle();
       // }
       // else {
-        dist.particle(s) = random();
+        samples_[s] = random();
       //}
-        sensor_model_.update(dist.particle(s));
+        sensor_model_.update(samples_[s]);
     }
     // Update histogram with the sampled particle
-    hist_.update(dist.particle(s));
+    hist_.update(samples_[s]);
 
     // If the histogram occupancy count increased with the sampled particle, update the target number of samples
     if (hist_.count() > hist_count) {
@@ -221,14 +210,16 @@ void MCL::sample(ParticleDistribution& dist)
       if (hist_count > 1) {
         // Wilson-Hilferty transformation of chi-square distribution
         chi_sq_term_1 = (hist_count - 1.0) / (2.0 * kld_eps_);
-        chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_99 * std::sqrt(F_2_9 / (hist_count - 1.0));
+        chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_01 * std::sqrt(F_2_9 / (hist_count - 1.0));
         num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
+        num_particles_target = num_particles_target > num_particles_min_?
+                               num_particles_target : num_particles_min_;
       }
     }
     ++s;
   }
-  // Update distribution with new particle count
-  dist.updateCount(s);
+  // Update distribution with new samples
+  dist_.update(samples_, s);
 
   printf("Samples used = %lu\n", s);
   printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
@@ -246,7 +237,7 @@ void MCL::save(const std::string filename,
   RecursiveLock lock(dist_mtx_);
   ParticleVector particles;
 
-  for (size_t i = 0; i < dist_.count(); ++i) {
+  for (size_t i = 0; i < dist_.size(); ++i) {
     particles[i] = dist_.particle(i);
   }
   if (sort) {
@@ -269,7 +260,7 @@ Particle MCL::random()
   // Any theta is allowed
   particle.th_ = th_dist_(rng_.engine());
 
-  // Particle weight is zero (unknown) until calculated by the sensor model
+  // Particle weight is 1.0 until updated by the sensor model
   return particle;
 }
 

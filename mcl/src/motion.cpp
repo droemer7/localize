@@ -49,7 +49,7 @@ void VelModel::update(ParticleDistribution& dist,
   double ang_vel_adj = 0.0;
 
   // Update each particle
-  for (size_t i = 0; i < dist.count(); ++i) {
+  for (size_t i = 0; i < dist.size(); ++i) {
 
     // Calculate noise for velocities and rotation
     lin_vel_noise = lin_vel_std_dev > DBL_MIN ? sampler_.gen(0.0, lin_vel_std_dev) : 0.0;

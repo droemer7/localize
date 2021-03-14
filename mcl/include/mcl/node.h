@@ -47,6 +47,9 @@ namespace localize
     // Status info callback
     void statusCb(const ros::TimerEvent& event);
 
+    // Save particles to file
+    void save();
+
     // Retrieves the desired parameter value from the ROS parameter server
     template <class T>
     bool getParam(const ros::NodeHandle& nh,

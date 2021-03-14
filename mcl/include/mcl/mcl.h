@@ -74,7 +74,7 @@ namespace localize
     // reference distribution (estimated by sampling and counting the number of histogram bins with support) is reduced
     // to acceptable bounds
     // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void sample(ParticleDistribution& dist);
+    void sample();
 
     // Generate a random particle in free space
     Particle random();
@@ -96,6 +96,7 @@ namespace localize
     double vel_;                      // Robot linear velocity
 
     ParticleDistribution dist_;     // Particle distribution
+    ParticleVector samples_;        // Sampled particles (temporary storage)
     const Map map_;                 // Map
     VelModel motion_model_;         // Motion model
     BeamModel sensor_model_;        // Sensor model

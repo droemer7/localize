@@ -7,7 +7,7 @@
   <!-- MCL arguments -->
   <arg name="mcl_num_particles_min"     default="1000"/>
   <arg name="mcl_num_particles_max"     default="100000"/>
-  <arg name="mcl_kld_eps"               default="0.05"/>
+  <arg name="mcl_kld_eps"               default="0.02"/>
   <arg name="mcl_hist_pos_res"          default="0.10"/>
   <arg name="mcl_hist_th_res"           default="0.1745329252"/> <!-- pi/18 (10 deg)-->
   <arg name="motion_lin_vel_n1"         default="0.01"/>

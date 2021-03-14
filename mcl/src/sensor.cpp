@@ -109,7 +109,7 @@ void BeamModel::update(Particle& particle,
     // }
   }
   // Update full weight, applying overall model uncertainty
-  particle.weight_ = std::pow(weight, uncertainty_factor_);
+  particle.weight_ *= std::pow(weight, uncertainty_factor_);
 
   return;
 }
@@ -137,7 +137,7 @@ void BeamModel::update(ParticleDistribution& dist,
   update(obs);
 
   // Update all particle weights
-  for (size_t i = 0; i < dist.count(); ++i) {
+  for (size_t i = 0; i < dist.size(); ++i) {
     update(dist.particle(i));
   }
   return;
