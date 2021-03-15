@@ -86,7 +86,7 @@ namespace localize
     bool stopped(const double vel);
 
   private:
-    size_t iteration; // TBD remove
+    size_t update_num_; // TBD remove
     std::recursive_mutex dist_mtx_; // Particle distribution mutex
     std::recursive_mutex vel_mtx_;  // Velocity mutex
 

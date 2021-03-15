@@ -158,26 +158,6 @@ void testResize(const size_t count)
   printf("--- Test complete ---\n");
 }
 
-struct Dist
-{
-  Dist(const size_t num_particles_max) :
-    particles_(num_particles_max)
-  {
-    particles_.reserve(num_particles_max);
-  }
-  void update(ParticleVector& particles)
-  {
-    particles_.swap(particles);
-  }
-  void update(const ParticleVector& particles, const size_t num_particles)
-  {
-    for (size_t i = 0; i < num_particles; ++i) {
-      particles_[i] = particles[i];
-    }
-  }
-  ParticleVector particles_;
-};
-
 int main(int argc, char** argv)
 {
   // testParticleHistogramArray();
@@ -185,42 +165,13 @@ int main(int argc, char** argv)
   // testParticleHistogramArray1D();
   // testParticleHistogramVector1D();
   // test3Dto1DVector();
-  testResize(100'000);
+  // testResize(100'000);
 
-  double val = 0.0;
-  const size_t num_particles_max = 100'000;
-  Dist dist(num_particles_max - num_particles_max / 10);
-  ParticleVector samples(num_particles_max);
-
-  samples.reserve(num_particles_max);
-  for (auto & sample : samples) {
-    sample.x_ = val + 1.1;
-    sample.y_ = val + 3.25;
-    sample.th_ = val + 25.99;
-    sample.weight_ = val + 9e-5;
-    val += 1.0;
-  }
-  printf("Size = %lu, particles[0] (before swap): %f, %f, %f, %f\n",
-         dist.particles_.size(),
-         dist.particles_[0].x_,
-         dist.particles_[0].y_,
-         dist.particles_[0].th_,
-         dist.particles_[0].weight_
-        );
-  start = std::chrono::high_resolution_clock::now();
-  samples.resize(num_particles_max);
-  //dist.update(samples, 0.9 * num_particles_max);
-  end = std::chrono::high_resolution_clock::now();
-
-  std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-  printf("Size = %lu, particles[0] (after swap): %f, %f, %f, %f\n",
-         dist.particles_.size(),
-         dist.particles_[0].x_,
-         dist.particles_[0].y_,
-         dist.particles_[0].th_,
-         dist.particles_[0].weight_
-        );
-  printf("Updated distribution (vector) in %.2f ms\n", dur.count() * 1000.0);
+  int i = 3;
+  i += 5 * 5;
+  printf("%.4Le, ", __LDBL_MIN__);
+  printf("%.4Le\n", std::sqrt(__LDBL_MIN__));
+  printf("%.2e", 100'000.0);
 
   return 0;
 }

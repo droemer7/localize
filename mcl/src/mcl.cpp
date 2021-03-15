@@ -9,7 +9,7 @@ static const double Z_P_01 = 2.3263478740;    // Z score for P(0.01) of Normal(0
 static const double F_2_9 = 2 / 9;             // Fraction 2/9
 
 // TBD remove
-static const int LAST_ITERATION = 50;
+static const int NUM_UPDATES = 10;
 
 using namespace localize;
 
@@ -46,7 +46,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const float map_scale,
          const std::vector<int8_t> map_data
         ) :
-  iteration(0),
+  update_num_(0),
   num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
   num_particles_max_(mcl_num_particles_max),
   kld_eps_(mcl_kld_eps),
@@ -100,6 +100,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   // Initialize distribution with random samples in the map's free space
   for (size_t i = 0; i < samples_.size(); ++i) {
     samples_[i] = random();
+    samples_[i].weight_normed_ = samples_[i].weight_ / samples_.size();
   }
   // Update the distribution with the new samples
   dist_.update(samples_, samples_.size());
@@ -120,24 +121,29 @@ void MCL::update(const RayScan&& obs)
 {
   sensor_model_.update(obs);
 
-  if (!stopped()) {
+  //if (!stopped()) {
+    printf("\n***** Update %lu *****\n", update_num_ + 1);
     RecursiveLock lock(dist_mtx_);
+    printf("\n===== Sensor model update =====\n");
     sensor_model_.apply(dist_, obs);
     dist_.update();
 
-    if (dist_.confidenceAvg() < 1e-4) {
+    if (dist_.weightAvg() < 1e-3) {
       sample();
     }
-    iteration++;
-  }
+    update_num_++;
+  //}
   // TBD remove
-  if (iteration > LAST_ITERATION && stopped()) {
+  if (   stopped()
+      && update_num_ >= NUM_UPDATES
+     ) {
     throw std::runtime_error("Finished");
   }
 }
 
 void MCL::sample()
 {
+  printf("\n===== Sampling =====\n");
   RecursiveLock lock(dist_mtx_);
   Particle particle_p;
   double prob_sample_random = 1.0;
@@ -156,7 +162,7 @@ void MCL::sample()
   hist_.clear();
 
   // Calculate the probability to draw random samples
-  prob_sample_random = 1.0 - dist_.confidenceRatio();
+  prob_sample_random = 1.0 - dist_.weightAvgRatio();
 
   // Initialize target and current weight sums
   if (dist_.size() > 0) {
@@ -218,7 +224,6 @@ void MCL::sample()
   // Update distribution with new samples
   dist_.update(samples_, s);
 
-  printf("\n*** Iteration %lu ***\n", iteration + 1);
   printf("Samples used = %lu\n", s);
   printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
   printf("Histogram count = %lu\n", hist_count);

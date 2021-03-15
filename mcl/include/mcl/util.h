@@ -55,7 +55,9 @@ namespace localize
     // Update and return the new value
     void update(const T val)
     {
+      T val_prev = val_;
       val_ += rate_ * (val - val_);
+      printf("input = %.2e, prev = %.2e, curr = %.2e\n", static_cast<double>(val), static_cast<double>(val_prev), static_cast<double>(val_));
       return;
     }
 
@@ -63,9 +65,9 @@ namespace localize
     operator T() const
     { return val_; }
 
-    // Resets the internal value to 0
-    void reset()
-    { val_ = 0; }
+    // Resets the internal value
+    void reset(const T val = 0.0)
+    { val_ = val; }
 
   private:
     T val_;
@@ -98,16 +100,19 @@ namespace localize
     // Number of particles
     size_t size() const;
 
-    // The average particle weight (confidence)
-    double confidenceAvg() const;
+    // Average particle weight
+    double weightAvg() const;
 
-    // The variance of particle weights
-    double confidenceVar() const;
+    // Particle weight variance
+    double weightVar() const;
+
+    // Particle weight standard deviation
+    double weightStdDev() const;
 
     // Outputs a value [0.0, 1.0] indicating how the distribution's overall confidence is changing
-    // A value of 1.0 indicates the distribution's confidence is better now compared to the past
-    // Values less than 1.0 indicate the distribution's confidence is worse now compared to the past
-    double confidenceRatio() const;
+    // A value of 1.0 indicates the distribution's average confidence is better now compared to the past
+    // Values less than 1.0 indicate the distribution's average confidence is worse now compared to the past
+    double weightAvgRatio() const;
 
   private:
     ParticleVector particles_;              // Particles in distribution
@@ -117,6 +122,7 @@ namespace localize
     SmoothedValue<double> weight_avg_slow_; // Smoothed average particle weight, slow rate
     SmoothedValue<double> weight_avg_fast_; // Smoothed average particle weight, fast rate
     double weight_var_;                     // Particle weight variance
+    double weight_std_dev_;                 // Particle weight standard deviation
   };
 
   // A range sensor ray with range and angle
