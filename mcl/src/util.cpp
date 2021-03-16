@@ -26,7 +26,7 @@ Particle::Particle(const double x,
 ParticleDistribution::ParticleDistribution() :
   size_(0),
   weight_sum_(0.0),
-  weight_avg_(0.0),
+  weight_avg_(-1.0),
   weight_avg_slow_(1.0, WEIGHT_AVG_SLOW_RATE),
   weight_avg_fast_(1.0, WEIGHT_AVG_FAST_RATE),
   weight_var_(0.0),
@@ -39,9 +39,6 @@ ParticleDistribution::ParticleDistribution(const size_t max_size) :
   if (max_size > 0) {
     particles_.reserve(max_size);
     particles_.resize(max_size);
-    weight_avg_ = 1.0 / max_size;
-    weight_avg_slow_.reset(weight_avg_);
-    weight_avg_fast_.reset(weight_avg_);
   }
 }
 
@@ -51,6 +48,20 @@ ParticleDistribution::ParticleDistribution(const ParticleVector& particles,
   ParticleDistribution()
 {
   update(particles, size);
+}
+
+void ParticleDistribution::assign(const ParticleVector& particles,
+                                  const size_t size
+                                 )
+{
+  if (size > particles_.size()) {
+    particles_.resize(size);
+  }
+  size_ = size;
+
+  for (size_t i = 0; i < this->size(); ++i) {
+    particles_[i] = particles[i];
+  }
 }
 
 void ParticleDistribution::update()
@@ -63,9 +74,17 @@ void ParticleDistribution::update()
       weight_sum_ += particles_[i].weight_;
     }
     // Calculate and update weight averages
-    weight_avg_ = weight_sum_ / size();
-    weight_avg_slow_.update(weight_avg_);
-    weight_avg_fast_.update(weight_avg_);
+    if (weight_avg_ >= 0.0) {
+      weight_avg_ = weight_sum_ / size();
+      weight_avg_slow_.update(weight_avg_);
+      weight_avg_fast_.update(weight_avg_);
+    }
+    // Initialize weight averages
+    else {
+      weight_avg_ = weight_sum_ / size();
+      weight_avg_slow_.reset(weight_avg_);
+      weight_avg_fast_.reset(weight_avg_);
+    }
 
     double weight_normalizer = weight_sum_ > DBL_MIN ? 1 / weight_sum_ : 0.0;
     double weight_avg_normed = 1.0 / size();
@@ -76,11 +95,6 @@ void ParticleDistribution::update()
       particles_[i].weight_normed_ = particles_[i].weight_ * weight_normalizer;
       weight_diff = particles_[i].weight_normed_ - weight_avg_normed;
       weight_var_ += weight_diff * weight_diff;
-      if (i == 0) {
-        printf("weight_normed = %.2e, weight_avg_normed = %.2e, weight_diff = %.2e\n",
-               particles_[i].weight_normed_, weight_avg_normed, weight_diff
-              );
-      }
     }
     weight_var_ /= size();
     if (weight_var_ > DBL_MIN) {
@@ -107,19 +121,11 @@ void ParticleDistribution::update()
   printf("Weight std dev = %.2e\n", weightStdDev());
 }
 
-
 void ParticleDistribution::update(const ParticleVector& particles,
                                   const size_t size
                                  )
 {
-  if (size > particles_.size()) {
-    particles_.resize(size);
-  }
-  size_ = size;
-
-  for (size_t i = 0; i < this->size(); ++i) {
-    particles_[i] = particles[i];
-  }
+  assign(particles, size);
   update();
 }
 
@@ -131,6 +137,11 @@ Particle& ParticleDistribution::particle(size_t p)
 size_t ParticleDistribution::size() const
 {
   return size_;
+}
+
+size_t ParticleDistribution::capacity() const
+{
+  return particles_.capacity();
 }
 
 double ParticleDistribution::weightAvg() const

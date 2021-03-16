@@ -167,11 +167,5 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
-  int i = 3;
-  i += 5 * 5;
-  printf("%.4Le, ", __LDBL_MIN__);
-  printf("%.4Le\n", std::sqrt(__LDBL_MIN__));
-  printf("%.2e", 100'000.0);
-
   return 0;
 }

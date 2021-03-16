@@ -57,7 +57,6 @@ namespace localize
     {
       T val_prev = val_;
       val_ += rate_ * (val - val_);
-      printf("input = %.2e, prev = %.2e, curr = %.2e\n", static_cast<double>(val), static_cast<double>(val_prev), static_cast<double>(val_));
       return;
     }
 
@@ -86,10 +85,15 @@ namespace localize
                          const size_t size                // Number of particles in use
                         );
 
-    // Recalculate distribution statistics, does not modify particles
+    // Assign a new particle set to the distribution (does not recalculate distribution statistics)
+    void assign(const ParticleVector& particles,
+                const size_t size
+               );
+
+    // Recalculate distribution statistics (does not modify particles)
     void update();
 
-    // Update the distribution with a new particle set and recalculate statistics
+    // Assign a new particle set to the distribution and recalculate distribution statistics
     void update(const ParticleVector& particles,
                 const size_t size
                );
@@ -99,6 +103,9 @@ namespace localize
 
     // Number of particles
     size_t size() const;
+
+    // Maximum number of particles the distribution can hold
+    size_t capacity() const;
 
     // Average particle weight
     double weightAvg() const;
@@ -232,7 +239,7 @@ namespace localize
     std::mt19937 gen_;  // Generator for random numbers
   };
 
-  // Generate random samples from a normal distribution
+  // Normal distribution sampler
   template <class T>
   class NormalDistributionSampler
   {

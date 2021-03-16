@@ -20,7 +20,7 @@ BeamModel::BeamModel(const float range_min,
                      const double weight_rand_effect,
                      const double uncertainty_factor,
                      const double table_res,
-                     const Map map
+                     const Map& map
                     ) :
   range_min_(range_min),
   range_max_(range_max),
@@ -130,6 +130,9 @@ void BeamModel::apply(ParticleDistribution& dist,
   for (size_t i = 0; i < dist.size(); ++i) {
     apply(dist.particle(i));
   }
+  // Recalculate weight statistics
+  dist.update();
+
   return;
 }
 
@@ -138,8 +141,14 @@ void BeamModel::apply(ParticleDistribution& dist,
                       const bool calc_enable
                      )
 {
+  // Sample from the observation
   update(obs);
+
+  // Update particle weights
   apply(dist, calc_enable);
+
+  // Recalculate weight statistics
+  dist.update();
 
   return;
 }

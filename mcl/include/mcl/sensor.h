@@ -37,7 +37,7 @@ namespace localize
               const double weight_rand_effect,  // Model weight for random effect probability
               const double uncertainty_factor,  // Model uncertainty factor - extra noise added to calculation
               const double table_res,           // Model table resolution (meters per cell)
-              const Map map                     // Map
+              const Map& map                    // Map
              );
 
     // Applies the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)

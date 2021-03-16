@@ -11,6 +11,52 @@
 
 namespace localize
 {
+  // A sampler which chooses a particle (with replacement) from the distribution with probability proportional to its
+  // weight
+  class Resampler
+  {
+  public:
+    // Constructors
+    explicit Resampler(ParticleDistribution& dist);
+
+    // Resets the sampler, reseeding it and pointing back to the beginning of the distribution
+    void reset();
+
+    // Chooses a particle from the distribution
+    const Particle& operator()();
+
+  private:
+    ParticleDistribution& dist_;  // The distribution from which to sample
+
+    RNG rng_; // Random number generator
+    std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])
+
+    size_t s_;          // Sample index
+    double step_;       // Sample step size, this is 1 / size(distribution)
+    double sum_;        // Current weight sum
+    double sum_target_; // Target for weight sum
+  };
+
+  // A sampler which chooses a random particle in free space
+  class RandomSampler
+  {
+  public:
+    // Constructors
+    explicit RandomSampler(const Map& map);
+
+    // Generates a random particle in free space
+    Particle operator()();
+
+  private:
+    const Map& map_;  // Occupancy map
+
+    RNG rng_; // Random number generator
+
+    std::uniform_real_distribution<double> x_dist_;     // Distribution of map x locations relative to world frame
+    std::uniform_real_distribution<double> y_dist_;     // Distribution of map y locations relative to world frame
+    std::uniform_real_distribution<double> th_dist_;    // Distribution of theta [-pi, +pi) relative to world frame
+  };
+
   // Monte-Carlo Localization
   // Localization technique to approximate the possible distribution of poses
   // by a set of random samples drawn from its probability distribution.
@@ -69,15 +115,10 @@ namespace localize
               const bool overwrite = true
              );
   private:
-    // Sample particle distribution
-    // Sample from the current distribution until the relative entropy between the current distribution and the
-    // reference distribution (estimated by sampling and counting the number of histogram bins with support) is reduced
-    // to acceptable bounds
+    // Updates the particle distribution by performing a combination of resampling and random sampling based on the
+    // particle weights
     // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void sample();
-
-    // Generate a random particle in free space
-    Particle random();
+    void update();
 
     // Indicates if the robot velocity is within the stopped threshold based on the last saved value
     bool stopped();
@@ -91,7 +132,6 @@ namespace localize
     std::recursive_mutex vel_mtx_;  // Velocity mutex
 
     const size_t num_particles_min_;  // Minimum number of particles
-    const size_t num_particles_max_;  // Maximum number of particles
     const double kld_eps_;            // KL distance threshold
     double vel_;                      // Robot linear velocity
 
@@ -100,13 +140,12 @@ namespace localize
     const Map map_;                 // Map
     VelModel motion_model_;         // Motion model
     BeamModel sensor_model_;        // Sensor model
+    Resampler resampler_;           // Particle resampler
+    RandomSampler random_sampler_;  // Random particle sampler
     ParticleHistogram hist_;        // Histogram for estimating relative entropy
 
-    RNG rng_;  // Random number engine
-    std::uniform_real_distribution<double> prob_dist_;  // Distribution for sampling random numbers in [0, 1)
-    std::uniform_real_distribution<double> x_dist_;     // Distribution of map x locations relative to world frame
-    std::uniform_real_distribution<double> y_dist_;     // Distribution of map y locations relative to world frame
-    std::uniform_real_distribution<double> th_dist_;    // Distribution of theta [-pi, +pi) relative to world frame
+    RNG rng_; // Random number generator
+    std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])
   };
 
 } // namespace localize
