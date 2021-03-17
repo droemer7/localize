@@ -48,35 +48,19 @@ BeamModel::BeamModel(const float range_min,
             ),
   th_sample_dist_(0.0, th_sample_res_)
 {
-  if (range_min_ > range_max_) {
-    throw std::runtime_error("BeamModel: range_min > range_max\n");
-  }
   if (th_sample_res_ > M_2PI)
   {
-    printf("BeamModel: Warning - angle sample resolution greater than 2pi, using 2pi \
+    printf("BeamModel: Warning - angle sample resolution greater than 2pi, using default pi / 4.0 \
             Units are in radians, not degrees.\n"
           );
-    th_sample_res_ = M_2PI;
+    th_sample_res_ = M_PI / 4.0;
   }
   if (uncertainty_factor_ < 1.0)
   {
     printf("BeamModel: Warning - model uncertainty factor less than 1, using 1 (none)\n");
     uncertainty_factor_ = 1.0;
   }
-  if (   range_min_ < 0.0
-      || range_max_ < 0.0
-      || range_no_obj_ < 0.0
-      || range_std_dev_ < 0.0
-      || th_sample_res_ < 0.0
-      || new_obj_decay_rate_ < 0.0
-      || weight_no_obj_ < 0.0
-      || weight_new_obj_ < 0.0
-      || weight_map_obj_ < 0.0
-      || weight_rand_effect_ < 0.0
-      || uncertainty_factor_ < 0.0
-     ) {
-    throw std::runtime_error("BeamModel: Check configuration - parameters must be >= zero");
-  }
+  // Precalculate the sensor model and save to the lookup table
   precalcProb();
 }
 
@@ -127,7 +111,7 @@ void BeamModel::apply(ParticleDistribution& dist,
                      )
 {
   // Update all particle weights
-  for (size_t i = 0; i < dist.size(); ++i) {
+  for (size_t i = 0; i < dist.count(); ++i) {
     apply(dist.particle(i));
   }
   // Recalculate weight statistics

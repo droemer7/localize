@@ -6,7 +6,7 @@ static const double WEIGHT_AVG_FAST_RATE = 0.30;
 using namespace localize;
 
 ParticleDistribution::ParticleDistribution() :
-  size_(0),
+  count_(0),
   weight_sum_(0.0),
   weight_avg_(-1.0),
   weight_avg_slow_(0.0, WEIGHT_AVG_SLOW_RATE),
@@ -20,48 +20,51 @@ ParticleDistribution::ParticleDistribution() :
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {}
 
-ParticleDistribution::ParticleDistribution(const size_t max_size) :
+ParticleDistribution::ParticleDistribution(const size_t max_count) :
   ParticleDistribution()
 {
-  if (max_size > 0) {
-    particles_.reserve(max_size);
-    particles_.resize(max_size);
+  if (max_count > 0) {
+    particles_.reserve(max_count);
+    particles_.resize(max_count);
   }
 }
 
 ParticleDistribution::ParticleDistribution(const ParticleVector& particles,
-                                           const size_t num_particles
+                                           const size_t count
                                           ) :
   ParticleDistribution()
 {
-  update(particles, num_particles);
+  update(particles, count);
 }
 
-void ParticleDistribution::assign(const ParticleVector& particles,
-                                  const size_t size
-                                 )
+void ParticleDistribution::copy(const ParticleVector& particles,
+                                const size_t count
+                               )
 {
-  if (size > particles_.size()) {
-    particles_.resize(size);
+  // Resize particle vector if it needs to be bigger
+  if (count > particles_.size()) {
+    particles_.resize(count);
   }
-  size_ = size;
+  // Update number of particles in use
+  count_ = count;
 
-  for (size_t i = 0; i < this->size(); ++i) {
+  for (size_t i = 0; i < this->count(); ++i) {
     particles_[i] = particles[i];
   }
 }
 
 void ParticleDistribution::update()
 {
+  // printf("Last sample taken = %lu\n", sample_s_);  // TBD remove
   calcWeightStats();
   resetSampler();
 }
 
 void ParticleDistribution::update(const ParticleVector& particles,
-                                  const size_t size
+                                  const size_t count
                                  )
 {
-  assign(particles, size);
+  copy(particles, count);
   update();
 }
 
@@ -73,26 +76,25 @@ Particle& ParticleDistribution::particle(size_t p)
 Particle& ParticleDistribution::sample()
 {
   // If we've reached the end, wrap back around
-  if (sample_s_ + 1 >= size()) {
+  if (sample_s_ + 1 >= count()) {
     resetSampler();
   }
   // Sum weights until we reach the target
   while (sample_sum_ < sample_sum_target_) {
     // Update the weight sum
-    if (sample_s_ + 1 >= size()) {
-      printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!! samples_s_ will overrun particles size\n");
+    if (sample_s_ + 1 >= count()) {
+      printf("!!!!! Segmentation fault warning: sampling past particles count !!!!!\n");
     }
     sample_sum_ += particles_[++sample_s_].weight_normed_;
   }
   // Update target we'll use for the next sample
   sample_sum_target_ += sample_step_;
-  printf("Chose particle %lu with weight normed = %.3e\n", sample_s_, particles_[sample_s_].weight_normed_);
   return particle(sample_s_);
 }
 
-size_t ParticleDistribution::size() const
+size_t ParticleDistribution::count() const
 {
-  return size_;
+  return count_;
 }
 
 double ParticleDistribution::weightAvg() const
@@ -121,37 +123,37 @@ double ParticleDistribution::weightAvgRatio() const
 
 void ParticleDistribution::calcWeightStats()
 {
-  if (size() > 0) {
+  if (count() > 0) {
     // Calculate weight sum
     weight_sum_ = 0.0;
 
-    for (size_t i = 0; i < size(); ++i) {
+    for (size_t i = 0; i < count(); ++i) {
       weight_sum_ += particles_[i].weight_;
     }
     // Calculate and update weight averages
     if (weight_avg_ >= 0.0) {
-      weight_avg_ = weight_sum_ / size();
+      weight_avg_ = weight_sum_ / count();
       weight_avg_slow_.update(weight_avg_);
       weight_avg_fast_.update(weight_avg_);
     }
     // Initialize weight averages
     else {
-      weight_avg_ = weight_sum_ / size();
+      weight_avg_ = weight_sum_ / count();
       weight_avg_slow_.reset(weight_avg_);
       weight_avg_fast_.reset(weight_avg_);
     }
 
     double weight_normalizer = weight_sum_ > DBL_MIN ? 1 / weight_sum_ : 0.0;
-    double weight_avg_normed = 1.0 / size();
+    double weight_avg_normed = 1.0 / count();
     double weight_diff = 0.0;
 
     // Normalize weights and calculate weight variance based on the normalized weights
-    for (size_t i = 0; i < size(); ++i) {
+    for (size_t i = 0; i < count(); ++i) {
       particles_[i].weight_normed_ = particles_[i].weight_ * weight_normalizer;
       weight_diff = particles_[i].weight_normed_ - weight_avg_normed;
       weight_var_ += weight_diff * weight_diff;
     }
-    weight_var_ /= size();
+    weight_var_ /= count();
     if (weight_var_ > DBL_MIN) {
       weight_std_dev_ = std::sqrt(weight_var_);
     }
@@ -168,7 +170,6 @@ void ParticleDistribution::calcWeightStats()
     weight_var_ = 0.0;
   }
   printf("\n");
-  printf("Weight sum = %.2e\n", weight_sum_);
   printf("Weight average = %.2e\n", weightAvg());
   printf("Weight average [fast] = %.2e\n", static_cast<double>(weight_avg_fast_));
   printf("Weight average [slow] = %.2e\n", static_cast<double>(weight_avg_slow_));
@@ -179,13 +180,11 @@ void ParticleDistribution::calcWeightStats()
 
 void ParticleDistribution::resetSampler()
 {
-  if (size() > 0) {
+  if (count() > 0) {
     sample_s_ = 0;
-    sample_step_ = 1.0 / size();
+    sample_step_ = 1.0 / count();
     sample_sum_target_ = prob_(rng_.engine()) * sample_step_;
-    sample_sum_ = particle(0).weight_normed_;
-    printf("sample_sum_target_ = %.3e\n", sample_sum_target_);
-    printf("sample_sum_ = %.3e\n", sample_sum_);
+    sample_sum_ = particles_[0].weight_normed_;
   }
   else {
     sample_s_ = 0;

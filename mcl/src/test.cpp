@@ -167,5 +167,37 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
+  ParticleVector particles(5);
+
+  for (size_t i = 0; i < particles.size(); ++i) {
+    particles[i].x_ = i;
+    particles[i].y_ = i;
+    particles[i].th_ = i;
+  }
+  particles[0].weight_ = 0.001;
+  particles[1].weight_ = 0.01;
+  particles[2].weight_ = 0.002;
+  particles[3].weight_ = 0.005;
+  particles[4].weight_ = 0.0007;
+
+  ParticleDistribution dist(5);
+  dist.copy(particles, particles.size());
+  dist.update();
+  ParticleVector samples(particles.size());
+
+  for (size_t i = 0; i < particles.size() - 2; ++i) {
+    samples[i] = dist.sample();
+  }
+  for (size_t i = 0; i < samples.size(); ++i) {
+    printf("(i=%lu) %.3e, %.3e, %.3e, %.3e, %.3e\n",
+           i,
+           samples[i].x_,
+           samples[i].y_,
+           samples[i].th_,
+           samples[i].weight_,
+           samples[i].weight_normed_
+          );
+  }
+
   return 0;
 }

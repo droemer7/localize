@@ -11,23 +11,23 @@ namespace localize
     // Constructors
     ParticleDistribution();
 
-    ParticleDistribution(const size_t max_size);  // Number of particles for which to reserve space
+    ParticleDistribution(const size_t max_count);  // Number of particles for which to reserve space
 
     ParticleDistribution(const ParticleVector& particles, // Particles
-                         const size_t size                // Number of particles in use
+                         const size_t count               // Number of particles in use
                         );
 
-    // Assign a new particle set to the distribution (does not recalculate distribution statistics)
-    void assign(const ParticleVector& particles,
-                const size_t size
-               );
+    // Copies new particles to the distribution and updates size, does not do anything else
+    void copy(const ParticleVector& particles,
+              const size_t count = 0
+             );
 
-    // Update by recalculating statistics (does not modify particles)
+    // Update statistics and reset sampler state
     void update();
 
-    // Update by assigning a new particle set to the distribution and recalculating statistics
+    // Update particles and statistics and reset sampler state
     void update(const ParticleVector& particles,
-                const size_t size
+                const size_t count = 0
                );
 
     // Reference to a particle in the distribution
@@ -36,8 +36,8 @@ namespace localize
     // Samples a particle (with replacement) from the distribution with probability proportional to its weight
     Particle& sample();
 
-    // Number of particles
-    size_t size() const;
+    // Number of particles in use - in general less than particle vector size
+    size_t count() const;
 
     // Average particle weight
     double weightAvg() const;
@@ -62,7 +62,7 @@ namespace localize
 
   private:
     ParticleVector particles_;              // Particles in distribution
-    size_t size_;                           // Number of particles in the distribution
+    size_t count_;                          // Number of particles in use - in general less than particle vector size
     double weight_sum_;                     // Sum of particle weights
     double weight_avg_;                     // Average particle weight
     SmoothedValue<double> weight_avg_slow_; // Smoothed average particle weight, slow rate

@@ -182,8 +182,8 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   for (size_t i = 0; i < samples_.size(); ++i) {
     samples_[i] = random_sample_();
   }
-  // Assign the new samples to the distribution
-  dist_.assign(samples_, samples_.size());
+  // Copy the new samples to the distribution
+  dist_.copy(samples_, samples_.size());
 }
 
 void MCL::update(const double vel,
@@ -201,12 +201,12 @@ void MCL::update(const RayScan&& obs)
 {
   sensor_model_.update(obs);
 
+  // TBD restore
   //if (!stopped()) {
     printf("\n***** Update %lu *****\n", update_num_ + 1);
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
-    sensor_model_.apply(dist_, obs);
-    save("particles_presample.csv");
+    sensor_model_.apply(dist_);
 
     // Only sample if the average weight (confidence) is too low
     if (dist_.weightAvg() < 1e-3) {
@@ -287,9 +287,9 @@ void MCL::save(const std::string filename,
               )
 {
   RecursiveLock lock(dist_mtx_);
-  ParticleVector particles(dist_.size());
+  ParticleVector particles(dist_.count());
 
-  for (size_t i = 0; i < dist_.size(); ++i) {
+  for (size_t i = 0; i < dist_.count(); ++i) {
     particles[i] = dist_.particle(i);
   }
   if (sort) {
