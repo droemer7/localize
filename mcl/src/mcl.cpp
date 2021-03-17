@@ -9,7 +9,7 @@ static const double Z_P_01 = 2.3263478740;      // Z score for P(0.01) of Normal
 static const double F_2_9 = 2 / 9;              // Fraction 2/9
 
 // TBD remove
-static const int NUM_UPDATES = 10;
+static const int NUM_UPDATES = 1;
 
 using namespace localize;
 
@@ -206,6 +206,7 @@ void MCL::update(const RayScan&& obs)
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_, obs);
+    save("particles_presample.csv");
 
     // Only sample if the average weight (confidence) is too low
     if (dist_.weightAvg() < 1e-3) {

@@ -72,19 +72,21 @@ Particle& ParticleDistribution::particle(size_t p)
 
 Particle& ParticleDistribution::sample()
 {
+  // If we've reached the end, wrap back around
+  if (sample_s_ + 1 >= size()) {
+    resetSampler();
+  }
   // Sum weights until we reach the target
   while (sample_sum_ < sample_sum_target_) {
-    ++sample_s_;
-    // If we've reached the end, wrap back around
-    if (sample_s_ >= size()) {
-      resetSampler();
-    }
     // Update the weight sum
-    sample_sum_ += particle(sample_s_).weight_normed_;
+    if (sample_s_ + 1 >= size()) {
+      printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!! samples_s_ will overrun particles size\n");
+    }
+    sample_sum_ += particles_[++sample_s_].weight_normed_;
   }
   // Update target we'll use for the next sample
   sample_sum_target_ += sample_step_;
-
+  printf("Chose particle %lu with weight normed = %.3e\n", sample_s_, particles_[sample_s_].weight_normed_);
   return particle(sample_s_);
 }
 
@@ -182,6 +184,8 @@ void ParticleDistribution::resetSampler()
     sample_step_ = 1.0 / size();
     sample_sum_target_ = prob_(rng_.engine()) * sample_step_;
     sample_sum_ = particle(0).weight_normed_;
+    printf("sample_sum_target_ = %.3e\n", sample_sum_target_);
+    printf("sample_sum_ = %.3e\n", sample_sum_);
   }
   else {
     sample_s_ = 0;
