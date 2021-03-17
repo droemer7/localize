@@ -147,9 +147,6 @@ void BeamModel::apply(ParticleDistribution& dist,
   // Update particle weights
   apply(dist, calc_enable);
 
-  // Recalculate weight statistics
-  dist.update();
-
   return;
 }
 

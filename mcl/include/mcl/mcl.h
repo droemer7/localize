@@ -5,44 +5,19 @@
 #include <vector>
 #include <random>
 
+#include "mcl/dist.h"
 #include "mcl/motion.h"
 #include "mcl/sensor.h"
 #include "mcl/util.h"
 
 namespace localize
 {
-  // A sampler which chooses a particle (with replacement) from the distribution with probability proportional to its
-  // weight
-  class Resampler
-  {
-  public:
-    // Constructors
-    explicit Resampler(ParticleDistribution& dist);
-
-    // Resets the sampler, reseeding it and pointing back to the beginning of the distribution
-    void reset();
-
-    // Chooses a particle from the distribution
-    const Particle& operator()();
-
-  private:
-    ParticleDistribution& dist_;  // The distribution from which to sample
-
-    RNG rng_; // Random number generator
-    std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])
-
-    size_t s_;          // Sample index
-    double step_;       // Sample step size, this is 1 / size(distribution)
-    double sum_;        // Current weight sum
-    double sum_target_; // Target for weight sum
-  };
-
   // A sampler which chooses a random particle in free space
-  class RandomSampler
+  class ParticleRandomSampler
   {
   public:
     // Constructors
-    explicit RandomSampler(const Map& map);
+    explicit ParticleRandomSampler(const Map& map);
 
     // Generates a random particle in free space
     Particle operator()();
@@ -55,6 +30,48 @@ namespace localize
     std::uniform_real_distribution<double> x_dist_;     // Distribution of map x locations relative to world frame
     std::uniform_real_distribution<double> y_dist_;     // Distribution of map y locations relative to world frame
     std::uniform_real_distribution<double> th_dist_;    // Distribution of theta [-pi, +pi) relative to world frame
+  };
+
+  // 3D boolean histogram representing occupancy of pose space (x, y, th)
+  class ParticleHistogram
+  {
+  public:
+    // Constructors
+    ParticleHistogram(const double x_res,   // Resolution for x position (meters per cell)
+                      const double y_res,   // Resolution for y position (meters per cell)
+                      const double th_res,  // Resolution for angle (rad per cell)
+                      const Map& map        // Map
+                     );
+
+    // Update histogram occupancy with the particle's location
+    // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
+    bool update(const Particle& particle);
+
+    // Histogram occupancy count
+    size_t count() const;
+
+    // Clear histogram and reset occupancy count
+    void clear();
+
+  private:
+    // Reference a cell by index
+    std::vector<bool>::reference cell(const size_t x_i,
+                                      const size_t y_i,
+                                      const size_t th_i
+                                     );
+  private:
+    const double x_res_;      // Resolution for x position (meters per cell)
+    const double y_res_;      // Resolution for y position (meters per cell)
+    const double th_res_;     // Resolution for heading angle (rad per cell)
+    const size_t x_size_;     // Size of x dimension (number of elements)
+    const size_t y_size_;     // Size of y dimension (number of elements)
+    const size_t th_size_;    // Size of angular dimension (number of elements)
+    const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
+    const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
+    const double th_origin_;  // Angle relative to world frame (rad)
+
+    std::vector<bool> hist_;  // Histogram
+    size_t count_;            // Histogram occupancy count
   };
 
   // Monte-Carlo Localization
@@ -115,10 +132,10 @@ namespace localize
               const bool overwrite = true
              );
   private:
-    // Updates the particle distribution by performing a combination of resampling and random sampling based on the
-    // particle weights
+    // Generates an updated particle distribution by performing a combination of resampling (based on particle
+    // weights) and random sampling
     // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void update();
+    void sample();
 
     // Indicates if the robot velocity is within the stopped threshold based on the last saved value
     bool stopped();
@@ -135,14 +152,14 @@ namespace localize
     const double kld_eps_;            // KL distance threshold
     double vel_;                      // Robot linear velocity
 
-    ParticleDistribution dist_;     // Particle distribution
-    ParticleVector samples_;        // Sampled particles (temporary storage)
-    const Map map_;                 // Map
-    VelModel motion_model_;         // Motion model
-    BeamModel sensor_model_;        // Sensor model
-    Resampler resampler_;           // Particle resampler
-    RandomSampler random_sampler_;  // Random particle sampler
-    ParticleHistogram hist_;        // Histogram for estimating relative entropy
+    const Map map_;           // Map
+    VelModel motion_model_;   // Motion model
+    BeamModel sensor_model_;  // Sensor model
+
+    ParticleDistribution dist_;           // Particle distribution
+    ParticleVector samples_;              // Sampled particles (temporary storage)
+    ParticleHistogram hist_;              // Histogram for estimating probability distribution complexity
+    ParticleRandomSampler random_sample_; // Random particle sampler, generates samples in free space based on the map
 
     RNG rng_; // Random number generator
     std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])

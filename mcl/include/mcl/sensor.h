@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "mcl/dist.h"
 #include "mcl/util.h"
 
 #include "includes/RangeLib.h"

@@ -28,7 +28,7 @@ namespace localize
     explicit Particle(const double x = 0.0,             // X position (meters)
                       const double y = 0.0,             // Y position (meters)
                       const double th = 0.0,            // Heading angle (rad)
-                      const double weight = 1.0,        // Importance weight
+                      const double weight = 0.0,        // Importance weight
                       const double weight_normed = 0.0  // Normalized importance weight
                      );
 
@@ -40,97 +40,6 @@ namespace localize
   };
 
   typedef std::vector<Particle> ParticleVector;
-
-  template <class T>
-  class SmoothedValue
-  {
-  public:
-    SmoothedValue(const T val,      // Initial value
-                  const double rate // Smoothing rate
-                 ):
-      val_(val),
-      rate_(rate)
-    {}
-
-    // Update and return the new value
-    void update(const T val)
-    {
-      T val_prev = val_;
-      val_ += rate_ * (val - val_);
-      return;
-    }
-
-    // Return the current value
-    operator T() const
-    { return val_; }
-
-    // Resets the internal value
-    void reset(const T val = 0.0)
-    { val_ = val; }
-
-  private:
-    T val_;
-    double rate_;
-  };
-
-  class ParticleDistribution
-  {
-  public:
-    // Constructors
-    ParticleDistribution();
-
-    ParticleDistribution(const size_t max_size);  // Number of particles for which to reserve space
-
-    ParticleDistribution(const ParticleVector& particles, // Particles
-                         const size_t size                // Number of particles in use
-                        );
-
-    // Assign a new particle set to the distribution (does not recalculate distribution statistics)
-    void assign(const ParticleVector& particles,
-                const size_t size
-               );
-
-    // Recalculate distribution statistics (does not modify particles)
-    void update();
-
-    // Assign a new particle set to the distribution and recalculate distribution statistics
-    void update(const ParticleVector& particles,
-                const size_t size
-               );
-
-    // Reference to a particle in the distribution
-    Particle& particle(size_t p);
-
-    // Number of particles
-    size_t size() const;
-
-    // Maximum number of particles the distribution can hold
-    size_t capacity() const;
-
-    // Average particle weight
-    double weightAvg() const;
-
-    // Particle weight variance
-    double weightVar() const;
-
-    // Particle weight standard deviation
-    double weightStdDev() const;
-
-    // Outputs a value [0.0, 1.0] indicating how the distribution's overall confidence is changing
-    // A value of 1.0 indicates the distribution's average confidence is better now compared to the past
-    // Values less than 1.0 indicate the distribution's average confidence is worse now compared to the past
-    double weightAvgRatio() const;
-
-  private:
-    ParticleVector particles_;              // Particles in distribution
-    size_t size_;                           // Number of particles in the distribution
-    double weight_sum_;                     // Sum of particle weights
-    double weight_avg_;                     // Average particle weight
-    SmoothedValue<double> weight_avg_slow_; // Smoothed average particle weight, slow rate
-    SmoothedValue<double> weight_avg_fast_; // Smoothed average particle weight, fast rate
-    double weight_var_;                     // Particle weight variance
-    double weight_std_dev_;                 // Particle weight standard deviation
-  };
 
   // A range sensor ray with range and angle
   struct Ray
@@ -182,48 +91,6 @@ namespace localize
     bool occupied(float x, float y) const;
   };
 
-  // 3D boolean histogram representing occupancy of pose space (x, y, th)
-  class ParticleHistogram
-  {
-  public:
-    // Constructors
-    ParticleHistogram(const double x_res,   // Resolution for x position (meters per cell)
-                      const double y_res,   // Resolution for y position (meters per cell)
-                      const double th_res,  // Resolution for angle (rad per cell)
-                      const Map& map        // Map
-                     );
-
-    // Update histogram occupancy with the particle's location
-    // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
-    bool update(const Particle& particle);
-
-    // Histogram occupancy count
-    size_t count() const;
-
-    // Clear histogram and reset occupancy count
-    void clear();
-
-  private:
-    // Reference a cell by index
-    std::vector<bool>::reference cell(const size_t x_i,
-                                      const size_t y_i,
-                                      const size_t th_i
-                                     );
-  private:
-    const double x_res_;      // Resolution for x position (meters per cell)
-    const double y_res_;      // Resolution for y position (meters per cell)
-    const double th_res_;     // Resolution for heading angle (rad per cell)
-    const size_t x_size_;     // Size of x dimension (number of elements)
-    const size_t y_size_;     // Size of y dimension (number of elements)
-    const size_t th_size_;    // Size of angular dimension (number of elements)
-    const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
-    const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
-    const double th_origin_;  // Angle relative to world frame (rad)
-
-    std::vector<bool> hist_;  // Histogram
-    size_t count_;            // Histogram occupancy count
-  };
-
   // RNG wrapper to seed properly
   class RNG
   {
@@ -256,6 +123,37 @@ namespace localize
   private:
     RNG rng_;                                   // Random number engine
     std::normal_distribution<T> distribution_;  // Normal distribution from which to sample
+  };
+
+  template <class T>
+  class SmoothedValue
+  {
+  public:
+    SmoothedValue(const T val,      // Initial value
+                  const double rate // Smoothing rate
+                 ):
+      val_(val),
+      rate_(rate)
+    {}
+
+    // Update and return the new value
+    void update(const T val)
+    {
+      val_ += rate_ * (val - val_);
+      return;
+    }
+
+    // Return the current value
+    operator T() const
+    { return val_; }
+
+    // Reset the value
+    void reset(const T val = 0.0)
+    { val_ = val; }
+
+  private:
+    T val_;
+    double rate_;
   };
 
   // Approximate equality check for floating point values

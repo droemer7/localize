@@ -13,61 +13,14 @@ static const int NUM_UPDATES = 10;
 
 using namespace localize;
 
-Resampler::Resampler(ParticleDistribution& dist) :
-  dist_(dist),
-  prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max())),
-  s_(0),
-  step_(0.0),
-  sum_(0.0),
-  sum_target_(0.0)
-{
-  reset();
-}
-
-void Resampler::reset()
-{
-  // Move sample index back to the beginning
-  s_ = 0;
-
-  // Initialize target and current weight sums
-  if (dist_.size() > 0) {
-    step_ = 1.0 / dist_.size();
-    sum_target_ = prob_(rng_.engine()) * step_;
-    sum_ = dist_.particle(0).weight_normed_;
-  }
-  else {
-    step_ = 0.0;
-    sum_target_ = 0.0;
-    sum_ = 0.0;
-  }
-}
-
-const Particle& Resampler::operator()()
-{
-  // Sum weights until we reach the target
-  while (sum_ < sum_target_) {
-    ++s_;
-    // If we've reached the end, wrap back around
-    if (s_ >= dist_.size()) {
-      reset();
-    }
-    // Update the weight sum
-    sum_ += dist_.particle(s_).weight_normed_;
-  }
-  // Update target we'll use for the next sample
-  sum_target_ += step_;
-
-  return dist_.particle(s_);
-}
-
-RandomSampler::RandomSampler(const Map& map) :
+ParticleRandomSampler::ParticleRandomSampler(const Map& map) :
   map_(map),
   x_dist_(map_.x_origin, std::nextafter(map_.width * map_.scale + map_.x_origin, std::numeric_limits<double>::max())),
   y_dist_(map_.y_origin, std::nextafter(map_.height * map_.scale + map_.y_origin, std::numeric_limits<double>::max())),
   th_dist_(-M_PI, M_PI)
 {}
 
-Particle RandomSampler::operator()()
+Particle ParticleRandomSampler::operator()()
 {
   Particle particle;
   bool occupied = true;
@@ -81,8 +34,70 @@ Particle RandomSampler::operator()()
   // Any theta is allowed
   particle.th_ = th_dist_(rng_.engine());
 
-  // Particle weight is 1.0 until updated by the sensor model
+  // Particle weight is 0.0 until updated by the sensor model
   return particle;
+}
+
+ParticleHistogram::ParticleHistogram(const double x_res,
+                                     const double y_res,
+                                     const double th_res,
+                                     const Map& map
+                                    ) :
+  x_res_(x_res),
+  y_res_(y_res),
+  th_res_(th_res),
+  x_size_(std::round(map.width * map.scale / x_res_)),
+  y_size_(std::round(map.height * map.scale / y_res_)),
+  th_size_(std::round((M_2PI + map.th_origin) / th_res)),
+  x_origin_(map.x_origin),
+  y_origin_(map.y_origin),
+  th_origin_(map.th_origin),
+  hist_(x_size_ * y_size_ * th_size_, false),
+  count_(0)
+{}
+
+bool ParticleHistogram::update(const Particle& particle)
+{
+  bool count_inc = false;
+
+  // Calculate index
+  size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / x_res_),
+                        static_cast<double>(x_size_ - 1)
+                       );
+  size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / y_res_),
+                        static_cast<double>(y_size_ - 1)
+                       );
+  size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / th_res_),
+                         static_cast<double>(th_size_ - 1)
+                        );
+  // Update histogram
+  if (!cell(x_i, y_i, th_i)) {
+    cell(x_i, y_i, th_i) = true;
+    count_inc = true;
+    ++count_;
+  }
+  return count_inc;
+}
+
+size_t ParticleHistogram::count() const
+{
+  return count_;
+}
+
+void ParticleHistogram::clear()
+{
+  if (count_ > 0) {
+    std::fill(hist_.begin(), hist_.end(), false);
+    count_ = 0;
+  }
+}
+
+std::vector<bool>::reference ParticleHistogram::cell(const size_t x_i,
+                                                     const size_t y_i,
+                                                     const size_t th_i
+                                                    )
+{
+  return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
 }
 
 MCL::MCL(const unsigned int mcl_num_particles_min,
@@ -122,8 +137,6 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
   kld_eps_(mcl_kld_eps),
   vel_(0.0),
-  dist_(mcl_num_particles_max),
-  samples_(mcl_num_particles_max),
   map_(map_width,
        map_height,
        map_x,
@@ -155,19 +168,19 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
                 sensor_table_res,
                 map_
                ),
+  dist_(mcl_num_particles_max),
+  samples_(mcl_num_particles_max),
   hist_(mcl_hist_pos_res,
         mcl_hist_pos_res,
         mcl_hist_th_res,
         map_
        ),
-  resampler_(dist_),
-  random_sampler_(map_),
+  random_sample_(map_),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
   // Initialize distribution with random samples in the map's free space
   for (size_t i = 0; i < samples_.size(); ++i) {
-    samples_[i] = random_sampler_();
-    samples_[i].weight_normed_ = samples_[i].weight_ / samples_.size();
+    samples_[i] = random_sample_();
   }
   // Assign the new samples to the distribution
   dist_.assign(samples_, samples_.size());
@@ -193,7 +206,11 @@ void MCL::update(const RayScan&& obs)
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_, obs);
-    update();
+
+    // Only sample if the average weight (confidence) is too low
+    if (dist_.weightAvg() < 1e-3) {
+      sample();
+    }
     update_num_++;
   //}
   // TBD remove
@@ -204,64 +221,62 @@ void MCL::update(const RayScan&& obs)
   }
 }
 
-void MCL::update()
+void MCL::sample()
 {
-  // Only sample if the average weight (confidence) is too low
-  if (dist_.weightAvg() < 1e-3) {
-    printf("\n===== Sampling =====\n");
-    RecursiveLock lock(dist_mtx_);
-    double prob_sample_random = 1.0;
-    double num_particles_target = num_particles_min_;
-    double chi_sq_term_1 = 0.0;
-    double chi_sq_term_2 = 0.0;
-    size_t hist_count = 0;
-    size_t s = 0;
+  printf("\n===== Sampling =====\n");
+  RecursiveLock lock(dist_mtx_);
+  double prob_sample_random = 1.0;
+  double num_particles_target = num_particles_min_;
+  double chi_sq_term_1 = 0.0;
+  double chi_sq_term_2 = 0.0;
+  size_t hist_count = 0;
+  size_t s = 0;
 
-    // Clear histogram
-    hist_.clear();
+  // Clear histogram
+  hist_.clear();
 
-    // Calculate the probability to draw random samples
-    prob_sample_random = 1.0 - dist_.weightAvgRatio();
+  // Calculate the probability to draw random samples
+  prob_sample_random = 1.0 - dist_.weightAvgRatio();
 
-    // Generate samples until we reach the target or max
-    while (   s < num_particles_target
-           && s < dist_.capacity()
-          ) {
-      // Draw a particle from the current distribution with probability proportional to its weight
-      if (prob_(rng_.engine()) > prob_sample_random) {
-          samples_[s] = resampler_();
-      }
-      // Generate a new random particle and apply the sensor model to update its weight
-      else {
-        samples_[s] = random_sampler_();
-        sensor_model_.apply(samples_[s]);
-      }
-      // Update histogram with the sampled particle
-      hist_.update(samples_[s]);
-
-      // If the histogram occupancy count increased with the sampled particle, update the target number of samples
-      if (hist_.count() > hist_count) {
-        hist_count = hist_.count();
-
-        if (hist_count > 1) {
-          // Wilson-Hilferty transformation of chi-square distribution
-          chi_sq_term_1 = (hist_count - 1.0) / (2.0 * kld_eps_);
-          chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_01 * std::sqrt(F_2_9 / (hist_count - 1.0));
-          num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
-          num_particles_target = num_particles_target > num_particles_min_?
-                                 num_particles_target : num_particles_min_;
-        }
-      }
-      ++s;
+  // Generate samples until we reach the target or max
+  while (   s < samples_.size()
+         && s < num_particles_target
+        ) {
+    // Draw a particle from the current distribution with probability proportional to its weight
+    if (prob_(rng_.engine()) > prob_sample_random) {
+      samples_[s] = dist_.sample();
     }
-    // Update distribution with new samples
-    dist_.update(samples_, s);
+    // Generate a new random particle and apply the sensor model to update its weight
+    else {
+      samples_[s] = random_sample_();
+      sensor_model_.apply(samples_[s]);
+    }
+    // Update histogram with the sampled particle
+    hist_.update(samples_[s]);
 
-    printf("Samples used = %lu\n", s);
-    printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
-    printf("Histogram count = %lu\n", hist_count);
-    printf("---------------------------------\n");
+    // If the histogram occupancy count increased with the sampled particle, update the target number of samples
+    if (hist_.count() > hist_count) {
+      hist_count = hist_.count();
+
+      if (hist_count > 1) {
+        // Wilson-Hilferty transformation of chi-square distribution
+        chi_sq_term_1 = (hist_count - 1.0) / (2.0 * kld_eps_);
+        chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_01 * std::sqrt(F_2_9 / (hist_count - 1.0));
+        num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
+        num_particles_target = num_particles_target > num_particles_min_?
+                               num_particles_target : num_particles_min_;
+      }
+    }
+    ++s;
   }
+  // Update distribution with new sample set
+  dist_.update(samples_, s);
+
+  printf("Samples used = %lu\n", s);
+  printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
+  printf("Histogram count = %lu\n", hist_count);
+  printf("---------------------------------\n");
+
   return;
 }
 
