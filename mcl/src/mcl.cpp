@@ -202,7 +202,7 @@ void MCL::update(const RayScan&& obs)
   sensor_model_.update(obs);
 
   // TBD restore
-  //if (!stopped()) {
+  // if (!stopped()) {
     printf("\n***** Update %lu *****\n", update_num_ + 1);
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
@@ -213,7 +213,7 @@ void MCL::update(const RayScan&& obs)
       sample();
     }
     update_num_++;
-  //}
+  // }
   // TBD remove
   if (   stopped()
       && update_num_ >= NUM_UPDATES
@@ -236,8 +236,17 @@ void MCL::sample()
   // Clear histogram
   hist_.clear();
 
-  // Calculate the probability to draw random samples
-  prob_sample_random = 1.0 - dist_.weightAvgRatio();
+  // If weights are varied, don't allow random sampling - need to resample first
+  // TBD review, this may be an issue
+  if (dist_.weightRelativeStdDev() > 0.1) {
+    prob_sample_random = 0.0;
+  }
+  else {
+    // Calculate the probability to draw random samples based on change in weight average
+    // The probability of random samples increases when the recent weight averages decline
+    prob_sample_random = 1.0 - dist_.weightAvgRatio();
+  }
+  printf("Prob(random) = %.2f\n", prob_sample_random); // TBD remove
 
   // Generate samples until we reach the target or max
   while (   s < samples_.size()

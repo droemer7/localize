@@ -17,7 +17,7 @@
   <arg name="motion_th_n1"              default="0.01"/>
   <arg name="motion_th_n2"              default="0.01"/>
   <arg name="sensor_range_no_obj"       default="16.0"/>
-  <arg name="sensor_std_dev"            default="0.5"/>
+  <arg name="sensor_std_dev"            default="1.0"/>
   <arg name="sensor_th_sample_res"      default="0.7853981634"/> <!-- pi/4 (45 deg) -->
   <arg name="sensor_th_raycast_res"     default="0.0095780264"/> <!-- pi/328 -->
   <arg name="sensor_new_obj_decay_rate" default="0.25"/>

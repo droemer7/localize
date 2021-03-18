@@ -48,6 +48,9 @@ namespace localize
     // Particle weight standard deviation
     double weightStdDev() const;
 
+    // Particle weight relative standard deviation (i.e., standard deviation / average)
+    double weightRelativeStdDev() const;
+
     // Outputs a value [0.0, 1.0] indicating how the distribution's overall confidence is changing
     // A value of 1.0 indicates the distribution's average confidence is better now compared to the past
     // Values less than 1.0 indicate the distribution's average confidence is worse now compared to the past
@@ -69,6 +72,7 @@ namespace localize
     SmoothedValue<double> weight_avg_fast_; // Smoothed average particle weight, fast rate
     double weight_var_;                     // Particle weight variance
     double weight_std_dev_;                 // Particle weight standard deviation
+    double weight_relative_std_dev_;        // Particle weight relative standard deviation
 
     size_t sample_s_;          // Sample index
     double sample_step_;       // Sample step size, this is 1 / size(distribution)

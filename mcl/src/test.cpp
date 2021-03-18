@@ -167,25 +167,24 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
-  ParticleVector particles(5);
+  ParticleVector particles(4);
 
   for (size_t i = 0; i < particles.size(); ++i) {
     particles[i].x_ = i;
     particles[i].y_ = i;
     particles[i].th_ = i;
   }
-  particles[0].weight_ = 0.001;
-  particles[1].weight_ = 0.01;
-  particles[2].weight_ = 0.002;
-  particles[3].weight_ = 0.005;
-  particles[4].weight_ = 0.0007;
+  particles[0].weight_ = 0.9;
+  particles[1].weight_ = 0.5;
+  particles[2].weight_ = 0.2;
+  particles[3].weight_ = 0.7;
 
-  ParticleDistribution dist(5);
+  ParticleDistribution dist(100);
   dist.copy(particles, particles.size());
   dist.update();
-  ParticleVector samples(particles.size());
+  ParticleVector samples(particles.size() / 2);
 
-  for (size_t i = 0; i < particles.size() - 2; ++i) {
+  for (size_t i = 0; i < samples.size(); ++i) {
     samples[i] = dist.sample();
   }
   for (size_t i = 0; i < samples.size(); ++i) {
@@ -198,6 +197,7 @@ int main(int argc, char** argv)
            samples[i].weight_normed_
           );
   }
+  dist.update(samples, samples.size());
 
   return 0;
 }
