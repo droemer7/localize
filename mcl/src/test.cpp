@@ -174,10 +174,10 @@ int main(int argc, char** argv)
     particles[i].y_ = i;
     particles[i].th_ = i;
   }
-  particles[0].weight_ = 0.9;
-  particles[1].weight_ = 0.5;
-  particles[2].weight_ = 0.2;
-  particles[3].weight_ = 0.7;
+  particles[0].weight_ = 0.00001;
+  particles[1].weight_ = 0.00001;
+  particles[2].weight_ = 0.99999;
+  particles[3].weight_ = 0.00001;
 
   ParticleDistribution dist(100);
   dist.copy(particles, particles.size());

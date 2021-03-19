@@ -4,12 +4,13 @@
 
 #include "mcl/mcl.h"
 
-static const double STOPPED_THRESHOLD = 1e-10;  // Threshold for considering robot stopped (defers updates)
-static const double Z_P_01 = 2.3263478740;      // Z score for P(0.01) of Normal(0,1) distribution
-static const double F_2_9 = 2 / 9;              // Fraction 2/9
-
-// TBD remove
-static const int NUM_UPDATES = 1;
+static const double STOPPED_THRESHOLD = 1e-10;          // Threshold below which the robot is stopped (defers updates)
+static const double WEIGHT_THRESHOLD_SAMPLE = 1e-4;     // Threshold below which sampling is performed (resample / random sample)
+static const double WEIGHT_THRESHOLD_CONSISTENCY = 0.5; // Threshold below which the weights are considered consistent (required for random sampling)
+static const double WEIGHT_THRESHOLD_LOST = 1e-10;      // Threshold below which we assume we are lost (required for random sampling)
+static const double Z_P_01 = 2.3263478740;              // Z score for P(0.01) of Normal(0,1) distribution
+static const double F_2_9 = 2 / 9;                      // Fraction 2/9
+static const int NUM_UPDATES = 10;                      // TBD remove
 
 using namespace localize;
 
@@ -191,6 +192,7 @@ void MCL::update(const double vel,
                  const double dt
                 )
 {
+  // Only update if moving
   if (!stopped(vel)) {
     RecursiveLock lock(dist_mtx_);
     motion_model_.apply(dist_, vel, steering_angle, dt);
@@ -199,21 +201,22 @@ void MCL::update(const double vel,
 
 void MCL::update(const RayScan&& obs)
 {
+  // Cache observation before requesting lock
   sensor_model_.update(obs);
 
-  // TBD restore
-  // if (!stopped()) {
+  // Only update if moving
+  if (!stopped()) {
     printf("\n***** Update %lu *****\n", update_num_ + 1);
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
 
-    // Only sample if the average weight (confidence) is too low
-    if (dist_.weightAvg() < 1e-3) {
+    // Only sample if it would improve confidence
+    if (dist_.weightAvg() < WEIGHT_THRESHOLD_SAMPLE) {
       sample();
     }
     update_num_++;
-  // }
+  }
   // TBD remove
   if (   stopped()
       && update_num_ >= NUM_UPDATES
@@ -226,7 +229,7 @@ void MCL::sample()
 {
   printf("\n===== Sampling =====\n");
   RecursiveLock lock(dist_mtx_);
-  double prob_sample_random = 1.0;
+  double prob_sample_random = 0.0;
   double num_particles_target = num_particles_min_;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
@@ -236,18 +239,19 @@ void MCL::sample()
   // Clear histogram
   hist_.clear();
 
-  // If weights are varied, don't allow random sampling - need to resample first
-  // TBD review, this may be an issue
-  if (dist_.weightRelativeStdDev() > 0.1) {
-    prob_sample_random = 0.0;
-  }
-  else {
+  // Only allow random sampling if our confidence is consistently very bad across the distribution
+  // Random sampling causes dramatic increases in the distribution size, and dramatic slowdowns
+  // As a result random sampling should only be utilized as a last resort
+  if (   dist_.weightRelativeStdDev() < WEIGHT_THRESHOLD_CONSISTENCY  // Weights are consistent with the average
+      && dist_.weightAvg() < WEIGHT_THRESHOLD_LOST                    // Confidence is low enough that random sampling would improve it
+     ) {
     // Calculate the probability to draw random samples based on change in weight average
-    // The probability of random samples increases when the recent weight averages decline
+    // The probability of random samples decreases as the confidence improves
     prob_sample_random = 1.0 - dist_.weightAvgRatio();
   }
-  printf("Prob(random) = %.2f\n", prob_sample_random); // TBD remove
-
+  else {
+    prob_sample_random = 0.0;
+  }
   // Generate samples until we reach the target or max
   while (   s < samples_.size()
          && s < num_particles_target
@@ -282,8 +286,8 @@ void MCL::sample()
   // Update distribution with new sample set
   dist_.update(samples_, s);
 
+  printf("Prob(random) = %.2f\n", prob_sample_random);
   printf("Samples used = %lu\n", s);
-  printf("Samples target = %lu\n", static_cast<size_t>(num_particles_target));
   printf("Histogram count = %lu\n", hist_count);
   printf("---------------------------------\n");
 

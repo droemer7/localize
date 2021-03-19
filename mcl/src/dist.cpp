@@ -1,7 +1,7 @@
 #include "mcl/dist.h"
 
-static const double WEIGHT_AVG_SLOW_RATE = 0.01;
-static const double WEIGHT_AVG_FAST_RATE = 0.20;
+static const double WEIGHT_AVG_SLOW_RATE = 0.005;
+static const double WEIGHT_AVG_FAST_RATE = 0.10;
 
 using namespace localize;
 
@@ -84,14 +84,13 @@ Particle& ParticleDistribution::particle(size_t p)
 
 Particle& ParticleDistribution::sample()
 {
+  // If we've reached the end, wrap back around
+  if (sample_s_ + 1 >= count_) {
+    resetSampler();
+  }
   // Sum weights until we reach the target
   while (sample_sum_ < sample_sum_target_) {
     sample_sum_ += particles_[++sample_s_].weight_normed_;
-
-    // If we've reached the end, wrap back around
-    if (sample_s_ + 1 >= count_) {
-      resetSampler();
-    }
   }
   // Increase target for the next sample
   sample_sum_target_ += sample_step_;
@@ -154,11 +153,9 @@ void ParticleDistribution::calcWeightStats()
       weight_avg_slow_.reset(weight_avg_);
       weight_avg_fast_.reset(weight_avg_);
     }
-
     // Update normalized weights and calculate weight variance
     weight_var_ = 0.0;
     double weight_normalizer = weight_sum_ > 0.0 ? 1 / weight_sum_ : 0.0;
-    //double weight_avg_normed = 1.0 / count_; // TBD remove or restore
     double weight_diff = 0.0;
 
     for (size_t i = 0; i < count_; ++i) {
