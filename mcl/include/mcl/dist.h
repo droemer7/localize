@@ -39,7 +39,7 @@ namespace localize
     // Number of particles in use - in general less than particle vector size
     size_t count() const;
 
-    // Average particle weight
+    // Average particle weight (smoothed over several updates)
     double weightAvg() const;
 
     // Particle weight variance
@@ -52,8 +52,7 @@ namespace localize
     double weightRelativeStdDev() const;
 
     // Outputs a value [0.0, 1.0] indicating how the distribution's overall confidence is changing
-    // A value of 1.0 indicates the distribution's average confidence is better now compared to the past
-    // Values less than 1.0 indicate the distribution's average confidence is worse now compared to the past
+    // Values decrease from 1.0 if recent confidence is worse than in the past
     double weightAvgRatio() const;
 
   private:
@@ -64,15 +63,16 @@ namespace localize
     void resetSampler();
 
   private:
-    ParticleVector particles_;              // Particles in distribution
-    size_t count_;                          // Number of particles in use - in general less than particle vector size
-    double weight_sum_;                     // Sum of particle weights
-    double weight_avg_;                     // Average particle weight
-    SmoothedValue<double> weight_avg_slow_; // Smoothed average particle weight, slow rate
-    SmoothedValue<double> weight_avg_fast_; // Smoothed average particle weight, fast rate
-    double weight_var_;                     // Particle weight variance
-    double weight_std_dev_;                 // Particle weight standard deviation
-    double weight_relative_std_dev_;        // Particle weight relative standard deviation
+    ParticleVector particles_; // Particles in distribution
+    size_t count_;             // Number of particles in use - in general less than particle vector size
+
+    double weight_sum_;                       // Sum of particle weights
+    SmoothedValue<double> weight_avg_creep_;  // Smoothed average particle weight, creep rate
+    SmoothedValue<double> weight_avg_slow_;   // Smoothed average particle weight, slow rate
+    SmoothedValue<double> weight_avg_fast_;   // Smoothed average particle weight, fast rate
+    double weight_var_;                       // Particle weight variance
+    double weight_std_dev_;                   // Particle weight standard deviation
+    double weight_relative_std_dev_;          // Particle weight relative standard deviation
 
     size_t sample_s_;          // Sample index
     double sample_step_;       // Sample step size, this is 1 / size(distribution)

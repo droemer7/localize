@@ -239,7 +239,7 @@ void MCL::sample()
   // Clear histogram
   hist_.clear();
 
-  // Only allow random sampling if our confidence is consistently very bad across the distribution
+  // Only allow random sampling if confidence has been consistently bad for a few updates (weight average is smoothed)
   // Random sampling causes dramatic increases in the distribution size, and dramatic slowdowns
   // As a result random sampling should only be utilized as a last resort
   if (   dist_.weightRelativeStdDev() < WEIGHT_THRESHOLD_CONSISTENCY  // Weights are consistent with the average

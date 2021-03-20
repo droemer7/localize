@@ -72,14 +72,14 @@ void BeamModel::apply(Particle& particle,
   float range_obs = 0.0;
   float range_map = 0.0;
 
-  for (size_t j = 0; j < rays_obs_sample_.size(); ++j) {
+  for (size_t i = 0; i < rays_obs_sample_size_; ++i) {
     // Compute range from the map
     range_map = raycaster_.calc_range(particle.x_,
                                       particle.y_,
-                                      particle.th_ + rays_obs_sample_[j].th_
+                                      particle.th_ + rays_obs_sample_[i].th_
                                      );
     // Make sure ranges are valid (NaNs, negative values, etc)
-    range_obs = repair(rays_obs_sample_[j].range_);
+    range_obs = repair(rays_obs_sample_[i].range_);
     range_map = repair(range_map);
 
     // Update partial weight with this measurement's probability

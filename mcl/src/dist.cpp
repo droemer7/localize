@@ -1,16 +1,17 @@
 #include "mcl/dist.h"
 
-static const double WEIGHT_AVG_SLOW_RATE = 0.005;
-static const double WEIGHT_AVG_FAST_RATE = 0.10;
+static const double WEIGHT_AVG_CREEP_RATE = 0.005;
+static const double WEIGHT_AVG_SLOW_RATE = 0.100;
+static const double WEIGHT_AVG_FAST_RATE = 0.333;
 
 using namespace localize;
 
 ParticleDistribution::ParticleDistribution() :
   count_(0),
   weight_sum_(0.0),
-  weight_avg_(-1.0),
-  weight_avg_slow_(0.0, WEIGHT_AVG_SLOW_RATE),
-  weight_avg_fast_(0.0, WEIGHT_AVG_FAST_RATE),
+  weight_avg_creep_(-1.0, WEIGHT_AVG_CREEP_RATE),
+  weight_avg_slow_(-1.0, WEIGHT_AVG_SLOW_RATE),
+  weight_avg_fast_(-1.0, WEIGHT_AVG_FAST_RATE),
   weight_var_(0.0),
   weight_std_dev_(0.0),
   weight_relative_std_dev_(0.0),
@@ -105,7 +106,7 @@ size_t ParticleDistribution::count() const
 
 double ParticleDistribution::weightAvg() const
 {
-  return weight_avg_;
+  return weight_avg_fast_;
 }
 
 double ParticleDistribution::weightVar() const
@@ -126,8 +127,9 @@ double ParticleDistribution::weightRelativeStdDev() const
 double ParticleDistribution::weightAvgRatio() const
 {
   double ratio = 0.0;
-  if (weight_avg_slow_ > 0.0) {
-    ratio = std::min(1.0, weight_avg_fast_ / weight_avg_slow_);
+  if (weight_avg_creep_ > 0.0) {
+    // Using slow / creep instead of fast / slow reduces the number of random samples
+    ratio = std::min(1.0, weight_avg_slow_ / weight_avg_creep_);
   }
   return ratio;
 }
@@ -142,39 +144,40 @@ void ParticleDistribution::calcWeightStats()
       weight_sum_ += particles_[i].weight_;
     }
     // Calculate and update weight averages
-    if (weight_avg_ >= 0.0) {
-      weight_avg_ = weight_sum_ / count_;
-      weight_avg_slow_.update(weight_avg_);
-      weight_avg_fast_.update(weight_avg_);
+    double weight_avg = weight_sum_ / count_;
+
+    if (weight_avg_fast_ >= 0.0) {
+      weight_avg_creep_.update(weight_avg);
+      weight_avg_slow_.update(weight_avg);
+      weight_avg_fast_.update(weight_avg);
     }
-    // Initialize weight averages
     else {
-      weight_avg_ = weight_sum_ / count_;
-      weight_avg_slow_.reset(weight_avg_);
-      weight_avg_fast_.reset(weight_avg_);
+      weight_avg_creep_.reset(weight_avg);
+      weight_avg_slow_.reset(weight_avg);
+      weight_avg_fast_.reset(weight_avg);
     }
-    // Update normalized weights and calculate weight variance
+    // Update normalized weights and calculate weight variance based on current weight average
     weight_var_ = 0.0;
     double weight_normalizer = weight_sum_ > 0.0 ? 1 / weight_sum_ : 0.0;
     double weight_diff = 0.0;
 
     for (size_t i = 0; i < count_; ++i) {
       particles_[i].weight_normed_ = particles_[i].weight_ * weight_normalizer;
-      weight_diff = particles_[i].weight_ - weight_avg_;
+      weight_diff = particles_[i].weight_ - weight_avg;
       weight_var_ += weight_diff * weight_diff;
     }
     weight_var_ /= count_;
 
     // Calculate standard deviation
     weight_std_dev_ = weight_var_ > 0.0 ? std::sqrt(weight_var_) : 0.0;
-    weight_relative_std_dev_ = weight_avg_ > 0.0 ? weight_std_dev_ / weight_avg_ : 0.0;
+    weight_relative_std_dev_ = weight_avg > 0.0 ? weight_std_dev_ / weight_avg : 0.0;
   }
   else {
-    // No particles, zero initialize
+    // No particles, reinitialize
     weight_sum_ = 0.0;
-    weight_avg_ = 0.0;
-    weight_avg_slow_.reset(0.0);
-    weight_avg_fast_.reset(0.0);
+    weight_avg_creep_.reset(-1.0);
+    weight_avg_slow_.reset(-1.0);
+    weight_avg_fast_.reset(-1.0);
     weight_var_ = 0.0;
     weight_std_dev_ = 0.0;
     weight_relative_std_dev_ = 0.0;
@@ -182,6 +185,7 @@ void ParticleDistribution::calcWeightStats()
   printf("Weight average = %.2e\n", weightAvg());
   printf("Weight average [fast] = %.2e\n", static_cast<double>(weight_avg_fast_));
   printf("Weight average [slow] = %.2e\n", static_cast<double>(weight_avg_slow_));
+  printf("Weight average [creep] = %.2e\n", static_cast<double>(weight_avg_creep_));
   printf("Weight ratio = %.2f\n", weightAvgRatio());
   printf("Weight variance = %.2e\n", weightVar());
   printf("Weight std dev = %.2e\n", weightStdDev());
