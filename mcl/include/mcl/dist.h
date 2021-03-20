@@ -1,7 +1,7 @@
 #ifndef DIST_H
 #define DIST_H
 
-#include "mcl/util.h"
+#include "mcl/common.h"
 
 namespace localize
 {

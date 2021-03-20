@@ -29,7 +29,7 @@ add_executable(mcl src/main.cpp
                    src/dist.cpp
                    src/motion.cpp
                    src/sensor.cpp
-                   src/util.cpp
+                   src/common.cpp
 )
 add_dependencies(mcl
   ${catkin_EXPORTED_TARGETS}
@@ -44,7 +44,7 @@ add_executable(mcl_test src/test.cpp
                         src/dist.cpp
                         src/motion.cpp
                         src/sensor.cpp
-                        src/util.cpp
+                        src/common.cpp
 )
 add_dependencies(mcl_test
   ${catkin_EXPORTED_TARGETS}

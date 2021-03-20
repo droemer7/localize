@@ -19,7 +19,36 @@ namespace localize
   typedef std::lock_guard<std::mutex> Lock;
   typedef std::lock_guard<std::recursive_mutex> RecursiveLock;
 
+  // Internal
   extern const std::string DATA_PATH;
+
+  // MCL parameters
+  extern const unsigned int MCL_NUM_PARTICLES_MIN;  // Minimum number of particles
+  extern const unsigned int MCL_NUM_PARTICLES_MAX;  // Maximum number of particles
+  extern const double MCL_KLD_EPS;                  // KL distance threshold
+  extern const double MCL_HIST_POS_RES;             // Histogram bin size for x and y position (m per bin)
+  extern const double MCL_HIST_TH_RES;              // Histogram bin size for heading angle (rad per bin)
+
+  // Motion model parameters
+  extern const double MOTION_LIN_VEL_N1;  // Motion model linear velocity noise coefficient 1
+  extern const double MOTION_LIN_VEL_N2;  // Motion model linear velocity noise coefficient 2
+  extern const double MOTION_ANG_VEL_N1;  // Motion model angular velocity noise coefficient 1
+  extern const double MOTION_ANG_VEL_N2;  // Motion model angular velocity noise coefficient 2
+  extern const double MOTION_TH_N1;       // Motion model final rotation noise coefficient 1
+  extern const double MOTION_TH_N2;       // Motion model final rotation noise coefficient 2
+
+  // Sensor model parameters
+  extern const float SENSOR_RANGE_NO_OBJ;         // Sensor range reported when nothing is detected
+  extern const float SENSOR_RANGE_STD_DEV;        // Sensor range standard deviation
+  extern const float SENSOR_NEW_OBJ_DECAY_RATE;   // Sensor model decay rate for new (unexpected) object probability
+  extern const double SENSOR_WEIGHT_NO_OBJ;       // Sensor model weight for no object detected probability
+  extern const double SENSOR_WEIGHT_NEW_OBJ;      // Sensor model weight for new (unexpected) object probability
+  extern const double SENSOR_WEIGHT_MAP_OBJ;      // Sensor model weight for map (expected) object probability
+  extern const double SENSOR_WEIGHT_RAND_EFFECT;  // Sensor model weight for random effect probability
+  extern const double SENSOR_UNCERTAINTY_FACTOR;  // Sensor model uncertainty factor - extra noise added to calculation
+  extern const double SENSOR_TABLE_RES;           // Resolution of the sensor model table (m per index)
+  extern const unsigned int TH_SAMPLE_COUNT;      // Number of sampled sensor observations to use (count per revolution)
+  extern const unsigned int TH_RAYCAST_COUNT;     // Number of angles for raycast (count per revolution)
 
   // A particle with 2D location, heading angle and weight
   struct Particle

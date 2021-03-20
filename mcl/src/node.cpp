@@ -6,7 +6,7 @@
 #include <nav_msgs/GetMap.h>
 
 #include "mcl/node.h"
-#include "mcl/util.h"
+#include "mcl/common.h"
 
 using namespace localize;
 
@@ -43,35 +43,13 @@ MCLNode::MCLNode(const std::string& motor_topic,
 {
   // Motion and sensor model parameters
   ros::NodeHandle nh;
-  if (   !getParam(nh, "localizer/mcl_num_particles_min", mcl_num_particles_min_)
-      || !getParam(nh, "localizer/mcl_num_particles_max", mcl_num_particles_max_)
-      || !getParam(nh, "localizer/mcl_kld_eps", mcl_kld_eps_)
-      || !getParam(nh, "localizer/mcl_hist_pos_res", mcl_hist_pos_res_)
-      || !getParam(nh, "localizer/mcl_hist_th_res", mcl_hist_th_res_)
-      || !getParam(nh, "vesc/chassis_length", car_length_)
+  if (   !getParam(nh, "vesc/chassis_length", car_length_)
       || !getParam(nh, "vesc/speed_to_erpm_gain", motor_speed_to_erpm_gain_)
       || !getParam(nh, "vesc/speed_to_erpm_offset", motor_speed_to_erpm_offset_)
       || !getParam(nh, "vesc/steering_angle_to_servo_gain", motor_steering_angle_to_servo_gain_)
       || !getParam(nh, "vesc/steering_angle_to_servo_offset", motor_steering_angle_to_servo_offset_)
-      || !getParam(nh, "localizer/motion_lin_vel_n1", motion_lin_vel_n1_)
-      || !getParam(nh, "localizer/motion_lin_vel_n2", motion_lin_vel_n2_)
-      || !getParam(nh, "localizer/motion_ang_vel_n1", motion_ang_vel_n1_)
-      || !getParam(nh, "localizer/motion_ang_vel_n2", motion_ang_vel_n2_)
-      || !getParam(nh, "localizer/motion_th_n1", motion_th_n1_)
-      || !getParam(nh, "localizer/motion_th_n2", motion_th_n2_)
       || !getParam(nh, "laser/range_min", sensor_range_min_)
       || !getParam(nh, "laser/range_max", sensor_range_max_)
-      || !getParam(nh, "localizer/sensor_range_no_obj", sensor_range_no_obj_)
-      || !getParam(nh, "localizer/sensor_std_dev", sensor_range_std_dev_)
-      || !getParam(nh, "localizer/sensor_th_sample_res", sensor_th_sample_res_)
-      || !getParam(nh, "localizer/sensor_th_raycast_res", sensor_th_raycast_res_)
-      || !getParam(nh, "localizer/sensor_new_obj_decay_rate", sensor_new_obj_decay_rate_)
-      || !getParam(nh, "localizer/sensor_weight_no_obj", sensor_weight_no_obj_)
-      || !getParam(nh, "localizer/sensor_weight_new_obj", sensor_weight_new_obj_)
-      || !getParam(nh, "localizer/sensor_weight_map_obj", sensor_weight_map_obj_)
-      || !getParam(nh, "localizer/sensor_weight_rand_effect", sensor_weight_rand_effect_)
-      || !getParam(nh, "localizer/sensor_uncertainty_factor", sensor_uncertainty_factor_)
-      || !getParam(nh, "localizer/sensor_table_res", sensor_table_res_)
      ) {
     throw std::runtime_error("MCL: Missing required parameters");
   }
@@ -93,31 +71,31 @@ MCLNode::MCLNode(const std::string& motor_topic,
 
   // Construct the localizer with retrieved parameters before starting threads
   try {
-    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(mcl_num_particles_min_,
-                                            mcl_num_particles_max_,
-                                            mcl_kld_eps_,
-                                            mcl_hist_pos_res_,
-                                            mcl_hist_th_res_,
+    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(MCL_NUM_PARTICLES_MIN,
+                                            MCL_NUM_PARTICLES_MAX,
+                                            MCL_KLD_EPS,
+                                            MCL_HIST_POS_RES,
+                                            MCL_HIST_TH_RES,
                                             car_length_,
-                                            motion_lin_vel_n1_,
-                                            motion_lin_vel_n2_,
-                                            motion_ang_vel_n1_,
-                                            motion_ang_vel_n2_,
-                                            motion_th_n1_,
-                                            motion_th_n2_,
+                                            MOTION_LIN_VEL_N1,
+                                            MOTION_LIN_VEL_N2,
+                                            MOTION_ANG_VEL_N1,
+                                            MOTION_ANG_VEL_N2,
+                                            MOTION_TH_N1,
+                                            MOTION_TH_N2,
                                             sensor_range_min_,
                                             sensor_range_max_,
-                                            sensor_range_no_obj_,
-                                            sensor_range_std_dev_,
-                                            sensor_th_sample_res_,
-                                            sensor_th_raycast_res_,
-                                            sensor_new_obj_decay_rate_,
-                                            sensor_weight_no_obj_,
-                                            sensor_weight_new_obj_,
-                                            sensor_weight_map_obj_,
-                                            sensor_weight_rand_effect_,
-                                            sensor_uncertainty_factor_,
-                                            sensor_table_res_,
+                                            SENSOR_RANGE_NO_OBJ,
+                                            SENSOR_RANGE_STD_DEV,
+                                            SENSOR_NEW_OBJ_DECAY_RATE,
+                                            SENSOR_WEIGHT_NO_OBJ,
+                                            SENSOR_WEIGHT_NEW_OBJ,
+                                            SENSOR_WEIGHT_MAP_OBJ,
+                                            SENSOR_WEIGHT_RAND_EFFECT,
+                                            SENSOR_UNCERTAINTY_FACTOR,
+                                            TH_SAMPLE_COUNT,
+                                            TH_RAYCAST_COUNT,
+                                            SENSOR_TABLE_RES,
                                             map_width_,
                                             map_height_,
                                             map_x_origin_,
@@ -268,25 +246,12 @@ void MCLNode::printMotionParams()
   ROS_INFO("MCL: motor_speed_to_erpm_offset_ = %f", motor_speed_to_erpm_offset_);
   ROS_INFO("MCL: motor_steering_angle_to_servo_gain_ = %f", motor_steering_angle_to_servo_gain_);
   ROS_INFO("MCL: motor_steering_angle_to_servo_offset_ = %f", motor_steering_angle_to_servo_offset_);
-  ROS_INFO("MCL: motion_lin_vel_n1_ = %f", motion_lin_vel_n1_);
-  ROS_INFO("MCL: motion_lin_vel_n2_ = %f", motion_lin_vel_n2_);
-  ROS_INFO("MCL: motion_ang_vel_n1_ = %f", motion_ang_vel_n1_);
-  ROS_INFO("MCL: motion_ang_vel_n2_ = %f", motion_ang_vel_n2_);
-  ROS_INFO("MCL: motion_th_n1_ = %f", motion_th_n1_);
-  ROS_INFO("MCL: motion_th_n2_ = %f", motion_th_n2_);
 }
 
 void MCLNode::printSensorParams()
 {
   ROS_INFO("MCL: sensor_range_min_ = %f", sensor_range_min_);
   ROS_INFO("MCL: sensor_range_max_ = %f", sensor_range_max_);
-  ROS_INFO("MCL: sensor_range_no_obj_ = %f", sensor_range_no_obj_);
-  ROS_INFO("MCL: sensor_range_std_dev_ = %f", sensor_range_std_dev_);
-  ROS_INFO("MCL: sensor_new_obj_decay_rate_ = %f", sensor_new_obj_decay_rate_);
-  ROS_INFO("MCL: sensor_weight_no_obj_ = %f", sensor_weight_no_obj_);
-  ROS_INFO("MCL: sensor_weight_new_obj_ = %f", sensor_weight_new_obj_);
-  ROS_INFO("MCL: sensor_weight_map_obj_ = %f", sensor_weight_map_obj_);
-  ROS_INFO("MCL: sensor_weight_rand_effect_ = %f", sensor_weight_rand_effect_);
 }
 
 void MCLNode::printMapParams()

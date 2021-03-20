@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "mcl/dist.h"
-#include "mcl/util.h"
+#include "mcl/common.h"
 
 namespace localize
 {

@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "mcl/dist.h"
-#include "mcl/util.h"
+#include "mcl/common.h"
 
 #include "includes/RangeLib.h"
 
@@ -25,20 +25,20 @@ namespace localize
   {
   public:
     // Constructor
-    BeamModel(const float range_min,            // Sensor min range in meters
-              const float range_max,            // Sensor max range in meters
-              const float range_no_obj,         // Sensor range reported when nothing is detected
-              const float range_std_dev,        // Sensor range standard deviation
-              const float th_sample_res,        // Sensor angle resolution at which to sample observations (rad per sample)
-              const float th_raycast_res,       // Sensor angle resolution for raycast (rad per increment)
-              const float new_obj_decay_rate,   // Model decay rate for new (unexpected) object probability
-              const double weight_no_obj,       // Model weight for no object detected probability
-              const double weight_new_obj,      // Model weight for new (unexpected) object probability
-              const double weight_map_obj,      // Model weight for map (expected) object probability
-              const double weight_rand_effect,  // Model weight for random effect probability
-              const double uncertainty_factor,  // Model uncertainty factor - extra noise added to calculation
-              const double table_res,           // Model table resolution (meters per cell)
-              const Map& map                    // Map
+    BeamModel(const float range_min,                // Sensor min range in meters
+              const float range_max,                // Sensor max range in meters
+              const float range_no_obj,             // Sensor range reported when nothing is detected
+              const float range_std_dev,            // Sensor range standard deviation
+              const float new_obj_decay_rate,       // Model decay rate for new (unexpected) object probability
+              const double weight_no_obj,           // Model weight for no object detected probability
+              const double weight_new_obj,          // Model weight for new (unexpected) object probability
+              const double weight_map_obj,          // Model weight for map (expected) object probability
+              const double weight_rand_effect,      // Model weight for random effect probability
+              const double uncertainty_factor,      // Model uncertainty factor - extra noise added to calculation
+              const unsigned int th_sample_count,   // Number of sampled sensor observations to use (count per revolution)
+              const unsigned int th_raycast_count,  // Number of angles for raycast (count per revolution)
+              const double table_res,               // Model table resolution (meters per cell)
+              const Map& map                        // Map
              );
 
     // Applies the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
@@ -72,10 +72,19 @@ namespace localize
     // detected by the sensor
     float repair(const float range);
 
+    // Converts the range value to a corresponding index in the table
+    size_t tableIndex(const float range);
+
     // Precalculate weights given by the model for a discrete set of ranges and load this into the model lookup table
     // First axis is incremented by ranges observed from the sensor
     // Second axis is incremented by ranges calculated from the map
     void precalcProb();
+
+    // Retrieve from the model lookup table the probability of the observed range being the result of a new
+    // (unexpected) object, given the 'true' range determined from the map
+    double lookupProbNewObj(const float range_obs,
+                            const float range_map
+                           );
 
     // Retrieve from the model lookup table the overall probability of the observed range given the 'true' range
     // determined from the map
@@ -110,12 +119,13 @@ namespace localize
     double calcProbRandEffect(const float range_obs);
 
   private:
+    typedef std::vector<std::vector<double>> WeightTable;
+
     // Model parameters
     float range_min_;           // Sensor min range in meters
     float range_max_;           // Sensor max range in meters
     float range_no_obj_;        // Sensor range reported when nothing is detected
     float range_std_dev_;       // Sensor range standard deviation
-    float th_sample_res_;       // Sensor angle resolution at which to sample observations (rad per sample)
     float new_obj_decay_rate_;  // Model decay rate for new (unexpected) object probability
     double weight_no_obj_;      // Model weight for no object detected probability
     double weight_new_obj_;     // Model weight for new (unexpected) object probability
@@ -124,18 +134,17 @@ namespace localize
     double weights_sum_;        // Model weights sum
     double uncertainty_factor_; // Model uncertainty factor - extra noise added to calculation
 
-    // Model lookup table
+    // Model lookup tables
     // First axis is incremented by ranges observed from the sensor
     // Second axis is incremented by ranges calculated from the map
     // Values are weights that would be given by the model given ranges
     // observed by the sensor and ranges calculated by raycasting on the map
-    const double table_res_;                  // Model table resolution (meters per cell)
-    const size_t table_size_;                 // Model table size
-    std::vector<std::vector<double>> table_;  // Model lookup table
+    const double table_res_;  // Model table resolution (meters per cell)
+    const size_t table_size_; // Model table size
+    WeightTable weight_table_new_obj_;  // Model lookup table, new (unexpected) object probability
+    WeightTable weight_table_all_;      // Model lookup table, all weight components combined
 
-    const size_t rays_obs_sample_size_; // Number of downsampled observations
-    RayVector rays_obs_sample_;         // Downsampled observations
-
+    RayVector rays_obs_sample_;   // Downsampled observations
     ranges::CDDTCast raycaster_;  // Range calculator
 
     RNG rng_;  // Random number engine

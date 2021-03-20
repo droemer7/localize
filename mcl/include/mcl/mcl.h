@@ -8,7 +8,7 @@
 #include "mcl/dist.h"
 #include "mcl/motion.h"
 #include "mcl/sensor.h"
-#include "mcl/util.h"
+#include "mcl/common.h"
 
 namespace localize
 {
@@ -83,38 +83,38 @@ namespace localize
   {
   public:
     // Constructors
-    MCL(const unsigned int mcl_num_particles_min, // Minimum number of particles
-        const unsigned int mcl_num_particles_max, // Maximum number of particles
-        const double mcl_kld_eps,                 // KL distance threshold
-        const double mcl_hist_pos_res,            // Histogram resolution for x and y position (meters per cell)
-        const double mcl_hist_th_res,             // Histogram resolution for heading angle (rad per cell)
-        const double car_length,                  // Car length
-        const double motion_lin_vel_n1,           // Motion model linear velocity noise coefficient 1
-        const double motion_lin_vel_n2,           // Motion model linear velocity noise coefficient 2
-        const double motion_ang_vel_n1,           // Motion model angular velocity noise coefficient 1
-        const double motion_ang_vel_n2,           // Motion model angular velocity noise coefficient 2
-        const double motion_th_n1,                // Motion model final rotation noise coefficient 1
-        const double motion_th_n2,                // Motion model final rotation noise coefficient 2
-        const float sensor_range_min,             // Sensor min range in meters
-        const float sensor_range_max,             // Sensor max range in meters
-        const float sensor_range_no_obj,          // Sensor range reported when nothing is detected
-        const float sensor_range_std_dev,         // Sensor range standard deviation
-        const float sensor_th_sample_res,         // Sensor angle resolution at which to sample observations (rad per sample)
-        const float sensor_th_raycast_res,        // Sensor angle resolution for raycast (rad per increment)
-        const float sensor_new_obj_decay_rate,    // Sensor model decay rate for new (unexpected) object probability
-        const double sensor_weight_no_obj,        // Sensor model weight for no object detected probability
-        const double sensor_weight_new_obj,       // Sensor model weight for new (unexpected) object probability
-        const double sensor_weight_map_obj,       // Sensor model weight for map (expected) object probability
-        const double sensor_weight_rand_effect,   // Sensor model weight for random effect probability
-        const double sensor_uncertainty_factor,   // Sensor model uncertainty factor - extra noise added to calculation
-        const double sensor_table_res,            // Sensor model lookup table resolution (meters per cell)
-        const unsigned int map_width,             // Map number of pixels along x axis
-        const unsigned int map_height,            // Map number of pixels along y axis
-        const float map_x,                        // Map x translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_y,                        // Map y translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_th,                       // Map angle relative to world frame (read)
-        const float map_scale,                    // Map scale relative to world frame (meters per pixel)
-        const std::vector<int8_t> map_data        // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+    MCL(const unsigned int mcl_num_particles_min,   // Minimum number of particles
+        const unsigned int mcl_num_particles_max,   // Maximum number of particles
+        const double mcl_kld_eps,                   // KL distance threshold
+        const double mcl_hist_pos_res,              // Histogram resolution for x and y position (meters per cell)
+        const double mcl_hist_th_res,               // Histogram resolution for heading angle (rad per cell)
+        const double car_length,                    // Car length
+        const double motion_lin_vel_n1,             // Motion model linear velocity noise coefficient 1
+        const double motion_lin_vel_n2,             // Motion model linear velocity noise coefficient 2
+        const double motion_ang_vel_n1,             // Motion model angular velocity noise coefficient 1
+        const double motion_ang_vel_n2,             // Motion model angular velocity noise coefficient 2
+        const double motion_th_n1,                  // Motion model final rotation noise coefficient 1
+        const double motion_th_n2,                  // Motion model final rotation noise coefficient 2
+        const float sensor_range_min,               // Sensor min range in meters
+        const float sensor_range_max,               // Sensor max range in meters
+        const float sensor_range_no_obj,            // Sensor range reported when nothing is detected
+        const float sensor_range_std_dev,           // Sensor range standard deviation
+        const float sensor_new_obj_decay_rate,      // Sensor model decay rate for new (unexpected) object probability
+        const double sensor_weight_no_obj,          // Sensor model weight for no object detected probability
+        const double sensor_weight_new_obj,         // Sensor model weight for new (unexpected) object probability
+        const double sensor_weight_map_obj,         // Sensor model weight for map (expected) object probability
+        const double sensor_weight_rand_effect,     // Sensor model weight for random effect probability
+        const double sensor_uncertainty_factor,     // Sensor model uncertainty factor - extra noise added to calculation
+        const unsigned int sensor_th_sample_count,  // Number of sampled sensor observations to use (count per revolution)
+        const unsigned int sensor_th_raycast_count, // Number of angles for raycast (count per revolution)
+        const double sensor_table_res,              // Sensor model lookup table resolution (meters per cell)
+        const unsigned int map_width,               // Map number of pixels along x axis
+        const unsigned int map_height,              // Map number of pixels along y axis
+        const float map_x,                          // Map x translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_y,                          // Map y translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_th,                         // Map angle relative to world frame (read)
+        const float map_scale,                      // Map scale relative to world frame (meters per pixel)
+        const std::vector<int8_t> map_data          // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])

@@ -11,14 +11,14 @@ BeamModel::BeamModel(const float range_min,
                      const float range_max,
                      const float range_no_obj,
                      const float range_std_dev,
-                     const float th_sample_res,
-                     const float th_raycast_res,
                      const float new_obj_decay_rate,
                      const double weight_no_obj,
                      const double weight_new_obj,
                      const double weight_map_obj,
                      const double weight_rand_effect,
                      const double uncertainty_factor,
+                     const unsigned int th_sample_count,
+                     const unsigned int th_raycast_count,
                      const double table_res,
                      const Map& map
                     ) :
@@ -26,7 +26,6 @@ BeamModel::BeamModel(const float range_min,
   range_max_(range_max),
   range_no_obj_(range_no_obj),
   range_std_dev_(range_std_dev),
-  th_sample_res_(th_sample_res),
   new_obj_decay_rate_(new_obj_decay_rate),
   weight_no_obj_(weight_no_obj),
   weight_new_obj_(weight_new_obj),
@@ -40,27 +39,21 @@ BeamModel::BeamModel(const float range_min,
   uncertainty_factor_(uncertainty_factor),
   table_res_(table_res),
   table_size_(range_max / table_res + 1),
-  table_(table_size_, std::vector<double>(table_size_)),
-  rays_obs_sample_size_(std::round(M_2PI / th_sample_res_)),
+  weight_table_new_obj_(table_size_, std::vector<double>(table_size_)),
+  weight_table_all_(table_size_, std::vector<double>(table_size_)),
+  rays_obs_sample_(th_sample_count),
   raycaster_(map,
              range_max / map.scale,
-             std::round(M_2PI / th_raycast_res)
+             th_raycast_count
             ),
-  th_sample_dist_(0.0, th_sample_res_)
+  th_sample_dist_(0.0, th_sample_count / M_2PI)
 {
-  if (th_sample_res_ > M_2PI)
-  {
-    printf("BeamModel: Warning - angle sample resolution greater than 2pi, using default pi / 4.0 \
-            Units are in radians, not degrees.\n"
-          );
-    th_sample_res_ = M_PI / 4.0;
-  }
   if (uncertainty_factor_ < 1.0)
   {
     printf("BeamModel: Warning - model uncertainty factor less than 1, using 1 (none)\n");
     uncertainty_factor_ = 1.0;
   }
-  // Precalculate the sensor model and save to the lookup table
+  // Precalculate the sensor model and create tables
   precalcProb();
 }
 
@@ -72,7 +65,7 @@ void BeamModel::apply(Particle& particle,
   float range_obs = 0.0;
   float range_map = 0.0;
 
-  for (size_t i = 0; i < rays_obs_sample_size_; ++i) {
+  for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
     // Compute range from the map
     range_map = raycaster_.calc_range(particle.x_,
                                       particle.y_,
@@ -97,7 +90,7 @@ void BeamModel::apply(Particle& particle,
                       const bool calc_enable
                      )
 {
-  // Sample from the observation
+  // Sample and update from the observation
   update(obs);
 
   // Update particle weight
@@ -125,7 +118,7 @@ void BeamModel::apply(ParticleDistribution& dist,
                       const bool calc_enable
                      )
 {
-  // Sample from the observation
+  // Sample and update the observation
   update(obs);
 
   // Update particle weights
@@ -141,21 +134,20 @@ void BeamModel::update(const RayScan& obs)
 
 RayVector BeamModel::sample(const RayScan& obs)
 {
-  size_t rays_obs_size = obs.rays_.size();
-  RayVector rays_obs_sample(rays_obs_sample_size_);
+  RayVector rays_obs_sample(rays_obs_sample_.size());
 
   // More than one observation
-  if (   rays_obs_size > 1
-      && rays_obs_sample_size_ > 0
+  if (   obs.rays_.size() > 1
+      && rays_obs_sample.size() > 0
      ) {
     // Generate a random offset for the sampled set to start from
-    size_t o_step_size = static_cast<size_t>(th_sample_res_ / obs.th_inc_);
+    size_t o_step_size = static_cast<size_t>((rays_obs_sample.size() / M_2PI) / obs.th_inc_);
     size_t o = th_sample_dist_(rng_.engine()) / obs.th_inc_;
     size_t s = 0;
 
     // Iterate through both arrays selecting the desired amount of samples
-    while (   o < rays_obs_size
-           && s < rays_obs_sample_size_
+    while (   o < obs.rays_.size()
+           && s < rays_obs_sample.size()
           ) {
       rays_obs_sample[s++] = obs.rays_[o];
       o += o_step_size;
@@ -163,8 +155,8 @@ RayVector BeamModel::sample(const RayScan& obs)
     rays_obs_sample.resize(s);
   }
   // Only one observation
-  else if (   rays_obs_size == 1
-           && rays_obs_sample_size_ > 0
+  else if (   obs.rays_.size() == 1
+           && rays_obs_sample.size() > 0
           ) {
     rays_obs_sample[0] = obs.rays_[0];
     rays_obs_sample.resize(1);
@@ -191,25 +183,31 @@ void BeamModel::precalcProb()
 
     for (size_t j = 0; j < table_size_; ++j) {
       range_map = table_res_ * j;
-      table_[i][j] = calcProb(range_obs, range_map);
+      weight_table_new_obj_[i][j] = calcProbNewObj(range_obs, range_map);
+      weight_table_all_[i][j] = calcProb(range_obs, range_map);
     }
   }
+}
+
+size_t BeamModel::tableIndex(const float range)
+{
+  return std::min(std::max(0.0, range / table_res_),
+                  static_cast<double>(table_size_ - 1)
+                 );
+}
+
+double BeamModel::lookupProbNewObj(const float range_obs,
+                                   const float range_map
+                                  )
+{
+  return weight_table_new_obj_[tableIndex(range_obs)][tableIndex(range_map)];
 }
 
 double BeamModel::lookupProb(const float range_obs,
                              const float range_map
                             )
 {
-  // Calculate sensor model table indexes for lookup
-  size_t range_obs_table_i = std::min(std::max(0.0, range_obs / table_res_),
-                                      static_cast<double>(table_size_ - 1)
-                                     );
-  size_t range_map_table_i = std::min(std::max(0.0, range_map / table_res_),
-                                      static_cast<double>(table_size_ - 1)
-                                     );
-
-  // Lookup probability
-  return table_[range_obs_table_i][range_map_table_i];
+  return weight_table_all_[tableIndex(range_obs)][tableIndex(range_map)];
 }
 
 double BeamModel::calcProb(const float range_obs,
