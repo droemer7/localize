@@ -13,10 +13,6 @@ namespace localize
 
     ParticleDistribution(const size_t max_count);  // Number of particles for which to reserve space
 
-    ParticleDistribution(const ParticleVector& particles, // Particles
-                         const size_t count               // Number of particles in use
-                        );
-
     // Copies new particles to the distribution and updates size, does not do anything else
     void copy(const ParticleVector& particles,
               const size_t count = 0

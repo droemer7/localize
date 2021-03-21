@@ -28,6 +28,7 @@ const double localize::SENSOR_WEIGHT_NEW_OBJ = 4.0;
 const double localize::SENSOR_WEIGHT_MAP_OBJ = 80.0;
 const double localize::SENSOR_WEIGHT_RAND_EFFECT = 1.0;
 const double localize::SENSOR_UNCERTAINTY_FACTOR = 1.1;
+const double localize::SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD = 0.5;
 const double localize::SENSOR_TABLE_RES = 0.005;
 const unsigned int localize::TH_SAMPLE_COUNT = 8;
 const unsigned int localize::TH_RAYCAST_COUNT = 656;
@@ -42,7 +43,8 @@ Particle::Particle(const double x,
   y_(y),
   th_(th),
   weight_(weight),
-  weight_normed_(weight_normed)
+  weight_normed_(weight_normed),
+  weights_(TH_SAMPLE_COUNT, 0.0)
 {}
 
 Ray::Ray(const float range,
@@ -51,6 +53,28 @@ Ray::Ray(const float range,
   range_(range),
   th_(th)
 {}
+
+RaySample::RaySample(const float range,
+                     const float th,
+                     const double weight_new_obj_sum,
+                     const double weight_sum
+                    ) :
+  Ray(range, th),
+  weight_new_obj_sum_(weight_new_obj_sum),
+  weight_sum_(weight_sum)
+{}
+
+RaySample::RaySample(const Ray& ray) :
+  RaySample(ray.range_, ray.th_)
+{}
+
+void RaySample::operator=(const Ray& ray)
+{
+  range_ = ray.range_;
+  th_ = ray.th_;
+
+  return;
+}
 
 RayScan::RayScan(RayVector rays,
                  float th_inc,

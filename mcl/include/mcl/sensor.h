@@ -41,7 +41,8 @@ namespace localize
               const Map& map                        // Map
              );
 
-    // Applies the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
+    // Apply the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
+    // This overload does not do outlier rejection - use apply(distribution) for this
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
     void apply(Particle& particle,
                const bool calc_enable = false
@@ -61,12 +62,12 @@ namespace localize
                const bool calc_enable = false
               );
 
-    // Updates the latest saved observation by sampling from the input observation
+    // Update the latest saved observation by sampling from the input observation
     void update(const RayScan& obs);
 
   private:
     // Generate a subset of ranges sampled from the full scan using the preset angle sample increment
-    RayVector sample(const RayScan& obs);
+    RaySampleVector sample(const RayScan& obs);
 
     // Convert NaN, negative ranges and any range beyond the configured max to the range reported when nothing is
     // detected by the sensor
@@ -74,6 +75,10 @@ namespace localize
 
     // Converts the range value to a corresponding index in the table
     size_t tableIndex(const float range);
+
+    // Removes the contribution of outliers to the particle weights
+    // Outlier weights are those derived from range observations which were likely detecting new (unexpected) objects
+    void removeOutliers(ParticleDistribution& dist);
 
     // Precalculate weights given by the model for a discrete set of ranges and load this into the model lookup table
     // First axis is incremented by ranges observed from the sensor
@@ -127,11 +132,11 @@ namespace localize
     float range_no_obj_;        // Sensor range reported when nothing is detected
     float range_std_dev_;       // Sensor range standard deviation
     float new_obj_decay_rate_;  // Model decay rate for new (unexpected) object probability
+    double weights_sum_;        // Model weights sum (for normalization)
     double weight_no_obj_;      // Model weight for no object detected probability
     double weight_new_obj_;     // Model weight for new (unexpected) object probability
     double weight_map_obj_;     // Model weight for map (expected) object probability
     double weight_rand_effect_; // Model weight for random effect probability
-    double weights_sum_;        // Model weights sum
     double uncertainty_factor_; // Model uncertainty factor - extra noise added to calculation
 
     // Model lookup tables
@@ -142,10 +147,10 @@ namespace localize
     const double table_res_;  // Model table resolution (meters per cell)
     const size_t table_size_; // Model table size
     WeightTable weight_table_new_obj_;  // Model lookup table, new (unexpected) object probability
-    WeightTable weight_table_all_;      // Model lookup table, all weight components combined
+    WeightTable weight_table_;          // Model lookup table, all weight components combined
 
-    RayVector rays_obs_sample_;   // Downsampled observations
-    ranges::CDDTCast raycaster_;  // Range calculator
+    RaySampleVector rays_obs_sample_; // Downsampled observations
+    ranges::CDDTCast raycaster_;      // Range calculator
 
     RNG rng_;  // Random number engine
     std::uniform_real_distribution<double> th_sample_dist_;  // Distribution of initial sample angle offsets

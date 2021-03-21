@@ -8,6 +8,7 @@
 #include <mutex>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "includes/RangeLib.h"
@@ -38,17 +39,18 @@ namespace localize
   extern const double MOTION_TH_N2;       // Motion model final rotation noise coefficient 2
 
   // Sensor model parameters
-  extern const float SENSOR_RANGE_NO_OBJ;         // Sensor range reported when nothing is detected
-  extern const float SENSOR_RANGE_STD_DEV;        // Sensor range standard deviation
-  extern const float SENSOR_NEW_OBJ_DECAY_RATE;   // Sensor model decay rate for new (unexpected) object probability
-  extern const double SENSOR_WEIGHT_NO_OBJ;       // Sensor model weight for no object detected probability
-  extern const double SENSOR_WEIGHT_NEW_OBJ;      // Sensor model weight for new (unexpected) object probability
-  extern const double SENSOR_WEIGHT_MAP_OBJ;      // Sensor model weight for map (expected) object probability
-  extern const double SENSOR_WEIGHT_RAND_EFFECT;  // Sensor model weight for random effect probability
-  extern const double SENSOR_UNCERTAINTY_FACTOR;  // Sensor model uncertainty factor - extra noise added to calculation
-  extern const double SENSOR_TABLE_RES;           // Resolution of the sensor model table (m per index)
-  extern const unsigned int TH_SAMPLE_COUNT;      // Number of sampled sensor observations to use (count per revolution)
-  extern const unsigned int TH_RAYCAST_COUNT;     // Number of angles for raycast (count per revolution)
+  extern const float SENSOR_RANGE_NO_OBJ;                     // Sensor range reported when nothing is detected
+  extern const float SENSOR_RANGE_STD_DEV;                    // Sensor range standard deviation
+  extern const float SENSOR_NEW_OBJ_DECAY_RATE;               // Sensor model decay rate for new (unexpected) object probability
+  extern const double SENSOR_WEIGHT_NO_OBJ;                   // Sensor model weight for no object detected probability
+  extern const double SENSOR_WEIGHT_NEW_OBJ;                  // Sensor model weight for new (unexpected) object probability
+  extern const double SENSOR_WEIGHT_MAP_OBJ;                  // Sensor model weight for map (expected) object probability
+  extern const double SENSOR_WEIGHT_RAND_EFFECT;              // Sensor model weight for random effect probability
+  extern const double SENSOR_UNCERTAINTY_FACTOR;              // Sensor model uncertainty factor - extra noise added to calculation
+  extern const double SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD;  // Sensor model threshold for rejecting ray samples due to being a new (unexpected) object
+  extern const double SENSOR_TABLE_RES;                       // Resolution of the sensor model table (m per index)
+  extern const unsigned int TH_SAMPLE_COUNT;                  // Number of sampled sensor observations to use (count per revolution)
+  extern const unsigned int TH_RAYCAST_COUNT;                 // Number of angles for raycast (count per revolution)
 
   // A particle with 2D location, heading angle and weight
   struct Particle
@@ -66,6 +68,7 @@ namespace localize
     double th_;             // Heading angle (rad)
     double weight_;         // Importance weight (not normalized)
     double weight_normed_;  // Normalized importance weight
+    std::vector<double> weights_; // Partial importance weights listed by sample angle index
   };
 
   typedef std::vector<Particle> ParticleVector;
@@ -83,6 +86,27 @@ namespace localize
   };
 
   typedef std::vector<Ray> RayVector;
+
+  // A ray with cumulative probabilities for p(new object) and p(all)
+  // This class is used in range scanner based models for outlier rejection of short range measurements
+  struct RaySample : Ray
+  {
+    // Constructors
+    explicit RaySample(const float range = 0.0,               // Range (meters)
+                       const float th = 0.0,                  // Angle (rad)
+                       const double weight_new_obj_sum = 0.0, // Sum of weights across the distribution for this angle representing a new (unexpected) object
+                       const double weight_sum = 0.0          // Sum of weights across the distribution for this angle
+                      );
+
+    explicit RaySample(const Ray& ray);
+
+    void operator=(const Ray& ray);
+
+    double weight_new_obj_sum_; // Sum of weights across the distribution for this angle representing a new (unexpected) object
+    double weight_sum_;         // Sum of weights across the distribution for this angle
+  };
+
+  typedef std::vector<RaySample> RaySampleVector;
 
   // Rayscan data
   struct RayScan
@@ -157,18 +181,30 @@ namespace localize
   template <class T>
   class SmoothedValue
   {
+    static_assert(std::is_floating_point<T>::value, "SmoothedValue: T must be a floating point type");
+
   public:
-    SmoothedValue(const T val,      // Initial value
-                  const double rate // Smoothing rate
-                 ):
-      val_(val),
-      rate_(rate)
+    // Constructors
+    explicit SmoothedValue(const double rate) : // Smoothing rate
+      rate_(rate),
+      val_(0.0),
+      initialized_(false)
     {}
+
+    SmoothedValue(const double rate,  // Smoothing rate
+                  const T val         // Initial value
+                 ):
+      SmoothedValue(rate)
+    {
+      update(val);
+    }
 
     // Update and return the new value
     void update(const T val)
     {
-      val_ += rate_ * (val - val_);
+      val_ = initialized_ ? val_ + rate_ * (val - val_) :
+                            val;
+      initialized_ = true;
       return;
     }
 
@@ -176,13 +212,21 @@ namespace localize
     operator T() const
     { return val_; }
 
-    // Reset the value
-    void reset(const T val = 0.0)
-    { val_ = val; }
+    // Resets the internal state so the next update will set the initial value
+    void reset()
+    { initialized_ = false; }
+
+    // Resets the value to the one specified
+    void reset(const T val)
+    {
+      reset();
+      update(val);
+    }
 
   private:
-    T val_;
     double rate_;
+    T val_;
+    bool initialized_;
   };
 
   // Approximate equality check for floating point values
@@ -299,7 +343,7 @@ namespace localize
   }
 
   // Save data to file in CSV format
-  inline void save(const RayVector& rays,
+  inline void save(const std::vector<RaySample>& rays,
                    const std::string filename,
                    const bool overwrite = true
                   )
@@ -310,7 +354,7 @@ namespace localize
                         );
     output << "Rays\n";
     output << "range, theta (deg)\n";
-    for (const Ray& ray : rays) {
+    for (const RaySample& ray : rays) {
       output << std::fixed << std::setprecision(3) << ray.range_ << ", " << ray.th_ * 180.0 / M_PI << ", " << "\n";
     }
     output.close();

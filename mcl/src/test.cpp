@@ -199,5 +199,16 @@ int main(int argc, char** argv)
   }
   dist.update(samples, samples.size());
 
+  SmoothedValue<double> smoothDouble(0.5);
+
+  smoothDouble.update(1.0);
+
+  printf("value = %.4f\n", static_cast<double>(smoothDouble));
+  smoothDouble.update(200.0);
+  //smoothDouble.update(200.0);
+  //smoothDouble.update(200.0);
+
+  printf("value = %.4f\n", static_cast<double>(smoothDouble));
+
   return 0;
 }

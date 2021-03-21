@@ -2,16 +2,16 @@
 
 static const double WEIGHT_AVG_CREEP_RATE = 0.005;
 static const double WEIGHT_AVG_SLOW_RATE = 0.100;
-static const double WEIGHT_AVG_FAST_RATE = 0.333;
+static const double WEIGHT_AVG_FAST_RATE = 0.500;
 
 using namespace localize;
 
 ParticleDistribution::ParticleDistribution() :
   count_(0),
   weight_sum_(0.0),
-  weight_avg_creep_(-1.0, WEIGHT_AVG_CREEP_RATE),
-  weight_avg_slow_(-1.0, WEIGHT_AVG_SLOW_RATE),
-  weight_avg_fast_(-1.0, WEIGHT_AVG_FAST_RATE),
+  weight_avg_creep_(WEIGHT_AVG_CREEP_RATE),
+  weight_avg_slow_(WEIGHT_AVG_SLOW_RATE),
+  weight_avg_fast_(WEIGHT_AVG_FAST_RATE),
   weight_var_(0.0),
   weight_std_dev_(0.0),
   weight_relative_std_dev_(0.0),
@@ -29,14 +29,6 @@ ParticleDistribution::ParticleDistribution(const size_t max_count) :
     particles_.reserve(max_count);
     particles_.resize(max_count);
   }
-}
-
-ParticleDistribution::ParticleDistribution(const ParticleVector& particles,
-                                           const size_t count
-                                          ) :
-  ParticleDistribution()
-{
-  update(particles, count);
 }
 
 void ParticleDistribution::copy(const ParticleVector& particles,
@@ -65,7 +57,6 @@ void ParticleDistribution::copy(const ParticleVector& particles,
 
 void ParticleDistribution::update()
 {
-  // printf("Last sample taken = %lu\n", sample_s_);  // TBD remove
   calcWeightStats();
   resetSampler();
 }
@@ -145,17 +136,10 @@ void ParticleDistribution::calcWeightStats()
     }
     // Calculate and update weight averages
     double weight_avg = weight_sum_ / count_;
+    weight_avg_creep_.update(weight_avg);
+    weight_avg_slow_.update(weight_avg);
+    weight_avg_fast_.update(weight_avg);
 
-    if (weight_avg_fast_ >= 0.0) {
-      weight_avg_creep_.update(weight_avg);
-      weight_avg_slow_.update(weight_avg);
-      weight_avg_fast_.update(weight_avg);
-    }
-    else {
-      weight_avg_creep_.reset(weight_avg);
-      weight_avg_slow_.reset(weight_avg);
-      weight_avg_fast_.reset(weight_avg);
-    }
     // Update normalized weights and calculate weight variance based on current weight average
     weight_var_ = 0.0;
     double weight_normalizer = weight_sum_ > 0.0 ? 1 / weight_sum_ : 0.0;
@@ -175,17 +159,14 @@ void ParticleDistribution::calcWeightStats()
   else {
     // No particles, reinitialize
     weight_sum_ = 0.0;
-    weight_avg_creep_.reset(-1.0);
-    weight_avg_slow_.reset(-1.0);
-    weight_avg_fast_.reset(-1.0);
+    weight_avg_creep_.reset(0.0);
+    weight_avg_slow_.reset(0.0);
+    weight_avg_fast_.reset(0.0);
     weight_var_ = 0.0;
     weight_std_dev_ = 0.0;
     weight_relative_std_dev_ = 0.0;
   }
   printf("Weight average = %.2e\n", weightAvg());
-  printf("Weight average [fast] = %.2e\n", static_cast<double>(weight_avg_fast_));
-  printf("Weight average [slow] = %.2e\n", static_cast<double>(weight_avg_slow_));
-  printf("Weight average [creep] = %.2e\n", static_cast<double>(weight_avg_creep_));
   printf("Weight ratio = %.2f\n", weightAvgRatio());
   printf("Weight variance = %.2e\n", weightVar());
   printf("Weight std dev = %.2e\n", weightStdDev());

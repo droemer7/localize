@@ -10,7 +10,7 @@ static const double WEIGHT_THRESHOLD_CONSISTENCY = 0.5; // Threshold below which
 static const double WEIGHT_THRESHOLD_LOST = 1e-10;      // Threshold below which we assume we are lost (required for random sampling)
 static const double Z_P_01 = 2.3263478740;              // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;                      // Fraction 2/9
-static const int NUM_UPDATES = 10;                      // TBD remove
+static const int NUM_UPDATES = 2;                       // TBD remove
 
 using namespace localize;
 
@@ -205,7 +205,7 @@ void MCL::update(const RayScan&& obs)
   sensor_model_.update(obs);
 
   // Only update if moving
-  if (!stopped()) {
+  // if (!stopped()) {
     printf("\n***** Update %lu *****\n", update_num_ + 1);
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
@@ -216,7 +216,7 @@ void MCL::update(const RayScan&& obs)
       sample();
     }
     update_num_++;
-  }
+  // }
   // TBD remove
   if (   stopped()
       && update_num_ >= NUM_UPDATES
