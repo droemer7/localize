@@ -41,13 +41,13 @@ namespace localize
   // Sensor model parameters
   extern const float SENSOR_RANGE_NO_OBJ;                     // Sensor range reported when nothing is detected
   extern const float SENSOR_RANGE_STD_DEV;                    // Sensor range standard deviation
-  extern const float SENSOR_NEW_OBJ_DECAY_RATE;               // Sensor model decay rate for new (unexpected) object probability
+  extern const float SENSOR_NEW_OBJ_DECAY_RATE;               // Sensor model decay rate for new / unexpected object probability
   extern const double SENSOR_WEIGHT_NO_OBJ;                   // Sensor model weight for no object detected probability
-  extern const double SENSOR_WEIGHT_NEW_OBJ;                  // Sensor model weight for new (unexpected) object probability
-  extern const double SENSOR_WEIGHT_MAP_OBJ;                  // Sensor model weight for map (expected) object probability
+  extern const double SENSOR_WEIGHT_NEW_OBJ;                  // Sensor model weight for new / unexpected object probability
+  extern const double SENSOR_WEIGHT_MAP_OBJ;                  // Sensor model weight for mapped / expected object probability
   extern const double SENSOR_WEIGHT_RAND_EFFECT;              // Sensor model weight for random effect probability
   extern const double SENSOR_UNCERTAINTY_FACTOR;              // Sensor model uncertainty factor - extra noise added to calculation
-  extern const double SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD;  // Sensor model threshold for rejecting ray samples due to being a new (unexpected) object
+  extern const double SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD;  // Sensor model threshold for rejecting ray samples due to being a new / unexpected object
   extern const double SENSOR_TABLE_RES;                       // Resolution of the sensor model table (m per index)
   extern const unsigned int TH_SAMPLE_COUNT;                  // Number of sampled sensor observations to use (count per revolution)
   extern const unsigned int TH_RAYCAST_COUNT;                 // Number of angles for raycast (count per revolution)
@@ -94,7 +94,7 @@ namespace localize
     // Constructors
     explicit RaySample(const float range = 0.0,               // Range (meters)
                        const float th = 0.0,                  // Angle (rad)
-                       const double weight_new_obj_sum = 0.0, // Sum of weights across the distribution for this angle representing a new (unexpected) object
+                       const double weight_new_obj_sum = 0.0, // Sum of weights across the distribution for this angle representing a new / unexpected object
                        const double weight_sum = 0.0          // Sum of weights across the distribution for this angle
                       );
 
@@ -102,7 +102,7 @@ namespace localize
 
     void operator=(const Ray& ray);
 
-    double weight_new_obj_sum_; // Sum of weights across the distribution for this angle representing a new (unexpected) object
+    double weight_new_obj_sum_; // Sum of weights across the distribution for this angle representing a new / unexpected object
     double weight_sum_;         // Sum of weights across the distribution for this angle
   };
 
@@ -125,6 +125,8 @@ namespace localize
     float t_inc_;     // Time increment between ray elements (sec per index)
     float t_dur_;     // Scan duration (sec)
   };
+
+  typedef std::vector<RayScan> RayScanVector;
 
   // Map class constructed with ROS coordinate space conversion parameters
   // Used by RangeLib

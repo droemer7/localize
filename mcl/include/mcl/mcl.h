@@ -77,8 +77,6 @@ namespace localize
   // Monte-Carlo Localization
   // Localization technique to approximate the possible distribution of poses
   // by a set of random samples drawn from its probability distribution.
-  // The probability distribution is calculated by modeling the robot's motion
-  // and sensor.
   class MCL
   {
   public:
@@ -99,10 +97,10 @@ namespace localize
         const float sensor_range_max,               // Sensor max range in meters
         const float sensor_range_no_obj,            // Sensor range reported when nothing is detected
         const float sensor_range_std_dev,           // Sensor range standard deviation
-        const float sensor_new_obj_decay_rate,      // Sensor model decay rate for new (unexpected) object probability
+        const float sensor_new_obj_decay_rate,      // Sensor model decay rate for new / unexpected object probability
         const double sensor_weight_no_obj,          // Sensor model weight for no object detected probability
-        const double sensor_weight_new_obj,         // Sensor model weight for new (unexpected) object probability
-        const double sensor_weight_map_obj,         // Sensor model weight for map (expected) object probability
+        const double sensor_weight_new_obj,         // Sensor model weight for new / unexpected object probability
+        const double sensor_weight_map_obj,         // Sensor model weight for mapped / expected object probability
         const double sensor_weight_rand_effect,     // Sensor model weight for random effect probability
         const double sensor_uncertainty_factor,     // Sensor model uncertainty factor - extra noise added to calculation
         const unsigned int sensor_th_sample_count,  // Number of sampled sensor observations to use (count per revolution)
@@ -152,9 +150,11 @@ namespace localize
     const double kld_eps_;            // KL distance threshold
     double vel_;                      // Robot linear velocity
 
-    const Map map_;           // Map
-    VelModel motion_model_;   // Motion model
-    BeamModel sensor_model_;  // Sensor model
+    const Map map_;                 // Map
+    VelModel motion_model_;         // Motion model
+    BeamModel sensor_model_;        // Sensor model
+    ParticleVector particle_data_;  // Particle data saved for offline tuning / analysis
+    RayScanVector sensor_data_;     // Sensor data saved for offline tuning / analysis
 
     ParticleDistribution dist_;           // Particle distribution
     ParticleVector samples_;              // Sampled particles (temporary storage)

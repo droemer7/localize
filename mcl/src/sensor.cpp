@@ -54,7 +54,7 @@ BeamModel::BeamModel(const float range_min,
     uncertainty_factor_ = 1.0;
   }
   // Precalculate the sensor model and create tables
-  precalcProb();
+  precalcWeightedProbs();
 }
 
 void BeamModel::apply(Particle& particle,
@@ -77,11 +77,11 @@ void BeamModel::apply(Particle& particle,
     range_obs = repair(rays_obs_sample_[i].range_);
     range_map = repair(range_map);
 
-    // Calculate measurement probabilities for this particle
-    weight_partial_new_obj = calc_enable ? calcProbNewObj(range_obs, range_map) :
-                                           lookupProbNewObj(range_obs, range_map);
-    weight_partial = calc_enable ? calcProb(range_obs, range_map) :
-                                   lookupProb(range_obs, range_map);
+    // Calculate observed range probabilities for this particle
+    weight_partial_new_obj = calc_enable ? calcWeightedProbNewObj(range_obs, range_map) :
+                                           lookupWeightedProbNewObj(range_obs, range_map);
+    weight_partial = calc_enable ? calcWeightedProb(range_obs, range_map) :
+                                   lookupWeightedProb(range_obs, range_map);
 
     // Update weight sums for this sampled ray
     rays_obs_sample_[i].weight_new_obj_sum_ += weight_partial_new_obj;
@@ -93,20 +93,6 @@ void BeamModel::apply(Particle& particle,
   }
   // Update full weight, applying overall model uncertainty
   particle.weight_ = std::pow(weight, uncertainty_factor_);
-  return;
-}
-
-void BeamModel::apply(Particle& particle,
-                      const RayScan& obs,
-                      const bool calc_enable
-                     )
-{
-  // Sample and update from the observation
-  update(obs);
-
-  // Update particle weight
-  apply(particle, calc_enable);
-
   return;
 }
 
@@ -146,6 +132,86 @@ void BeamModel::update(const RayScan& obs)
   rays_obs_sample_ = sample(obs);
 }
 
+void BeamModel::tune(const RayScanVector& obs,
+                     const Particle& particle
+                    )
+{
+  printf("===== Sensor tuning =====\n");
+  size_t n = 0;
+  size_t count = 0;
+  double prob_sum = 0.0;
+  double range_obs = 0.0;
+  double range_map = 0.0;
+  double prob_no_obj = 0.0;
+  double prob_new_obj = 0.0;
+  double prob_map_obj = 0.0;
+  double prob_rand_effect = 0.0;
+  std::vector<double> probs_no_obj;
+  std::vector<double> probs_new_obj;
+  std::vector<double> probs_map_obj;
+  std::vector<double> probs_rand_effect;
+
+  while (n < 100) { // TBD change this into a real convergence condition
+    for (size_t i = 0; i < obs.size(); ++i) {
+      for (size_t j = 0; j < obs[i].rays_.size(); ++j) {
+        range_obs = obs[i].rays_[j].range_;
+        range_map = raycaster_.calc_range(particle.x_,
+                                          particle.y_,
+                                          particle.th_ + obs[i].rays_[j].th_
+                                         );
+        prob_no_obj = calcProbNoObj(range_obs);
+        prob_new_obj = calcProbNewObj(range_obs, range_map);
+        prob_map_obj = calcProbMapObj(range_obs, range_map);
+        prob_rand_effect = calcProbRandEffect(range_obs);
+        prob_sum = (  prob_no_obj
+                    + prob_new_obj
+                    + prob_map_obj
+                    + prob_rand_effect
+                   );
+        probs_no_obj.push_back(prob_sum > 0.0 ? prob_no_obj / prob_sum : 0.0);
+        probs_new_obj.push_back(prob_sum > 0.0 ? prob_new_obj / prob_sum : 0.0);
+        probs_map_obj.push_back(prob_sum > 0.0 ? prob_map_obj / prob_sum : 0.0);
+        probs_rand_effect.push_back(prob_sum > 0.0 ? prob_rand_effect / prob_sum : 0.0);
+
+        ++count;
+      }
+    }
+    if (count > 0) {
+      double probs_sum_no_obj = 0.0;
+      double probs_sum_new_obj = 0.0;
+      double probs_sum_new_obj_range = 0.0;
+      double probs_sum_map_obj = 0.0;
+      double probs_sum_map_obj_err_sq = 0.0;
+      double probs_sum_rand_effect = 0.0;
+
+      for (size_t i = 0; i < probs_no_obj.size(); ++i) {
+        probs_sum_no_obj += probs_no_obj[i];
+        probs_sum_new_obj += probs_new_obj[i];
+        probs_sum_new_obj_range += probs_new_obj[i] * range_obs;
+        probs_sum_map_obj += probs_map_obj[i];
+        probs_sum_map_obj_err_sq += probs_map_obj[i] * (range_obs - range_map) * (range_obs - range_map);
+        probs_sum_rand_effect += probs_rand_effect[i];
+      }
+      weight_no_obj_ = probs_sum_no_obj / count;
+      weight_new_obj_ = probs_sum_new_obj / count;
+      weight_map_obj_ = probs_sum_map_obj / count;
+      weight_rand_effect_ = probs_sum_rand_effect / count;
+      range_std_dev_ = probs_sum_map_obj > 0.0 ? std::sqrt(probs_sum_map_obj_err_sq / probs_sum_map_obj) :
+                                                 range_std_dev_;
+      new_obj_decay_rate_ = probs_sum_new_obj_range > 0.0 ? probs_sum_new_obj / probs_sum_new_obj_range :
+                                                            new_obj_decay_rate_;
+    }
+    ++n;
+  }
+  printf("Weight no object = %.4f\n", weight_no_obj_);
+  printf("Weight new object = %.4f\n", weight_new_obj_);
+  printf("Weight map object = %.4f\n", weight_map_obj_);
+  printf("Weight random effect = %.4f\n", weight_rand_effect_);
+  printf("Range sigma = %.4f\n", range_std_dev_);
+  printf("New object decay rate = %.4f\n", new_obj_decay_rate_);
+  printf("===== Sensor tuning complete =====\n");
+}
+
 RaySampleVector BeamModel::sample(const RayScan& obs)
 {
   RaySampleVector rays_obs_sample(rays_obs_sample_.size());
@@ -175,7 +241,6 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
     rays_obs_sample[0] = obs.rays_[0];
     rays_obs_sample.resize(1);
   }
-  save(rays_obs_sample, "rays_sample.csv");  // TBD remove
   return rays_obs_sample;
 }
 
@@ -188,18 +253,78 @@ float BeamModel::repair(float range)
          range_no_obj_ : range;
 }
 
-void BeamModel::precalcProb()
+// TBD remove print statements
+void BeamModel::removeOutliers(ParticleDistribution& dist)
 {
-  float range_obs = 0.0;
-  float range_map = 0.0;
+  // Calculate ratios and pair them with their index
+  std::vector<std::pair<size_t, double>> weight_ratios(rays_obs_sample_.size());
 
-  for (size_t i = 0; i < table_size_; ++i) {
-    range_obs = table_res_ * i;
+  for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
+    weight_ratios[i].first = i;
 
-    for (size_t j = 0; j < table_size_; ++j) {
-      range_map = table_res_ * j;
-      weight_table_new_obj_[i][j] = calcProbNewObj(range_obs, range_map);
-      weight_table_[i][j] = calcProb(range_obs, range_map);
+    if (rays_obs_sample_[i].weight_sum_ > 0) {
+      weight_ratios[i].second = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
+    }
+    else {
+      weight_ratios[i].second = 1.0;
+    }
+    // printf("Outlier ratio[%lu] = %.2e\n", weight_ratios[i].first, weight_ratios[i].second);
+  }
+  // Sort ratios according to worst outliers first, carrying along the corresponding weight index
+  auto worstDescending = [](const std::pair<size_t, double>& ratio_1, const std::pair<size_t, double>& ratio_2)
+                           { return ratio_1.second > ratio_2.second; };
+  std::sort(weight_ratios.begin(), weight_ratios.end(), worstDescending);
+
+  // Evaluate the sorted weight ratios list and remove the worst outliers, up to half at most
+  // Observed ranges and their corresponding weights are considered outliers if they appear
+  // likely to be due to a new / unexpected object
+  std::vector<size_t> weight_indexes_rejected;
+  size_t i = 0;
+
+  while (   i < weight_ratios.size()
+         && weight_indexes_rejected.size() < weight_ratios.size() / 2  // Only reject half at most so we aren't totally blind
+        ) {
+    // printf("Outlier ratio[%lu] = %.2e", weight_ratios[i].first, weight_ratios[i].second);
+
+    if (weight_ratios[i].second > SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD) {
+      weight_indexes_rejected.push_back(weight_ratios[i].first);
+      printf("rejected range = %.2f, angle = %.2f\n",
+             rays_obs_sample_[weight_ratios[i].first].range_, rays_obs_sample_[weight_ratios[i].first].th_ * 180.0 / M_PI
+            );
+    }
+    else {
+      // printf(", accepted range = %.2f, angle = %.2f\n",
+      //        rays_obs_sample_[weight_ratios[i].first].range_, rays_obs_sample_[weight_ratios[i].first].th_ * 180.0 / M_PI
+      //       );
+      // Once one is accepted, remaining ones will also be acceptable from sorting
+      break;
+    }
+    ++i;
+  }
+  // Recalculate weights, undoing the outlier contributions
+  double weight_partial = 0.0;
+
+  if (weight_indexes_rejected.size() > 0) {
+    for (size_t i = 0; i < dist.count(); ++i) {
+
+      // Reset weight for each rejected index
+      for (size_t j = 0; j < weight_indexes_rejected.size(); ++j) {
+        weight_partial = dist.particle(i).weights_[weight_indexes_rejected[j]];
+        weight_partial = std::pow(weight_partial, SENSOR_UNCERTAINTY_FACTOR);
+
+        if (weight_partial > 0.0) {
+          // printf("Rejecting outlier angle = %.2f, range = %.2f, ",
+          //        rays_obs_sample_[weight_ratios[j].first].th_ * 180.0 / M_PI,
+          //        rays_obs_sample_[weight_ratios[j].first].range_
+          //       );
+          // printf("weight before = %.2e, ", dist.particle(i).weight_);
+          dist.particle(i).weight_ /= weight_partial;
+          // printf("weight after = %.2e\n", dist.particle(i).weight_);
+        }
+        else {
+          dist.particle(i).weight_ = 1.0;
+        }
+      }
     }
   }
 }
@@ -211,92 +336,35 @@ size_t BeamModel::tableIndex(const float range)
                  );
 }
 
-void BeamModel::removeOutliers(ParticleDistribution& dist)
-{
-  // Find outlier rays
-  std::vector<size_t> rays_rejected;
-  size_t reject_count = 0;
-
-  for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
-    // An outlier if this observed ray looks likely to be a new (unexpected) object
-    printf("Rejection ratio[%lu] = %.2e\n", i, rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_);
-    if (   (  rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_
-            > SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD
-           )
-        && rays_rejected.size() < rays_obs_sample_.size() / 2  // Only reject half at most so we aren't totally blind
-       ) {
-      rays_rejected.push_back(i);
-      printf("Rejected ray[%lu], range = %.2f, angle = %.2f (deg)\n",
-             i, rays_obs_sample_[i].range_, rays_obs_sample_[i].th_ * 180.0 / M_PI
-            );
-    }
-  }
-  // Recalculate weights, undoing the outlier contributions
-  double weight_partial = 0.0;
-
-  if (rays_rejected.size() > 0) {
-    for (size_t i = 0; i < dist.count(); ++i) {
-      // Reset weight for each rejected index
-      for (size_t j = 0; j < rays_rejected.size(); ++j) {
-        weight_partial = dist.particle(i).weights_[rays_rejected[j]];
-
-        if (weight_partial > 0.0) {
-          dist.particle(i).weight_ /= weight_partial;
-        }
-        else {
-          dist.particle(i).weight_ = 1.0;
-        }
-      }
-    }
-  }
-}
-
-double BeamModel::lookupProbNewObj(const float range_obs,
-                                   const float range_map
-                                  )
+double BeamModel::lookupWeightedProbNewObj(const float range_obs,
+                                           const float range_map
+                                          )
 {
   return weight_table_new_obj_[tableIndex(range_obs)][tableIndex(range_map)];
 }
 
-double BeamModel::lookupProb(const float range_obs,
-                             const float range_map
-                            )
+double BeamModel::lookupWeightedProb(const float range_obs,
+                                     const float range_map
+                                    )
 {
   return weight_table_[tableIndex(range_obs)][tableIndex(range_map)];
 }
 
-double BeamModel::calcProb(const float range_obs,
-                           const float range_map
-                          )
-{
-  return (  calcProbNoObj(range_obs)
-          + calcProbNewObj(range_obs, range_map)
-          + calcProbMapObj(range_obs, range_map)
-          + calcProbRandEffect(range_obs)
-         );
-}
-
 double BeamModel::calcProbNoObj(const float range_obs)
 {
-  return weight_no_obj_ * approxEqual(range_obs,
-                                      range_no_obj_,
-                                      RANGE_EPSILON
-                                     );
+  return approxEqual(range_obs, range_no_obj_, RANGE_EPSILON);
 }
 
 double BeamModel::calcProbNewObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (   !approxEqual(range_obs,
-                      range_no_obj_,
-                      RANGE_EPSILON
-                     )
+  if (   !approxEqual(range_obs, range_no_obj_, RANGE_EPSILON)
       && range_obs <= range_map
      ) {
-    return weight_new_obj_ * (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
-                              / (1 - new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_map))
-                             );
+    return (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
+            / (1 - new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_map))
+           );
   }
   else {
     return 0.0;
@@ -307,14 +375,10 @@ double BeamModel::calcProbMapObj(const float range_obs,
                                  const float range_map
                                 )
 {
-  if (!approxEqual(range_obs,
-                   range_no_obj_,
-                   RANGE_EPSILON
-                  )
-     ) {
-    return weight_map_obj_ * std::exp(  -(range_obs - range_map) * (range_obs - range_map)
-                                      / (2 * range_std_dev_ * range_std_dev_)
-                                     );
+  if (!approxEqual(range_obs, range_no_obj_, RANGE_EPSILON)) {
+    return std::exp(  -(range_obs - range_map) * (range_obs - range_map)
+                    / (2 * range_std_dev_ * range_std_dev_)
+                   );
   }
   else {
     return 0.0;
@@ -323,14 +387,61 @@ double BeamModel::calcProbMapObj(const float range_obs,
 
 double BeamModel::calcProbRandEffect(const float range_obs)
 {
-  if (!approxEqual(range_obs,
-                   range_no_obj_,
-                   RANGE_EPSILON
-                  )
-     ) {
-    return weight_rand_effect_ / range_max_;
+  if (!approxEqual(range_obs, range_no_obj_, RANGE_EPSILON)) {
+    return 1.0 / range_max_;
   }
   else {
     return 0.0;
+  }
+}
+
+double BeamModel::calcWeightedProbNoObj(const float range_obs)
+{
+  return weight_no_obj_ * calcProbNoObj(range_obs);
+}
+
+double BeamModel::calcWeightedProbNewObj(const float range_obs,
+                                         const float range_map
+                                        )
+{
+  return weight_new_obj_ * calcProbNewObj(range_obs, range_map);
+}
+
+double BeamModel::calcWeightedProbMapObj(const float range_obs,
+                                         const float range_map
+                                        )
+{
+  return weight_map_obj_ * calcProbMapObj(range_obs, range_map);
+}
+
+double BeamModel::calcWeightedProbRandEffect(const float range_obs)
+{
+  return weight_rand_effect_ * calcProbRandEffect(range_obs);
+}
+
+double BeamModel::calcWeightedProb(const float range_obs,
+                                   const float range_map
+                                  )
+{
+  return (  calcWeightedProbNoObj(range_obs)
+          + calcWeightedProbNewObj(range_obs, range_map)
+          + calcWeightedProbMapObj(range_obs, range_map)
+          + calcWeightedProbRandEffect(range_obs)
+         );
+}
+
+void BeamModel::precalcWeightedProbs()
+{
+  double range_obs = 0.0;
+  double range_map = 0.0;
+
+  for (size_t i = 0; i < table_size_; ++i) {
+    range_obs = table_res_ * i;
+
+    for (size_t j = 0; j < table_size_; ++j) {
+      range_map = table_res_ * j;
+      weight_table_new_obj_[i][j] = calcWeightedProbNewObj(range_obs, range_map);
+      weight_table_[i][j] = calcWeightedProb(range_obs, range_map);
+    }
   }
 }

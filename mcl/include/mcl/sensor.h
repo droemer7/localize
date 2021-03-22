@@ -29,10 +29,10 @@ namespace localize
               const float range_max,                // Sensor max range in meters
               const float range_no_obj,             // Sensor range reported when nothing is detected
               const float range_std_dev,            // Sensor range standard deviation
-              const float new_obj_decay_rate,       // Model decay rate for new (unexpected) object probability
+              const float new_obj_decay_rate,       // Model decay rate for new / unexpected object probability
               const double weight_no_obj,           // Model weight for no object detected probability
-              const double weight_new_obj,          // Model weight for new (unexpected) object probability
-              const double weight_map_obj,          // Model weight for map (expected) object probability
+              const double weight_new_obj,          // Model weight for new / unexpected object probability
+              const double weight_map_obj,          // Model weight for mapped / expected object probability
               const double weight_rand_effect,      // Model weight for random effect probability
               const double uncertainty_factor,      // Model uncertainty factor - extra noise added to calculation
               const unsigned int th_sample_count,   // Number of sampled sensor observations to use (count per revolution)
@@ -48,11 +48,6 @@ namespace localize
                const bool calc_enable = false
               );
 
-    void apply(Particle& particle,
-               const RayScan& obs,
-               const bool calc_enable = false
-              );
-
     void apply(ParticleDistribution& dist,
                const bool calc_enable = false
               );
@@ -65,6 +60,11 @@ namespace localize
     // Update the latest saved observation by sampling from the input observation
     void update(const RayScan& obs);
 
+    // Tunes the internal model according to the observations provided
+    void tune(const RayScanVector& obs,
+              const Particle& particle
+             );
+
   private:
     // Generate a subset of ranges sampled from the full scan using the preset angle sample increment
     RaySampleVector sample(const RayScan& obs);
@@ -73,55 +73,66 @@ namespace localize
     // detected by the sensor
     float repair(const float range);
 
+    // Removes the contribution of outliers to the particle weights
+    // Outlier weights are those derived from range observations which were likely detecting new / unexpected objects
+    void removeOutliers(ParticleDistribution& dist);
+
     // Converts the range value to a corresponding index in the table
     size_t tableIndex(const float range);
 
-    // Removes the contribution of outliers to the particle weights
-    // Outlier weights are those derived from range observations which were likely detecting new (unexpected) objects
-    void removeOutliers(ParticleDistribution& dist);
-
-    // Precalculate weights given by the model for a discrete set of ranges and load this into the model lookup table
-    // First axis is incremented by ranges observed from the sensor
-    // Second axis is incremented by ranges calculated from the map
-    void precalcProb();
-
-    // Retrieve from the model lookup table the probability of the observed range being the result of a new
+    // Retrieve from the model lookup table the weighted probability of the observed range being the result of a new
     // (unexpected) object, given the 'true' range determined from the map
-    double lookupProbNewObj(const float range_obs,
+    double lookupWeightedProbNewObj(const float range_obs,
+                                    const float range_map
+                                   );
+
+    // Retrieve from the model lookup table the weighted mixed probability of the observed range given the 'true' range
+    // determined from the map
+    double lookupWeightedProb(const float range_obs,
+                              const float range_map
+                             );
+
+    // Calculate the weighted mixed probability of the observed range given the 'true' range determined from the map
+    double calcWeightedProb(const float range_obs,
                             const float range_map
                            );
 
-    // Retrieve from the model lookup table the overall probability of the observed range given the 'true' range
-    // determined from the map
-    double lookupProb(const float range_obs,
-                      const float range_map
-                     );
-
-    // Calculate the overall probability of the observed range given the 'true' range determined from the map
-    double calcProb(const float range_obs,
-                    const float range_map
-                   );
-
-    // Calculate the probability the observed range occurred due to the sensor failing to detect an object. This may
-    // occur due to reflections or an object being too close to the sensor to be detectable.
-    // Returns 1 if the observed range matches the range the sensor reports when no object is found
+    // Calculate the probability the observed range occurred due to the sensor failing to detect an object
     double calcProbNoObj(const float range_obs);
 
-    // Calculate the probability the observed range occured due to a new, unmapped object, such as a person walking by
-    // the sensor.
+    // Calculate the probability the observed range occured due to a new, unmapped object
     double calcProbNewObj(const float range_obs,
                           const float range_map
                          );
 
-    // Calculate the probability the observed range occurred due to detecting a mapped object. This probability assumes
-    // sensor noise is normally distributed with a mean equal to the range of the nearest mapped object.
+    // Calculate the probability the observed range occurred due to detecting a mapped / expected object
     double calcProbMapObj(const float range_obs,
                           const float range_map
                          );
 
-    // Calculate the probability the observed range occurred due to random effects (reflections, interferences, etc).
-    // Returns a constant value if the observed range is within bounds of the sensor's min and max range.
+    // Calculate the probability the observed range occurred due to random effects
     double calcProbRandEffect(const float range_obs);
+
+    // Calculate the weighted probability the observed range occurred due to the sensor failing to detect an object
+    double calcWeightedProbNoObj(const float range_obs);
+
+    // Calculate the weighted probability the observed range occured due to a new, unmapped object
+    double calcWeightedProbNewObj(const float range_obs,
+                                  const float range_map
+                                 );
+
+    // Calculate the weighted probability the observed range occurred due to detecting a mapped / expected object
+    double calcWeightedProbMapObj(const float range_obs,
+                                  const float range_map
+                                 );
+
+    // Calculate the weighted probability the observed range occurred due to random effects
+    double calcWeightedProbRandEffect(const float range_obs);
+
+    // Precalculate weighted probabilities a discrete set of ranges and load this into the model lookup table
+    // First axis is incremented by ranges observed from the sensor
+    // Second axis is incremented by ranges calculated from the map
+    void precalcWeightedProbs();
 
   private:
     typedef std::vector<std::vector<double>> WeightTable;
@@ -131,11 +142,11 @@ namespace localize
     float range_max_;           // Sensor max range in meters
     float range_no_obj_;        // Sensor range reported when nothing is detected
     float range_std_dev_;       // Sensor range standard deviation
-    float new_obj_decay_rate_;  // Model decay rate for new (unexpected) object probability
+    float new_obj_decay_rate_;  // Model decay rate for new / unexpected object probability
     double weights_sum_;        // Model weights sum (for normalization)
     double weight_no_obj_;      // Model weight for no object detected probability
-    double weight_new_obj_;     // Model weight for new (unexpected) object probability
-    double weight_map_obj_;     // Model weight for map (expected) object probability
+    double weight_new_obj_;     // Model weight for new / unexpected object probability
+    double weight_map_obj_;     // Model weight for mapped / expected object probability
     double weight_rand_effect_; // Model weight for random effect probability
     double uncertainty_factor_; // Model uncertainty factor - extra noise added to calculation
 
@@ -146,7 +157,7 @@ namespace localize
     // observed by the sensor and ranges calculated by raycasting on the map
     const double table_res_;  // Model table resolution (meters per cell)
     const size_t table_size_; // Model table size
-    WeightTable weight_table_new_obj_;  // Model lookup table, new (unexpected) object probability
+    WeightTable weight_table_new_obj_;  // Model lookup table, new / unexpected object probability
     WeightTable weight_table_;          // Model lookup table, all weight components combined
 
     RaySampleVector rays_obs_sample_; // Downsampled observations

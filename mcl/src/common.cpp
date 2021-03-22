@@ -21,16 +21,22 @@ const double localize::MOTION_TH_N1 = 0.01;
 const double localize::MOTION_TH_N2 = 0.01;
 
 const float localize::SENSOR_RANGE_NO_OBJ = 0.0;
-const float localize::SENSOR_RANGE_STD_DEV = 0.5;
-const float localize::SENSOR_NEW_OBJ_DECAY_RATE = 0.25;
+const float localize::SENSOR_RANGE_STD_DEV = 0.1; // 0.5
+const float localize::SENSOR_NEW_OBJ_DECAY_RATE = 0.1; // 0.5
 const double localize::SENSOR_WEIGHT_NO_OBJ = 15.0;
-const double localize::SENSOR_WEIGHT_NEW_OBJ = 4.0;
-const double localize::SENSOR_WEIGHT_MAP_OBJ = 80.0;
-const double localize::SENSOR_WEIGHT_RAND_EFFECT = 1.0;
+const double localize::SENSOR_WEIGHT_NEW_OBJ = 4.0; // 4.0
+const double localize::SENSOR_WEIGHT_MAP_OBJ = 75.0; // 80.0
+const double localize::SENSOR_WEIGHT_RAND_EFFECT = 6.0; // 1.0
 const double localize::SENSOR_UNCERTAINTY_FACTOR = 1.1;
-const double localize::SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD = 0.5;
+const double localize::SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD = (  SENSOR_WEIGHT_NEW_OBJ
+                                                                / (  SENSOR_WEIGHT_NO_OBJ
+                                                                   + SENSOR_WEIGHT_NEW_OBJ
+                                                                   + SENSOR_WEIGHT_MAP_OBJ
+                                                                   + SENSOR_WEIGHT_RAND_EFFECT
+                                                                  )
+                                                               );
 const double localize::SENSOR_TABLE_RES = 0.005;
-const unsigned int localize::TH_SAMPLE_COUNT = 8;
+const unsigned int localize::TH_SAMPLE_COUNT = 12;
 const unsigned int localize::TH_RAYCAST_COUNT = 656;
 
 Particle::Particle(const double x,
