@@ -128,8 +128,8 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const double sensor_table_res,
          const unsigned int map_width,
          const unsigned int map_height,
-         const float map_x,
-         const float map_y,
+         const float map_x_origin,
+         const float map_y_origin,
          const float map_th,
          const float map_scale,
          const std::vector<int8_t> map_data
@@ -140,8 +140,8 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   vel_(0.0),
   map_(map_width,
        map_height,
-       map_x,
-       map_y,
+       map_x_origin,
+       map_y_origin,
        map_th,
        map_scale,
        map_data
@@ -246,7 +246,9 @@ void MCL::update()
   // Clear histogram
   hist_.clear();
 
-  if (prob_sample_random || resample) {
+  if (   prob_sample_random
+      || resample
+     ) {
     printf("\n===== Sampling =====\n");
     // Generate samples until we reach the target or max
     while (   s < samples_.size()
@@ -261,11 +263,8 @@ void MCL::update()
       else {
         samples_[s] = dist_.sample();
       }
-      // Update histogram with the sampled particle
-      hist_.update(samples_[s]);
-
-      // If the histogram occupancy count increased with the sampled particle, update the target number of samples
-      if (hist_.count() > hist_count) {
+      // Update histogram with the sampled particle, and if the count increased, update the target number of samples
+      if (hist_.update(samples_[s])) {
         hist_count = hist_.count();
 
         if (hist_count > 1) {

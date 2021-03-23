@@ -13,7 +13,7 @@ const unsigned int localize::MCL_NUM_PARTICLES_MIN = 1'000;
 const unsigned int localize::MCL_NUM_PARTICLES_MAX = 100'000;
 const double localize::MCL_KLD_EPS = 0.02;
 const double localize::MCL_HIST_POS_RES = 0.10;
-const double localize::MCL_HIST_TH_RES = M_2PI / 36.0;
+const double localize::MCL_HIST_TH_RES = M_PI / 18.0;
 
 // Motion model
 const double localize::MOTION_LIN_VEL_N1 = 0.01;
@@ -40,7 +40,7 @@ const double localize::SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD = 0.10;
                                                                    + SENSOR_WEIGHT_RAND_EFFECT
                                                                   )
                                                                );*/
-const double localize::SENSOR_TABLE_RES = 0.005;
+const double localize::SENSOR_TABLE_RES = 0.01;
 const unsigned int localize::TH_SAMPLE_COUNT = 8;
 const unsigned int localize::TH_RAYCAST_COUNT = 656;
 
