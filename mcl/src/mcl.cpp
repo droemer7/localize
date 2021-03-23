@@ -183,13 +183,8 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   for (size_t i = 0; i < samples_.size(); ++i) {
     samples_[i] = random_sample_();
   }
-  // TBD remove
-  // samples_[0].x_ = -0.035325;
-  // samples_[0].y_ = 0.0;
-  // samples_[0].th_ = 0.0;
   // Copy the new samples to the distribution
   dist_.copy(samples_, samples_.size());
-  // dist_.copy(samples_, count); TBD remove
 }
 
 void MCL::update(const double vel,
