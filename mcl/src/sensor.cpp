@@ -137,46 +137,49 @@ void BeamModel::tune(const RayScanVector& obs,
                     )
 {
   printf("===== Sensor tuning =====\n");
-  size_t n = 0;
-  size_t count = 0;
-  double prob_sum = 0.0;
-  double range_obs = 0.0;
-  double range_map = 0.0;
-  double prob_no_obj = 0.0;
-  double prob_new_obj = 0.0;
-  double prob_map_obj = 0.0;
-  double prob_rand_effect = 0.0;
-  std::vector<double> probs_no_obj;
-  std::vector<double> probs_new_obj;
-  std::vector<double> probs_map_obj;
-  std::vector<double> probs_rand_effect;
+  std::vector<double> ranges_obs;
+  std::vector<double> ranges_map;
 
-  while (n < 100) { // TBD change this into a real convergence condition
-    for (size_t i = 0; i < obs.size(); ++i) {
-      for (size_t j = 0; j < obs[i].rays_.size(); ++j) {
-        range_obs = obs[i].rays_[j].range_;
-        range_map = raycaster_.calc_range(particle.x_,
-                                          particle.y_,
-                                          particle.th_ + obs[i].rays_[j].th_
-                                         );
-        prob_no_obj = calcProbNoObj(range_obs);
-        prob_new_obj = calcProbNewObj(range_obs, range_map);
-        prob_map_obj = calcProbMapObj(range_obs, range_map);
-        prob_rand_effect = calcProbRandEffect(range_obs);
-        prob_sum = (  prob_no_obj
-                    + prob_new_obj
-                    + prob_map_obj
-                    + prob_rand_effect
-                   );
-        probs_no_obj.push_back(prob_sum > 0.0 ? prob_no_obj / prob_sum : 0.0);
-        probs_new_obj.push_back(prob_sum > 0.0 ? prob_new_obj / prob_sum : 0.0);
-        probs_map_obj.push_back(prob_sum > 0.0 ? prob_map_obj / prob_sum : 0.0);
-        probs_rand_effect.push_back(prob_sum > 0.0 ? prob_rand_effect / prob_sum : 0.0);
-
-        ++count;
-      }
+  for (size_t i = 0; i < obs.size(); ++i) {
+    for (size_t j = 0; j < obs[i].rays_.size(); ++j) {
+      double range_obs = obs[i].rays_[j].range_;
+      double range_map = raycaster_.calc_range(particle.x_,
+                                               particle.y_,
+                                               particle.th_ + obs[i].rays_[j].th_
+                                              );
+      ranges_obs.push_back(repair(range_obs));
+      ranges_map.push_back(repair(range_map));
     }
-    if (count > 0) {
+  }
+  size_t n = 0;
+
+  while (n < 40) { // TBD change this into a real convergence condition
+    double prob_sum = 0.0;
+    double prob_no_obj = 0.0;
+    double prob_new_obj = 0.0;
+    double prob_map_obj = 0.0;
+    double prob_rand_effect = 0.0;
+    std::vector<double> probs_no_obj;
+    std::vector<double> probs_new_obj;
+    std::vector<double> probs_map_obj;
+    std::vector<double> probs_rand_effect;
+
+    for (size_t i = 0; i < ranges_obs.size(); ++i) {
+      prob_no_obj = calcWeightedProbNoObj(ranges_obs[i]);
+      prob_new_obj = calcWeightedProbNewObj(ranges_obs[i], ranges_map[i]);
+      prob_map_obj = calcWeightedProbMapObj(ranges_obs[i], ranges_map[i]);
+      prob_rand_effect = calcWeightedProbRandEffect(ranges_obs[i]);
+      prob_sum = (  prob_no_obj
+                  + prob_new_obj
+                  + prob_map_obj
+                  + prob_rand_effect
+                 );
+      probs_no_obj.push_back(prob_sum > 0.0 ? prob_no_obj / prob_sum : 0.0);
+      probs_new_obj.push_back(prob_sum > 0.0 ? prob_new_obj / prob_sum : 0.0);
+      probs_map_obj.push_back(prob_sum > 0.0 ? prob_map_obj / prob_sum : 0.0);
+      probs_rand_effect.push_back(prob_sum > 0.0 ? prob_rand_effect / prob_sum : 0.0);
+    }
+    if (ranges_obs.size() > 0) {
       double probs_sum_no_obj = 0.0;
       double probs_sum_new_obj = 0.0;
       double probs_sum_new_obj_range = 0.0;
@@ -184,18 +187,21 @@ void BeamModel::tune(const RayScanVector& obs,
       double probs_sum_map_obj_err_sq = 0.0;
       double probs_sum_rand_effect = 0.0;
 
-      for (size_t i = 0; i < probs_no_obj.size(); ++i) {
+      for (size_t i = 0; i < ranges_obs.size(); ++i) {
         probs_sum_no_obj += probs_no_obj[i];
         probs_sum_new_obj += probs_new_obj[i];
-        probs_sum_new_obj_range += probs_new_obj[i] * range_obs;
+        probs_sum_new_obj_range += probs_new_obj[i] * ranges_obs[i];
         probs_sum_map_obj += probs_map_obj[i];
-        probs_sum_map_obj_err_sq += probs_map_obj[i] * (range_obs - range_map) * (range_obs - range_map);
+        probs_sum_map_obj_err_sq += (  probs_map_obj[i]
+                                     * (ranges_obs[i] - ranges_map[i])
+                                     * (ranges_obs[i] - ranges_map[i])
+                                    );
         probs_sum_rand_effect += probs_rand_effect[i];
       }
-      weight_no_obj_ = probs_sum_no_obj / count;
-      weight_new_obj_ = probs_sum_new_obj / count;
-      weight_map_obj_ = probs_sum_map_obj / count;
-      weight_rand_effect_ = probs_sum_rand_effect / count;
+      weight_no_obj_ = probs_sum_no_obj / ranges_obs.size();
+      weight_new_obj_ = probs_sum_new_obj / ranges_obs.size();
+      weight_map_obj_ = probs_sum_map_obj / ranges_obs.size();
+      weight_rand_effect_ = probs_sum_rand_effect / ranges_obs.size();
       range_std_dev_ = probs_sum_map_obj > 0.0 ? std::sqrt(probs_sum_map_obj_err_sq / probs_sum_map_obj) :
                                                  range_std_dev_;
       new_obj_decay_rate_ = probs_sum_new_obj_range > 0.0 ? probs_sum_new_obj / probs_sum_new_obj_range :
@@ -246,7 +252,7 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
 
 float BeamModel::repair(float range)
 {
-  return (   range >= range_max_
+  return (   range > range_max_
           || std::signbit(range)
           || std::isnan(range)
          ) ?
@@ -288,8 +294,10 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
 
     if (weight_ratios[i].second > SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD) {
       weight_indexes_rejected.push_back(weight_ratios[i].first);
-      printf("rejected range = %.2f, angle = %.2f\n",
-             rays_obs_sample_[weight_ratios[i].first].range_, rays_obs_sample_[weight_ratios[i].first].th_ * 180.0 / M_PI
+      printf("rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
+             rays_obs_sample_[weight_ratios[i].first].range_,
+             rays_obs_sample_[weight_ratios[i].first].th_ * 180.0 / M_PI,
+             weight_ratios[i].second
             );
     }
     else {

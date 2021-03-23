@@ -10,8 +10,8 @@ static const double WEIGHT_THRESHOLD_CONSISTENCY = 0.5; // Threshold below which
 static const double WEIGHT_THRESHOLD_LOST = 1e-10;      // Threshold below which we assume we are lost (required for random sampling)
 static const double Z_P_01 = 2.3263478740;              // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;                      // Fraction 2/9
-static const size_t NUM_AUTO_TUNE_SCANS = 200;         // Number of sensor scans to save for auto tuning the model
-static const int NUM_UPDATES = 2000;                    // TBD remove
+static const size_t NUM_SENSOR_SCANS_TUNE = 200;        // Number of sensor scans to save for tuning the model
+static const int NUM_UPDATES = 2; // TBD remove
 
 using namespace localize;
 
@@ -185,6 +185,10 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
     samples_[i] = random_sample_();
   }
   // TBD remove
+  // samples_[0].x_ = -0.035325;
+  // samples_[0].y_ = 0.0;
+  // samples_[0].th_ = 0.0;
+  // TBD remove
   // int count = 10;
   // double inc = 0.0175;
   // for (int i = 0; i < count; ++i) {
@@ -218,31 +222,32 @@ void MCL::update(const double vel,
 
 void MCL::update(const RayScan&& obs)
 {
-  // // Cache observation before requesting lock
-  // sensor_model_.update(obs);
+  // Cache observation before requesting lock
+  sensor_model_.update(obs);
 
-  // // Only update if moving
-  // if (!stopped()) {
-  //   printf("\n***** Update %lu *****\n", update_num_ + 1);
-  //   printf("\n===== Sensor model update =====\n");
-  //   RecursiveLock lock(dist_mtx_);
-  //   sensor_model_.apply(dist_);
+  // Only update if moving
+  //if (!stopped()) {
+    printf("\n***** Update %lu *****\n", update_num_ + 1);
+    printf("\n===== Sensor model update =====\n");
+    RecursiveLock lock(dist_mtx_);
+    sensor_model_.apply(dist_);
 
-  //   // Only sample if it would improve confidence
-  //   if (dist_.weightAvg() < WEIGHT_THRESHOLD_SAMPLE) {
-  //     sample();
-  //   }
-  //   update_num_++;
-  // }
+    // Only sample if it would improve confidence
+    if (dist_.weightAvg() < WEIGHT_THRESHOLD_SAMPLE) {
+      sample();
+    }
+    update_num_++;
+  //}
   // Run tuning
   // TBD find a better way to make this optional
-  if (sensor_data_.size() < NUM_AUTO_TUNE_SCANS) {
-    sensor_data_.push_back(obs);
-  }
-  else {
-    sensor_model_.tune(sensor_data_, Particle(-0.035325, 0.0, 0.0));
-    throw std::runtime_error("Finished");
-  }
+  // Move into another function and have MCLNode call this instead
+  // if (sensor_data_.size() < NUM_SENSOR_SCANS_TUNE) {
+  //   sensor_data_.push_back(obs);
+  // }
+  // else {
+  //   sensor_model_.tune(sensor_data_, Particle(0.02, 0.0, -0.01));
+  //   throw std::runtime_error("Finished");
+  // }
   // TBD remove
   if (   stopped()
       && update_num_ >= NUM_UPDATES
