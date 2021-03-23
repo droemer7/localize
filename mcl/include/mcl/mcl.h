@@ -122,7 +122,7 @@ namespace localize
                );
 
     // Apply the sensor model to update particle weights using p(obs[t] | pose[t], map)
-    void update(const RayScan&& obs);
+    void update(const RayScan& obs);
 
     // Save particle distribution to file in CSV format
     void save(const std::string filename,
@@ -130,10 +130,16 @@ namespace localize
               const bool overwrite = true
              );
   private:
-    // Generates an updated particle distribution by performing a combination of resampling (based on particle
-    // weights) and random sampling
+    // Update particle distribution by performing resampling (based on particle weights) and/or random sampling
+    // No changes are made if distribution is ok
     // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void sample();
+    void update();
+
+    // Return true if distribution should be resampled
+    bool resampleRequired();
+
+    // Return true if random samples should be added to the distribution
+    bool randomSampleRequired();
 
     // Indicates if the robot velocity is within the stopped threshold based on the last saved value
     bool stopped();

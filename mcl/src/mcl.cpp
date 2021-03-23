@@ -4,14 +4,13 @@
 
 #include "mcl/mcl.h"
 
-static const double STOPPED_THRESHOLD = 1e-10;          // Threshold below which the robot is stopped (defers updates)
-static const double WEIGHT_THRESHOLD_SAMPLE = 1e-4;     // Threshold below which sampling is performed (resample / random sample)
-static const double WEIGHT_THRESHOLD_CONSISTENCY = 0.5; // Threshold below which the weights are considered consistent (required for random sampling)
-static const double WEIGHT_THRESHOLD_LOST = 1e-10;      // Threshold below which we assume we are lost (required for random sampling)
-static const double Z_P_01 = 2.3263478740;              // Z score for P(0.01) of Normal(0,1) distribution
-static const double F_2_9 = 2 / 9;                      // Fraction 2/9
-static const size_t NUM_SENSOR_SCANS_TUNE = 200;        // Number of sensor scans to save for tuning the model
-static const int NUM_UPDATES = 2; // TBD remove
+static const double STOPPED_THRESHOLD = 1e-10;    // Threshold below which the robot is stopped (defers updates)
+static const double WEIGHT_AVG_LOST = 1e-08;      // Threshold below which we assume we are lost (required for random sampling)
+static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Threshold below which the weights are considered consistent (required for resampling)
+static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
+static const double F_2_9 = 2 / 9;                // Fraction 2/9
+static const size_t NUM_SENSOR_SCANS_TUNE = 200;  // Number of sensor scans to save for tuning the model
+static const int NUM_UPDATES = 10; // TBD remove
 
 using namespace localize;
 
@@ -188,21 +187,6 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
   // samples_[0].x_ = -0.035325;
   // samples_[0].y_ = 0.0;
   // samples_[0].th_ = 0.0;
-  // TBD remove
-  // int count = 10;
-  // double inc = 0.0175;
-  // for (int i = 0; i < count; ++i) {
-  //   if (i < count) {
-  //     samples_[i].x_ = -0.035325;
-  //     samples_[i].y_ = 0.0;//0.30;//0.05 * (i + 1.0);
-  //     samples_[i].th_ = 0.0;
-  //   }
-  //   else {
-  //     samples_[i].x_ = -0.035325;
-  //     samples_[i].y_ = 0.0;
-  //     samples_[i].th_ = 0.0;
-  //   }
-  // }
   // Copy the new samples to the distribution
   dist_.copy(samples_, samples_.size());
   // dist_.copy(samples_, count); TBD remove
@@ -213,31 +197,25 @@ void MCL::update(const double vel,
                  const double dt
                 )
 {
-  // Only update if moving
   if (!stopped(vel)) {
     RecursiveLock lock(dist_mtx_);
     motion_model_.apply(dist_, vel, steering_angle, dt);
   }
 }
 
-void MCL::update(const RayScan&& obs)
+void MCL::update(const RayScan& obs)
 {
   // Cache observation before requesting lock
   sensor_model_.update(obs);
 
-  // Only update if moving
-  //if (!stopped()) {
+  if (!stopped()) {
     printf("\n***** Update %lu *****\n", update_num_ + 1);
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
-
-    // Only sample if it would improve confidence
-    if (dist_.weightAvg() < WEIGHT_THRESHOLD_SAMPLE) {
-      sample();
-    }
+    update();
     update_num_++;
-  //}
+  }
   // Run tuning
   // TBD find a better way to make this optional
   // Move into another function and have MCLNode call this instead
@@ -256,73 +234,77 @@ void MCL::update(const RayScan&& obs)
   }
 }
 
-void MCL::sample()
+void MCL::update()
 {
-  printf("\n===== Sampling =====\n");
   RecursiveLock lock(dist_mtx_);
-  double prob_sample_random = 0.0;
   double num_particles_target = num_particles_min_;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
   size_t hist_count = 0;
   size_t s = 0;
 
+  // The probability of random samples is based on the change in
+  // average confidence and decreases as the confidence improves
+  double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
+  bool resample = resampleRequired();
+
   // Clear histogram
   hist_.clear();
 
-  // Only allow random sampling if confidence has been consistently bad for a few updates (weight average is smoothed)
-  // Random sampling causes dramatic increases in the distribution size, and dramatic slowdowns
-  // As a result random sampling should only be utilized as a last resort
-  if (   dist_.weightRelativeStdDev() < WEIGHT_THRESHOLD_CONSISTENCY  // Weights are consistent with the average
-      && dist_.weightAvg() < WEIGHT_THRESHOLD_LOST                    // Confidence is low enough that random sampling would improve it
-     ) {
-    // Calculate the probability to draw random samples based on change in weight average
-    // The probability of random samples decreases as the confidence improves
-    prob_sample_random = 1.0 - dist_.weightAvgRatio();
-  }
-  else {
-    prob_sample_random = 0.0;
-  }
-  // Generate samples until we reach the target or max
-  while (   s < samples_.size()
-         && s < num_particles_target
-        ) {
-    // Draw a particle from the current distribution with probability proportional to its weight
-    if (prob_(rng_.engine()) > prob_sample_random) {
-      samples_[s] = dist_.sample();
-    }
-    // Generate a new random particle and apply the sensor model to update its weight
-    else {
-      samples_[s] = random_sample_();
-      sensor_model_.apply(samples_[s]);
-    }
-    // Update histogram with the sampled particle
-    hist_.update(samples_[s]);
-
-    // If the histogram occupancy count increased with the sampled particle, update the target number of samples
-    if (hist_.count() > hist_count) {
-      hist_count = hist_.count();
-
-      if (hist_count > 1) {
-        // Wilson-Hilferty transformation of chi-square distribution
-        chi_sq_term_1 = (hist_count - 1.0) / (2.0 * kld_eps_);
-        chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_01 * std::sqrt(F_2_9 / (hist_count - 1.0));
-        num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
-        num_particles_target = num_particles_target > num_particles_min_?
-                               num_particles_target : num_particles_min_;
+  if (prob_sample_random || resample) {
+    printf("\n===== Sampling =====\n");
+    // Generate samples until we reach the target or max
+    while (   s < samples_.size()
+           && s < num_particles_target
+          ) {
+      // Generate a new random particle and apply the sensor model to update its weight
+      if (prob_(rng_.engine()) < prob_sample_random) {
+        samples_[s] = random_sample_();
+        sensor_model_.apply(samples_[s]);
       }
+      // Draw a particle from the current distribution with probability proportional to its weight
+      else {
+        samples_[s] = dist_.sample();
+      }
+      // Update histogram with the sampled particle
+      hist_.update(samples_[s]);
+
+      // If the histogram occupancy count increased with the sampled particle, update the target number of samples
+      if (hist_.count() > hist_count) {
+        hist_count = hist_.count();
+
+        if (hist_count > 1) {
+          // Wilson-Hilferty transformation of chi-square distribution
+          chi_sq_term_1 = (hist_count - 1.0) / (2.0 * kld_eps_);
+          chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_01 * std::sqrt(F_2_9 / (hist_count - 1.0));
+          num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
+          num_particles_target = num_particles_target > num_particles_min_?
+                                 num_particles_target : num_particles_min_;
+        }
+      }
+      ++s;
     }
-    ++s;
+    // Update distribution with new sample set
+    dist_.update(samples_, s);
+
+    printf("Prob(random) = %.2f\n", prob_sample_random);
+    printf("Samples used = %lu\n", s);
+    printf("Histogram count = %lu\n", hist_count);
+    printf("---------------------------------\n");
   }
-  // Update distribution with new sample set
-  dist_.update(samples_, s);
-
-  printf("Prob(random) = %.2f\n", prob_sample_random);
-  printf("Samples used = %lu\n", s);
-  printf("Histogram count = %lu\n", hist_count);
-  printf("---------------------------------\n");
-
   return;
+}
+
+bool MCL::resampleRequired()
+{
+  RecursiveLock lock(dist_mtx_);
+  return dist_.weightRelativeStdDev() > WEIGHT_DEV_CONSISTENT;
+}
+
+bool MCL::randomSampleRequired()
+{
+  RecursiveLock lock(dist_mtx_);
+  return dist_.weightAvg() < WEIGHT_AVG_LOST;
 }
 
 void MCL::save(const std::string filename,
