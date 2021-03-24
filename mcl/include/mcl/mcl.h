@@ -32,14 +32,14 @@ namespace localize
     std::uniform_real_distribution<double> th_dist_;    // Distribution of theta [-pi, +pi) relative to world frame
   };
 
-  // 3D boolean histogram representing occupancy of pose space (x, y, th)
-  class ParticleHistogram
+  // Histogram representing occupancy of pose space (x, y, th)
+  class ParticleOccupancyHistogram
   {
   public:
     // Constructors
-    ParticleHistogram(const Map& map);  // Map
+    ParticleOccupancyHistogram(const Map& map);  // Map
 
-    // Update histogram occupancy with the particle's location
+    // Update histogram occupancy with the particle's pose
     // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
     bool update(const Particle& particle);
 
@@ -136,7 +136,7 @@ namespace localize
 
     ParticleDistribution dist_;           // Particle distribution
     ParticleVector samples_;              // Sampled particles (temporary storage)
-    ParticleHistogram hist_;              // Histogram for estimating probability distribution complexity
+    ParticleOccupancyHistogram hist_;              // Histogram for estimating probability distribution complexity
     ParticleRandomSampler random_sample_; // Random particle sampler, generates samples in free space based on the map
 
     RNG rng_; // Random number generator

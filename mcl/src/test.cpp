@@ -19,7 +19,7 @@ const size_t th_size = 500;
 
 void testParticleHistogramArray()
 {
-  printf("\nTesting ParticleHistogram (array) ... \n");
+  printf("\nTesting ParticleOccupancyHistogram (array) ... \n");
   //typedef std::array<std::array<std::array<unsigned char, x_size>, y_size>, th_size> Histogram;
   typedef std::array<unsigned char, x_size * y_size * th_size> Histogram;
   std::unique_ptr<Histogram> hist_ptr = std::unique_ptr<Histogram>(new Histogram);
@@ -35,7 +35,7 @@ void testParticleHistogramArray()
 
 void testParticleHistogramVector3D()
 {
-  printf("\nTesting ParticleHistogram (3D vector) ... \n");
+  printf("\nTesting ParticleOccupancyHistogram (3D vector) ... \n");
   std::vector<std::vector<std::vector<unsigned char>>> hist(x_size,
                                                             std::vector<std::vector<unsigned char>>(y_size,
                                                             std::vector<unsigned char>(th_size, false)
@@ -55,7 +55,7 @@ void testParticleHistogramVector3D()
 
 void testParticleHistogramArray1D()
 {
-  printf("\nTesting ParticleHistogram (1D array) ... \n");
+  printf("\nTesting ParticleOccupancyHistogram (1D array) ... \n");
   std::array<bool, x_size * y_size * th_size> hist;
 
   start = std::chrono::high_resolution_clock::now();
@@ -73,7 +73,7 @@ void testParticleHistogramArray1D()
 
 void testParticleHistogramVector1D()
 {
-  printf("\nTesting ParticleHistogram (1D vector) ... \n");
+  printf("\nTesting ParticleOccupancyHistogram (1D vector) ... \n");
   std::vector<bool> hist(x_size * y_size * th_size, false);
 
   start = std::chrono::high_resolution_clock::now();

@@ -42,7 +42,7 @@ Particle ParticleRandomSampler::operator()()
   return particle;
 }
 
-ParticleHistogram::ParticleHistogram(const Map& map) :
+ParticleOccupancyHistogram::ParticleOccupancyHistogram(const Map& map) :
   x_size_(std::round(map.width * map.scale / HIST_POS_RES)),
   y_size_(std::round(map.height * map.scale / HIST_POS_RES)),
   th_size_(std::round((M_2PI + map.th_origin) / HIST_TH_RES)),
@@ -53,7 +53,7 @@ ParticleHistogram::ParticleHistogram(const Map& map) :
   count_(0)
 {}
 
-bool ParticleHistogram::update(const Particle& particle)
+bool ParticleOccupancyHistogram::update(const Particle& particle)
 {
   bool count_inc = false;
 
@@ -76,12 +76,12 @@ bool ParticleHistogram::update(const Particle& particle)
   return count_inc;
 }
 
-size_t ParticleHistogram::count() const
+size_t ParticleOccupancyHistogram::count() const
 {
   return count_;
 }
 
-void ParticleHistogram::clear()
+void ParticleOccupancyHistogram::clear()
 {
   if (count_ > 0) {
     std::fill(hist_.begin(), hist_.end(), false);
@@ -89,7 +89,7 @@ void ParticleHistogram::clear()
   }
 }
 
-std::vector<bool>::reference ParticleHistogram::cell(const size_t x_i,
+std::vector<bool>::reference ParticleOccupancyHistogram::cell(const size_t x_i,
                                                      const size_t y_i,
                                                      const size_t th_i
                                                     )
