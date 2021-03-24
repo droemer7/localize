@@ -11,7 +11,7 @@ static const double WEIGHT_MAP_OBJ = 75.0;                    // Weight for mapp
 static const double WEIGHT_RAND_EFFECT = 5.0;                 // Weight for random effect probability
 static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;          // Weight uncertainty factor (extra noise added)
 static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.50;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
-static const double TABLE_RES = 0.01;                         // Lookup table resolution (meters per cell)
+static const double WEIGHT_TABLE_RES = 0.01;                  // Lookup table resolution (meters per cell)
 static const unsigned int TH_RAYCAST_COUNT = 656;             // Number of angles for raycast approximation (count per revolution)
 static const float RANGE_EPSILON = 1e-5;                      // Maximum delta between two ranges such that they are still considered 'equal'
 
@@ -46,10 +46,10 @@ BeamModel::BeamModel(const float range_min,
   weight_new_obj_(WEIGHT_NEW_OBJ / weights_sum_),
   weight_map_obj_(WEIGHT_MAP_OBJ / weights_sum_),
   weight_rand_effect_(WEIGHT_RAND_EFFECT / weights_sum_),
-  table_res_(TABLE_RES),
-  table_size_(range_max / TABLE_RES + 1),
-  weight_table_new_obj_(table_size_, std::vector<double>(table_size_)),
-  weight_table_(table_size_, std::vector<double>(table_size_)),
+  weight_table_res_(WEIGHT_TABLE_RES),
+  weight_table_size_(range_max / WEIGHT_TABLE_RES + 1),
+  weight_table_new_obj_(weight_table_size_, std::vector<double>(weight_table_size_)),
+  weight_table_(weight_table_size_, std::vector<double>(weight_table_size_)),
   rays_obs_sample_(SENSOR_TH_SAMPLE_COUNT),
   raycaster_(map,
              range_max / map.scale,
@@ -331,8 +331,8 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
 
 size_t BeamModel::tableIndex(const float range)
 {
-  return std::min(std::max(0.0, range / table_res_),
-                  static_cast<double>(table_size_ - 1)
+  return std::min(std::max(0.0, range / weight_table_res_),
+                  static_cast<double>(weight_table_size_ - 1)
                  );
 }
 
@@ -435,11 +435,11 @@ void BeamModel::precalcWeightedProbs()
   double range_obs = 0.0;
   double range_map = 0.0;
 
-  for (size_t i = 0; i < table_size_; ++i) {
-    range_obs = table_res_ * i;
+  for (size_t i = 0; i < weight_table_size_; ++i) {
+    range_obs = weight_table_res_ * i;
 
-    for (size_t j = 0; j < table_size_; ++j) {
-      range_map = table_res_ * j;
+    for (size_t j = 0; j < weight_table_size_; ++j) {
+      range_map = weight_table_res_ * j;
       weight_table_new_obj_[i][j] = calcWeightedProbNewObj(range_obs, range_map);
       weight_table_[i][j] = calcWeightedProb(range_obs, range_map);
     }

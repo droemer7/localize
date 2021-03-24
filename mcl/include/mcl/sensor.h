@@ -155,8 +155,8 @@ namespace localize
     // Second axis is incremented by ranges calculated from the map
     // Values are weights that would be given by the model given ranges
     // observed by the sensor and ranges calculated by raycasting on the map
-    const double table_res_;  // Model table resolution (meters per cell)
-    const size_t table_size_; // Model table size
+    const double weight_table_res_;     // Model table resolution (meters per cell)
+    const size_t weight_table_size_;    // Model table size
     WeightTable weight_table_new_obj_;  // Model lookup table, new / unexpected object probability
     WeightTable weight_table_;          // Model lookup table, all weight components combined
 

@@ -1,5 +1,3 @@
-#include <float.h>
-
 #include <ros/service.h>
 #include <tf2/utils.h>
 
@@ -24,32 +22,32 @@ RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
   rays_ = rays_;
 }
 
-MCLNode::MCLNode(const std::string& motor_topic,
-                 const std::string& servo_topic,
+MCLNode::MCLNode(const std::string& drive_vel_topic,
+                 const std::string& drive_steer_topic,
                  const std::string& sensor_topic,
                  const std::string& map_topic
                 ) :
-  motor_spinner_(1, &motor_cb_queue_),
-  servo_spinner_(1, &servo_cb_queue_),
+  drive_vel_spinner_(1, &drive_vel_cb_queue_),
+  drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
   timer_cb_dur_(1.0),
-  motor_t_prev_(ros::Time::now()),
+  drive_t_prev_(ros::Time::now()),
+  drive_steer_servo_pos_(0.0),
   motion_dur_msec_(0.0),
   motion_dur_worst_msec_(0.0),
   sensor_dur_msec_(0.0),
-  sensor_dur_worst_msec_(0.0),
-  servo_pos_(0.0)
+  sensor_dur_worst_msec_(0.0)
 {
-  // Motion and sensor model parameters
+  // Localizer parameters
   ros::NodeHandle nh;
   if (   !getParam(nh, "localizer/num_particles_min", num_particles_min_)
-      || !getParam(nh, "localizer/num_particles_min", num_particles_max_)
+      || !getParam(nh, "localizer/num_particles_max", num_particles_max_)
       || !getParam(nh, "vesc/chassis_length", car_length_)
-      || !getParam(nh, "vesc/speed_to_erpm_gain", motor_speed_to_erpm_gain_)
-      || !getParam(nh, "vesc/speed_to_erpm_offset", motor_speed_to_erpm_offset_)
-      || !getParam(nh, "vesc/steering_angle_to_servo_gain", motor_steering_angle_to_servo_gain_)
-      || !getParam(nh, "vesc/steering_angle_to_servo_offset", motor_steering_angle_to_servo_offset_)
+      || !getParam(nh, "vesc/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
+      || !getParam(nh, "vesc/speed_to_erpm_offset", drive_vel_to_erpm_offset_)
+      || !getParam(nh, "vesc/steering_angle_to_servo_gain", drive_steer_angle_to_servo_gain_)
+      || !getParam(nh, "vesc/steering_angle_to_servo_offset", drive_steer_angle_to_servo_offset_)
       || !getParam(nh, "laser/range_min", sensor_range_min_)
       || !getParam(nh, "laser/range_max", sensor_range_max_)
       || !getParam(nh, "laser/range_no_obj", sensor_range_no_obj_)
@@ -95,24 +93,24 @@ MCLNode::MCLNode(const std::string& motor_topic,
   }
 
   // Assign ROS callback queues
-  motor_nh_.setCallbackQueue(&motor_cb_queue_);
-  servo_nh_.setCallbackQueue(&servo_cb_queue_);
+  drive_vel_nh_.setCallbackQueue(&drive_vel_cb_queue_);
+  drive_steer_nh.setCallbackQueue(&drive_steer_cb_queue_);
   sensor_nh_.setCallbackQueue(&sensor_cb_queue_);
   status_nh_.setCallbackQueue(&status_cb_queue_);
 
   // Subscribe to topics for motor, steering servo and sensor data
-  motor_sub_ = motor_nh_.subscribe(motor_topic,
-                                   1,
-                                   &MCLNode::motorCb,
-                                   this,
-                                   ros::TransportHints().tcpNoDelay()
-                                  );
-  servo_sub_ = servo_nh_.subscribe(servo_topic,
-                                   1,
-                                   &MCLNode::servoCb,
-                                   this,
-                                   ros::TransportHints().tcpNoDelay()
-                                  );
+  drive_vel_sub_ = drive_vel_nh_.subscribe(drive_vel_topic,
+                                           1,
+                                           &MCLNode::driveVelCb,
+                                           this,
+                                           ros::TransportHints().tcpNoDelay()
+                                          );
+  drive_steer_sub_ = drive_steer_nh.subscribe(drive_steer_topic,
+                                              1,
+                                              &MCLNode::driveSteerCb,
+                                              this,
+                                              ros::TransportHints().tcpNoDelay()
+                                             );
   sensor_sub_ = sensor_nh_.subscribe(sensor_topic,
                                      1,
                                      &MCLNode::sensorCb,
@@ -125,36 +123,32 @@ MCLNode::MCLNode(const std::string& motor_topic,
                                          this
                                         );
   // Start threads
-  // Note: Callback queues were assigned to each thread in the initializer list
-  motor_spinner_.start();
-  servo_spinner_.start();
+  drive_vel_spinner_.start();
+  drive_steer_spinner_.start();
   sensor_spinner_.start();
   status_spinner_.start();
 }
 
-void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
+void MCLNode::driveVelCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
 {
   // Start timer
   ros::Time start = ros::Time::now();
 
-  // Calculate velocity
-  double vel = (  (msg->state.speed - motor_speed_to_erpm_offset_)
-                / motor_speed_to_erpm_gain_
-               );
-  // Calculate steering angle
-  double steering_angle = 0.0;
+  // Calculate velocity and steering angle
+  double vel = (msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
+  double steer_angle = 0.0;
   {
     std::lock_guard<std::mutex> lock(servo_mtx_);
-    steering_angle = (  (servo_pos_ - motor_steering_angle_to_servo_offset_)
-                      / motor_steering_angle_to_servo_gain_
-                     );
+    steer_angle = (  (drive_steer_servo_pos_ - drive_steer_angle_to_servo_offset_)
+                   / drive_steer_angle_to_servo_gain_
+                  );
   }
   // Calculate motor time delta
-  double dt = (msg->header.stamp - motor_t_prev_).toSec();
-  motor_t_prev_ = msg->header.stamp;
+  double dt = (msg->header.stamp - drive_t_prev_).toSec();
+  drive_t_prev_ = msg->header.stamp;
 
-  // Perform motion update
-  mcl_ptr_->update(vel, steering_angle, dt);
+  // Update localizer with motion data
+  mcl_ptr_->update(vel, steer_angle, dt);
 
   // Save duration
   motion_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
@@ -162,11 +156,11 @@ void MCLNode::motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
                            motion_dur_msec_ : motion_dur_worst_msec_;
 }
 
-void MCLNode::servoCb(const std_msgs::Float64::ConstPtr& msg)
+void MCLNode::driveSteerCb(const std_msgs::Float64::ConstPtr& msg)
 {
   // Update servo position
   std::lock_guard<std::mutex> lock(servo_mtx_);
-  servo_pos_ = msg->data;
+  drive_steer_servo_pos_ = msg->data;
 }
 
 void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
@@ -174,13 +168,12 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   // Start timer
   ros::Time start = ros::Time::now();
 
-  // Perform sensor update
+  // Update localizer with sensor data
   // TBD remove try
   try {
     mcl_ptr_->update(RayScanMsg(msg));
   }
   catch (std::runtime_error error) {
-    save();
     throw error;
   }
 
@@ -188,11 +181,6 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   sensor_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
   sensor_dur_worst_msec_ = sensor_dur_msec_ > sensor_dur_worst_msec_?
                            sensor_dur_msec_ : sensor_dur_worst_msec_;
-}
-
-void MCLNode::save()
-{
-  mcl_ptr_->save("particles.csv");
 }
 
 template <class T>
@@ -225,25 +213,26 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 
 void MCLNode::printMotionParams()
 {
-  ROS_INFO("MCL: car_length_ = %f", car_length_);
-  ROS_INFO("MCL: motor_speed_to_erpm_gain_ = %f", motor_speed_to_erpm_gain_);
-  ROS_INFO("MCL: motor_speed_to_erpm_offset_ = %f", motor_speed_to_erpm_offset_);
-  ROS_INFO("MCL: motor_steering_angle_to_servo_gain_ = %f", motor_steering_angle_to_servo_gain_);
-  ROS_INFO("MCL: motor_steering_angle_to_servo_offset_ = %f", motor_steering_angle_to_servo_offset_);
+  ROS_INFO("MCL: car_length = %f", car_length_);
+  ROS_INFO("MCL: drive_vel_to_erpm_gain = %f", drive_vel_to_erpm_gain_);
+  ROS_INFO("MCL: drive_vel_to_erpm_offset = %f", drive_vel_to_erpm_offset_);
+  ROS_INFO("MCL: drive_steer_angle_to_servo_gain = %f", drive_steer_angle_to_servo_gain_);
+  ROS_INFO("MCL: drive_steer_angle_to_servo_offset = %f", drive_steer_angle_to_servo_offset_);
 }
 
 void MCLNode::printSensorParams()
 {
-  ROS_INFO("MCL: sensor_range_min_ = %f", sensor_range_min_);
-  ROS_INFO("MCL: sensor_range_max_ = %f", sensor_range_max_);
+  ROS_INFO("MCL: sensor_range_min = %f", sensor_range_min_);
+  ROS_INFO("MCL: sensor_range_max = %f", sensor_range_max_);
+  ROS_INFO("MCL: sensor_range_no_obj = %f", sensor_range_no_obj_);
 }
 
 void MCLNode::printMapParams()
 {
-  ROS_INFO("MCL: map_width_ = %d", map_width_);
-  ROS_INFO("MCL: map_height_ = %d", map_height_);
-  ROS_INFO("MCL: map_x_ = %f", map_x_origin_);
-  ROS_INFO("MCL: map_y_ = %f", map_y_origin_);
-  ROS_INFO("MCL: map_th_ = %f", map_th_);
-  ROS_INFO("MCL: map_scale_ = %f", map_scale_);
+  ROS_INFO("MCL: map_width = %d", map_width_);
+  ROS_INFO("MCL: map_height_= %d", map_height_);
+  ROS_INFO("MCL: map_x_origin = %f", map_x_origin_);
+  ROS_INFO("MCL: map_y_origin = %f", map_y_origin_);
+  ROS_INFO("MCL: map_th = %f", map_th_);
+  ROS_INFO("MCL: map_scale = %f", map_scale_);
 }

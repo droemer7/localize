@@ -29,26 +29,23 @@ namespace localize
   class MCLNode
   {
   public:
-    MCLNode(const std::string& motor_topic,   // Motor topic name
-            const std::string& servo_topic,   // Steering servo topic name
-            const std::string& sensor_topic,  // Sensor topic name
-            const std::string& map_topic      // Map topic name
+    MCLNode(const std::string& drive_vel_topic,   // Drive velocity topic name
+            const std::string& drive_steer_topic, // Drive steering topic name
+            const std::string& sensor_topic,      // Sensor topic name
+            const std::string& map_topic          // Map topic name
            );
 
-    // Motor state callback
-    void motorCb(const vesc_msgs::VescStateStamped::ConstPtr& msg);
+    // Drive velocity state callback
+    void driveVelCb(const vesc_msgs::VescStateStamped::ConstPtr& msg);
 
-    // Servo state callback
-    void servoCb(const std_msgs::Float64::ConstPtr& msg);
+    // Drive steering state callback
+    void driveSteerCb(const std_msgs::Float64::ConstPtr& msg);
 
     // Sensor scan callback
     void sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg);
 
     // Status info callback
     void statusCb(const ros::TimerEvent& event);
-
-    // Save particles to file
-    void save();
 
     // Retrieves the desired parameter value from the ROS parameter server
     template <class T>
@@ -70,23 +67,23 @@ namespace localize
     std::mutex servo_mtx_;  // Servo mutex
 
     // ROS interface
-    ros::NodeHandle motor_nh_;
-    ros::NodeHandle servo_nh_;
+    ros::NodeHandle drive_vel_nh_;
+    ros::NodeHandle drive_steer_nh;
     ros::NodeHandle sensor_nh_;
     ros::NodeHandle status_nh_;
-    ros::CallbackQueue motor_cb_queue_;
-    ros::CallbackQueue servo_cb_queue_;
+    ros::CallbackQueue drive_vel_cb_queue_;
+    ros::CallbackQueue drive_steer_cb_queue_;
     ros::CallbackQueue sensor_cb_queue_;
     ros::CallbackQueue status_cb_queue_;
-    ros::Subscriber motor_sub_;
-    ros::Subscriber servo_sub_;
+    ros::Subscriber drive_vel_sub_;
+    ros::Subscriber drive_steer_sub_;
     ros::Subscriber sensor_sub_;
-    ros::AsyncSpinner motor_spinner_;
-    ros::AsyncSpinner servo_spinner_;
+    ros::AsyncSpinner drive_vel_spinner_;
+    ros::AsyncSpinner drive_steer_spinner_;
     ros::AsyncSpinner sensor_spinner_;
     ros::AsyncSpinner status_spinner_;
     ros::Duration timer_cb_dur_;
-    ros::Time motor_t_prev_;
+    ros::Time drive_t_prev_;
     ros::Timer status_timer_;
 
     // MCL
@@ -95,14 +92,14 @@ namespace localize
     int num_particles_max_;  // Maximum number of particles to use
 
     // Motion model parameters
-    double car_length_;                           // Car length
-    double motor_speed_to_erpm_gain_;             // Gain for converting motor velocity to electrical  ()
-    double motor_speed_to_erpm_offset_;           // Bias for converting motor velocity to electrical  ()
-    double motor_steering_angle_to_servo_gain_;   // Gain for converting steering angle to servo position
-    double motor_steering_angle_to_servo_offset_; // Bias for converting steering angle to servo position
-    double servo_pos_;                            // Steering servo position
-    double motion_dur_msec_;                      // Motion model last update time (milliseconds)
-    double motion_dur_worst_msec_;                // Motion model worst update time (milliseconds)
+    double car_length_;                        // Car length
+    double drive_vel_to_erpm_gain_;            // Gain for converting motor velocity to electrical rpm
+    double drive_vel_to_erpm_offset_;          // Bias for converting motor velocity to electrical rpm
+    double drive_steer_angle_to_servo_gain_;   // Gain for converting steering angle to servo position
+    double drive_steer_angle_to_servo_offset_; // Bias for converting steering angle to servo position
+    double drive_steer_servo_pos_;             // Steering servo position
+    double motion_dur_msec_;                   // Motion model last update time (milliseconds)
+    double motion_dur_worst_msec_;             // Motion model worst update time (milliseconds)
 
     // Sensor model parameters
     float sensor_range_min_;        // Sensor min range in meters

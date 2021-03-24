@@ -4,7 +4,7 @@
 
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_LOST = 1e-08;      // Average weight below which we assume we are lost (required for random sampling)
+static const double WEIGHT_AVG_LOST = 1e-8 ;      // Average weight below which we assume we are lost (required for random sampling)
 static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Weight sigma below which the weights are considered consistent (required for resampling)
 static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
@@ -13,7 +13,7 @@ static const double HIST_POS_RES = 0.10;          // Histogram resolution for x 
 static const double HIST_TH_RES = M_PI / 18.0;    // Histogram resolution for heading angle (rad per cell)
 static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
 static const size_t NUM_SENSOR_SCANS_TUNE = 200;  // Number of sensor scans to save for tuning the model
-static const int NUM_UPDATES = 10;                // TBD remove
+static const int NUM_UPDATES = 1;                 // TBD remove
 
 using namespace localize;
 
@@ -158,7 +158,7 @@ void MCL::update(const RayScan& obs)
   // Cache observation before requesting lock
   sensor_model_.update(obs);
 
-  if (!stopped()) {
+  if (!stopped() || true) { // TBD remove true
     printf("\n***** Update %lu *****\n", update_num_ + 1);
     printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
@@ -180,6 +180,7 @@ void MCL::update(const RayScan& obs)
   if (   stopped()
       && update_num_ >= NUM_UPDATES
      ) {
+    save("particles.csv");
     throw std::runtime_error("Finished");
   }
 }
