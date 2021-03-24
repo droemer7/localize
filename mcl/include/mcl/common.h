@@ -20,9 +20,6 @@ namespace localize
   typedef std::lock_guard<std::mutex> Lock;
   typedef std::lock_guard<std::recursive_mutex> RecursiveLock;
 
-  extern const unsigned int MCL_NUM_PARTICLES_MIN;  // Minimum number of particles
-  extern const unsigned int MCL_NUM_PARTICLES_MAX;  // Maximum number of particles
-  extern const float SENSOR_RANGE_NO_OBJ;           // Sensor range reported when nothing is detected
   extern const unsigned int SENSOR_TH_SAMPLE_COUNT; // Number of samples per ray scan (count per revolution)
   extern const std::string DATA_PATH;               // Full path to directory for saving data
 

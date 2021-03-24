@@ -43,13 +43,16 @@ MCLNode::MCLNode(const std::string& motor_topic,
 {
   // Motion and sensor model parameters
   ros::NodeHandle nh;
-  if (   !getParam(nh, "vesc/chassis_length", car_length_)
+  if (   !getParam(nh, "localizer/num_particles_min", num_particles_min_)
+      || !getParam(nh, "localizer/num_particles_min", num_particles_max_)
+      || !getParam(nh, "vesc/chassis_length", car_length_)
       || !getParam(nh, "vesc/speed_to_erpm_gain", motor_speed_to_erpm_gain_)
       || !getParam(nh, "vesc/speed_to_erpm_offset", motor_speed_to_erpm_offset_)
       || !getParam(nh, "vesc/steering_angle_to_servo_gain", motor_steering_angle_to_servo_gain_)
       || !getParam(nh, "vesc/steering_angle_to_servo_offset", motor_steering_angle_to_servo_offset_)
       || !getParam(nh, "laser/range_min", sensor_range_min_)
       || !getParam(nh, "laser/range_max", sensor_range_max_)
+      || !getParam(nh, "laser/range_no_obj", sensor_range_no_obj_)
      ) {
     throw std::runtime_error("MCL: Missing required parameters");
   }
@@ -71,12 +74,12 @@ MCLNode::MCLNode(const std::string& motor_topic,
 
   // Construct the localizer with retrieved parameters before starting threads
   try {
-    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(MCL_NUM_PARTICLES_MIN,
-                                            MCL_NUM_PARTICLES_MAX,
+    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_min_,
+                                            num_particles_max_,
                                             car_length_,
                                             sensor_range_min_,
                                             sensor_range_max_,
-                                            SENSOR_RANGE_NO_OBJ,
+                                            sensor_range_no_obj_,
                                             map_width_,
                                             map_height_,
                                             map_x_origin_,

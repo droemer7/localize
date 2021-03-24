@@ -5,9 +5,6 @@
 
 using namespace localize;
 
-const unsigned int localize::MCL_NUM_PARTICLES_MIN = 1'000;
-const unsigned int localize::MCL_NUM_PARTICLES_MAX = 100'000;
-const float localize::SENSOR_RANGE_NO_OBJ = 0.0;
 const unsigned int localize::SENSOR_TH_SAMPLE_COUNT = 8;
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
 

@@ -91,6 +91,8 @@ namespace localize
 
     // MCL
     std::unique_ptr<MCL> mcl_ptr_;
+    int num_particles_min_;  // Minimum number of particles to use
+    int num_particles_max_;  // Maximum number of particles to use
 
     // Motion model parameters
     double car_length_;                           // Car length
@@ -105,6 +107,7 @@ namespace localize
     // Sensor model parameters
     float sensor_range_min_;        // Sensor min range in meters
     float sensor_range_max_;        // Sensor max range in meters
+    float sensor_range_no_obj_;     // Sensor range reported when nothing is detected
     double sensor_dur_msec_;        // Sensor model last update time (milliseconds)
     double sensor_dur_worst_msec_;  // Sensor model worst update time (milliseconds)
 
