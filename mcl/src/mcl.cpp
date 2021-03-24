@@ -4,13 +4,16 @@
 
 #include "mcl/mcl.h"
 
-static const double STOPPED_THRESHOLD = 1e-10;    // Threshold below which the robot is stopped (defers updates)
-static const double WEIGHT_AVG_LOST = 1e-08;      // Threshold below which we assume we are lost (required for random sampling)
-static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Threshold below which the weights are considered consistent (required for resampling)
+static const double WEIGHT_AVG_LOST = 1e-08;      // Average weight below which we assume we are lost (required for random sampling)
+static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Weight sigma below which the weights are considered consistent (required for resampling)
+static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;                // Fraction 2/9
+static const double HIST_POS_RES = 0.10;          // Histogram resolution for x and y position (meters per cell)
+static const double HIST_TH_RES = M_PI / 18.0;    // Histogram resolution for heading angle (rad per cell)
+static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
 static const size_t NUM_SENSOR_SCANS_TUNE = 200;  // Number of sensor scans to save for tuning the model
-static const int NUM_UPDATES = 10; // TBD remove
+static const int NUM_UPDATES = 10;                // TBD remove
 
 using namespace localize;
 
@@ -39,17 +42,10 @@ Particle ParticleRandomSampler::operator()()
   return particle;
 }
 
-ParticleHistogram::ParticleHistogram(const double x_res,
-                                     const double y_res,
-                                     const double th_res,
-                                     const Map& map
-                                    ) :
-  x_res_(x_res),
-  y_res_(y_res),
-  th_res_(th_res),
-  x_size_(std::round(map.width * map.scale / x_res_)),
-  y_size_(std::round(map.height * map.scale / y_res_)),
-  th_size_(std::round((M_2PI + map.th_origin) / th_res)),
+ParticleHistogram::ParticleHistogram(const Map& map) :
+  x_size_(std::round(map.width * map.scale / HIST_POS_RES)),
+  y_size_(std::round(map.height * map.scale / HIST_POS_RES)),
+  th_size_(std::round((M_2PI + map.th_origin) / HIST_TH_RES)),
   x_origin_(map.x_origin),
   y_origin_(map.y_origin),
   th_origin_(map.th_origin),
@@ -62,13 +58,13 @@ bool ParticleHistogram::update(const Particle& particle)
   bool count_inc = false;
 
   // Calculate index
-  size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / x_res_),
+  size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / HIST_POS_RES),
                         static_cast<double>(x_size_ - 1)
                        );
-  size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / y_res_),
+  size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / HIST_POS_RES),
                         static_cast<double>(y_size_ - 1)
                        );
-  size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / th_res_),
+  size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / HIST_TH_RES),
                          static_cast<double>(th_size_ - 1)
                         );
   // Update histogram
@@ -103,29 +99,10 @@ std::vector<bool>::reference ParticleHistogram::cell(const size_t x_i,
 
 MCL::MCL(const unsigned int mcl_num_particles_min,
          const unsigned int mcl_num_particles_max,
-         const double mcl_kld_eps,
-         const double mcl_hist_pos_res,
-         const double mcl_hist_th_res,
          const double car_length,
-         const double motion_lin_vel_n1,
-         const double motion_lin_vel_n2,
-         const double motion_ang_vel_n1,
-         const double motion_ang_vel_n2,
-         const double motion_th_n1,
-         const double motion_th_n2,
          const float sensor_range_min,
          const float sensor_range_max,
          const float sensor_range_no_obj,
-         const float sensor_range_std_dev,
-         const float sensor_new_obj_decay_rate,
-         const double sensor_weight_no_obj,
-         const double sensor_weight_new_obj,
-         const double sensor_weight_map_obj,
-         const double sensor_weight_rand_effect,
-         const double sensor_uncertainty_factor,
-         const unsigned int sensor_th_sample_count,
-         const unsigned int sensor_th_raycast_count,
-         const double sensor_table_res,
          const unsigned int map_width,
          const unsigned int map_height,
          const float map_x_origin,
@@ -135,8 +112,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const std::vector<int8_t> map_data
         ) :
   update_num_(0),
-  num_particles_min_(mcl_num_particles_min == 0 ? 1 : mcl_num_particles_min),
-  kld_eps_(mcl_kld_eps),
+  num_particles_min_(mcl_num_particles_min),
   vel_(0.0),
   map_(map_width,
        map_height,
@@ -146,36 +122,15 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
        map_scale,
        map_data
       ),
-  motion_model_(car_length,
-                motion_lin_vel_n1,
-                motion_lin_vel_n2,
-                motion_ang_vel_n1,
-                motion_ang_vel_n2,
-                motion_th_n1,
-                motion_th_n2
-               ),
+  motion_model_(car_length),
   sensor_model_(sensor_range_min,
                 sensor_range_max,
                 sensor_range_no_obj,
-                sensor_range_std_dev,
-                sensor_new_obj_decay_rate,
-                sensor_weight_no_obj,
-                sensor_weight_new_obj,
-                sensor_weight_map_obj,
-                sensor_weight_rand_effect,
-                sensor_uncertainty_factor,
-                sensor_th_sample_count,
-                sensor_th_raycast_count,
-                sensor_table_res,
                 map_
                ),
   dist_(mcl_num_particles_max),
   samples_(mcl_num_particles_max),
-  hist_(mcl_hist_pos_res,
-        mcl_hist_pos_res,
-        mcl_hist_th_res,
-        map_
-       ),
+  hist_(map_),
   random_sample_(map_),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
@@ -238,8 +193,8 @@ void MCL::update()
   size_t hist_count = 0;
   size_t s = 0;
 
-  // The probability of random samples is based on the change in
-  // average confidence and decreases as the confidence improves
+  // The probability of random samples is based on the change in average confidence and decreases as the confidence
+  // improves.
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
 
@@ -269,7 +224,7 @@ void MCL::update()
 
         if (hist_count > 1) {
           // Wilson-Hilferty transformation of chi-square distribution
-          chi_sq_term_1 = (hist_count - 1.0) / (2.0 * kld_eps_);
+          chi_sq_term_1 = (hist_count - 1.0) / (2.0 * KLD_EPS);
           chi_sq_term_2 = 1.0 - F_2_9 / (hist_count - 1.0) + Z_P_01 * std::sqrt(F_2_9 / (hist_count - 1.0));
           num_particles_target = chi_sq_term_1 * chi_sq_term_2 * chi_sq_term_2 * chi_sq_term_2;
           num_particles_target = num_particles_target > num_particles_min_?
@@ -322,7 +277,7 @@ bool MCL::stopped()
 {
   RecursiveLock lock(vel_mtx_);
 
-  return std::abs(vel_) < STOPPED_THRESHOLD;
+  return std::abs(vel_) < SPEED_STOPPED;
 }
 
 bool MCL::stopped(const double vel)

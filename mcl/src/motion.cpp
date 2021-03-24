@@ -2,23 +2,17 @@
 
 #include "mcl/motion.h"
 
+static const double LIN_VEL_N1 = 0.01;  // Linear velocity noise coefficient 1
+static const double LIN_VEL_N2 = 0.01;  // Linear velocity noise coefficient 2
+static const double ANG_VEL_N1 = 0.01;  // Angular velocity noise coefficient 1
+static const double ANG_VEL_N2 = 0.01;  // Angular velocity noise coefficient 2
+static const double TH_N1 = 0.01;       // Final rotation noise coefficient 1
+static const double TH_N2 = 0.01;       // Final rotation noise coefficient 2
+
 using namespace localize;
 
-VelModel::VelModel(const double car_length,
-                   const double lin_vel_n1,
-                   const double lin_vel_n2,
-                   const double ang_vel_n1,
-                   const double ang_vel_n2,
-                   const double th_n1,
-                   const double th_n2
-                  ) :
-  car_length_(car_length),
-  lin_vel_n1_(lin_vel_n1),
-  lin_vel_n2_(lin_vel_n2),
-  ang_vel_n1_(ang_vel_n1),
-  ang_vel_n2_(ang_vel_n2),
-  th_n1_(th_n1),
-  th_n2_(th_n2)
+VelModel::VelModel(const double car_length) :
+  car_length_(car_length)
 {}
 
 void VelModel::apply(ParticleDistribution& dist,
@@ -34,9 +28,9 @@ void VelModel::apply(ParticleDistribution& dist,
   double lin_vel_sq = lin_vel * lin_vel;
   double ang_vel_sq = ang_vel * ang_vel;
 
-  double lin_vel_var = lin_vel_n1_ * lin_vel_sq + lin_vel_n2_ * ang_vel_sq;
-  double ang_vel_var = ang_vel_n1_ * lin_vel_sq + ang_vel_n2_ * ang_vel_sq;
-  double th_var = th_n1_ * lin_vel_sq + th_n2_ * ang_vel_sq;
+  double lin_vel_var = LIN_VEL_N1 * lin_vel_sq + LIN_VEL_N2 * ang_vel_sq;
+  double ang_vel_var = ANG_VEL_N1 * lin_vel_sq + ANG_VEL_N2 * ang_vel_sq;
+  double th_var = TH_N1 * lin_vel_sq + TH_N2 * ang_vel_sq;
 
   double lin_vel_std_dev = lin_vel_var > DBL_MIN ? std::sqrt(lin_vel_var) : 0.0;
   double ang_vel_std_dev = ang_vel_var > DBL_MIN ? std::sqrt(ang_vel_var) : 0.0;

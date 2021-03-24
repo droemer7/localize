@@ -21,14 +21,7 @@ namespace localize
   {
   public:
     // Constructor
-    VelModel(const double car_length, // Car length
-             const double lin_vel_n1, // Model linear velocity noise coefficient 1
-             const double lin_vel_n2, // Model linear velocity noise coefficient 2
-             const double ang_vel_n1, // Model angular velocity noise coefficient 1
-             const double ang_vel_n2, // Model angular velocity noise coefficient 2
-             const double th_n1,      // Model final rotation noise coefficient 1
-             const double th_n2       // Model final rotation noise coefficient 2
-            );
+    VelModel(const double car_length); // Car length
 
     // Apply the motion model to generate new samples of particles from p(x[t] | u[t], x[t-1])
     // Algorithm 5.3 from Probabilistic Robotics (Thrun 2006, page 124)
@@ -39,14 +32,7 @@ namespace localize
               );
 
   private:
-    // Model parameters
     double car_length_; // Car length
-    double lin_vel_n1_; // Model linear velocity noise coefficient 1
-    double lin_vel_n2_; // Model linear velocity noise coefficient 2
-    double ang_vel_n1_; // Model angular velocity noise coefficient 1
-    double ang_vel_n2_; // Model angular velocity noise coefficient 2
-    double th_n1_;      // Model final rotation noise coefficient 1
-    double th_n2_;      // Model final rotation noise coefficient 2
 
     NormalDistributionSampler<double> sampler_; // Normal distribution sampler
   };

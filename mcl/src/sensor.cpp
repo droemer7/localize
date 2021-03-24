@@ -3,56 +3,60 @@
 
 #include "mcl/sensor.h"
 
-const float RANGE_EPSILON = 1e-5;
+static const float RANGE_STD_DEV = 0.5;                       // Standard deviation in range measurements
+static const float NEW_OBJ_DECAY_RATE = 0.5;                  // Decay rate for new / unexpected object probability
+static const double WEIGHT_NO_OBJ = 15.0;                     // Weight for no object detected probability
+static const double WEIGHT_NEW_OBJ = 5.0;                     // Weight for new / unexpected object probability
+static const double WEIGHT_MAP_OBJ = 75.0;                    // Weight for mapped / expected object probability
+static const double WEIGHT_RAND_EFFECT = 5.0;                 // Weight for random effect probability
+static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;          // Weight uncertainty factor (extra noise added)
+static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.50;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
+static const double TABLE_RES = 0.01;                         // Lookup table resolution (meters per cell)
+static const unsigned int TH_RAYCAST_COUNT = 656;             // Number of angles for raycast approximation (count per revolution)
+static const float RANGE_EPSILON = 1e-5;                      // Maximum delta between two ranges such that they are still considered 'equal'
 
 using namespace localize;
+
+WeightRatio::WeightRatio() :
+  index_(0),
+  ratio_(0.0)
+{}
+
+WeightRatio::WeightRatio(const size_t index, const double ratio) :
+  index_(index),
+  ratio_(ratio)
+{}
 
 BeamModel::BeamModel(const float range_min,
                      const float range_max,
                      const float range_no_obj,
-                     const float range_std_dev,
-                     const float new_obj_decay_rate,
-                     const double weight_no_obj,
-                     const double weight_new_obj,
-                     const double weight_map_obj,
-                     const double weight_rand_effect,
-                     const double uncertainty_factor,
-                     const unsigned int th_sample_count,
-                     const unsigned int th_raycast_count,
-                     const double table_res,
                      const Map& map
                     ) :
   range_min_(range_min),
   range_max_(range_max),
   range_no_obj_(range_no_obj),
-  range_std_dev_(range_std_dev),
-  new_obj_decay_rate_(new_obj_decay_rate),
-  weights_sum_(  weight_no_obj
-               + weight_new_obj
-               + weight_map_obj
-               + weight_rand_effect
+  range_std_dev_(RANGE_STD_DEV),
+  new_obj_decay_rate_(NEW_OBJ_DECAY_RATE),
+  weights_sum_(  WEIGHT_NO_OBJ
+               + WEIGHT_NEW_OBJ
+               + WEIGHT_MAP_OBJ
+               + WEIGHT_RAND_EFFECT
               ),
-  weight_no_obj_(weight_no_obj / weights_sum_),
-  weight_new_obj_(weight_new_obj / weights_sum_),
-  weight_map_obj_(weight_map_obj / weights_sum_),
-  weight_rand_effect_(weight_rand_effect / weights_sum_),
-  uncertainty_factor_(uncertainty_factor),
-  table_res_(table_res),
-  table_size_(range_max / table_res + 1),
+  weight_no_obj_(WEIGHT_NO_OBJ / weights_sum_),
+  weight_new_obj_(WEIGHT_NEW_OBJ / weights_sum_),
+  weight_map_obj_(WEIGHT_MAP_OBJ / weights_sum_),
+  weight_rand_effect_(WEIGHT_RAND_EFFECT / weights_sum_),
+  table_res_(TABLE_RES),
+  table_size_(range_max / TABLE_RES + 1),
   weight_table_new_obj_(table_size_, std::vector<double>(table_size_)),
   weight_table_(table_size_, std::vector<double>(table_size_)),
-  rays_obs_sample_(th_sample_count),
+  rays_obs_sample_(SENSOR_TH_SAMPLE_COUNT),
   raycaster_(map,
              range_max / map.scale,
-             th_raycast_count
+             TH_RAYCAST_COUNT
             ),
-  th_sample_dist_(0.0, M_2PI / th_sample_count)
+  th_sample_dist_(0.0, M_2PI / SENSOR_TH_SAMPLE_COUNT)
 {
-  if (uncertainty_factor_ < 1.0)
-  {
-    printf("BeamModel: Warning - model uncertainty factor less than 1, using 1 (none)\n");
-    uncertainty_factor_ = 1.0;
-  }
   // Precalculate the sensor model and create tables
   precalcWeightedProbs();
 }
@@ -92,7 +96,7 @@ void BeamModel::apply(Particle& particle,
     weight *= weight_partial;
   }
   // Update full weight, applying overall model uncertainty
-  particle.weight_ = std::pow(weight, uncertainty_factor_);
+  particle.weight_ = std::pow(weight, WEIGHT_UNCERTAINTY_FACTOR);
   return;
 }
 
@@ -263,71 +267,59 @@ float BeamModel::repair(float range)
 void BeamModel::removeOutliers(ParticleDistribution& dist)
 {
   // Calculate ratios and pair them with their index
-  std::vector<std::pair<size_t, double>> weight_ratios(rays_obs_sample_.size());
+  std::vector<WeightRatio> weight_ratios(rays_obs_sample_.size());
 
   for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
-    weight_ratios[i].first = i;
+    weight_ratios[i].index_ = i;
 
     if (rays_obs_sample_[i].weight_sum_ > 0) {
-      weight_ratios[i].second = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
+      weight_ratios[i].ratio_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
     }
     else {
-      weight_ratios[i].second = 1.0;
+      weight_ratios[i].ratio_ = 0.0;
     }
-    // printf("Outlier ratio[%lu] = %.2e\n", weight_ratios[i].first, weight_ratios[i].second);
+    // printf("Outlier ratio[%lu] = %.2e\n", weight_ratios[i].index_, weight_ratios[i].ratio_);
   }
   // Sort ratios according to worst outliers first, carrying along the corresponding weight index
-  auto worstDescending = [](const std::pair<size_t, double>& ratio_1, const std::pair<size_t, double>& ratio_2)
-                           { return ratio_1.second > ratio_2.second; };
+  auto worstDescending = [](const WeightRatio& ratio_1, const WeightRatio& ratio_2)
+                           { return ratio_1.ratio_ > ratio_2.ratio_; };
   std::sort(weight_ratios.begin(), weight_ratios.end(), worstDescending);
 
   // Evaluate the sorted weight ratios list and remove the worst outliers, up to half at most
   // Observed ranges and their corresponding weights are considered outliers if they appear
   // likely to be due to a new / unexpected object
-  std::vector<size_t> weight_indexes_rejected;
   size_t i = 0;
+  size_t reject_count = 0;
 
   while (   i < weight_ratios.size()
-         && weight_indexes_rejected.size() < weight_ratios.size() / 2  // Only reject half at most so we aren't totally blind
+         && reject_count < weight_ratios.size() / 2  // Only reject half at most so we aren't totally blind
         ) {
-    // printf("Outlier ratio[%lu] = %.2e", weight_ratios[i].first, weight_ratios[i].second);
-
-    if (weight_ratios[i].second > SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD) {
-      weight_indexes_rejected.push_back(weight_ratios[i].first);
-      printf("rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
-             rays_obs_sample_[weight_ratios[i].first].range_,
-             rays_obs_sample_[weight_ratios[i].first].th_ * 180.0 / M_PI,
-             weight_ratios[i].second
+    if (weight_ratios[i].ratio_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
+      ++reject_count;
+      printf("Rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
+             rays_obs_sample_[weight_ratios[i].index_].range_,
+             rays_obs_sample_[weight_ratios[i].index_].th_ * 180.0 / M_PI,
+             weight_ratios[i].ratio_
             );
     }
     else {
-      // printf(", accepted range = %.2f, angle = %.2f\n",
-      //        rays_obs_sample_[weight_ratios[i].first].range_, rays_obs_sample_[weight_ratios[i].first].th_ * 180.0 / M_PI
-      //       );
-      // Once one is accepted, remaining ones will also be acceptable from sorting
-      break;
+      break;  // Once one is accepted, remaining ones will also be acceptable from sorting
     }
     ++i;
   }
   // Recalculate weights, undoing the outlier contributions
   double weight_partial = 0.0;
 
-  if (weight_indexes_rejected.size() > 0) {
+  if (weight_ratios.size() > 0) {
     for (size_t i = 0; i < dist.count(); ++i) {
 
       // Reset weight for each rejected index
-      for (size_t j = 0; j < weight_indexes_rejected.size(); ++j) {
-        weight_partial = dist.particle(i).weights_[weight_indexes_rejected[j]];
-        weight_partial = std::pow(weight_partial, SENSOR_UNCERTAINTY_FACTOR);
+      for (size_t j = 0; j < reject_count; ++j) {
+        weight_partial = dist.particle(i).weights_[weight_ratios[j].index_];
+        weight_partial = std::pow(weight_partial, WEIGHT_UNCERTAINTY_FACTOR);
 
         if (weight_partial > 0.0) {
-          // printf("Rejecting outlier angle = %.2f, range = %.2f, ",
-          //        rays_obs_sample_[weight_ratios[j].first].th_ * 180.0 / M_PI,
-          //        rays_obs_sample_[weight_ratios[j].first].range_
-          //       );
-          // printf("weight before = %.2e, ", dist.particle(i).weight_);
           dist.particle(i).weight_ /= weight_partial;
-          // printf("weight after = %.2e\n", dist.particle(i).weight_);
         }
         else {
           dist.particle(i).weight_ = 1.0;

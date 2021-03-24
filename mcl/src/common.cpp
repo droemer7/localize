@@ -5,44 +5,11 @@
 
 using namespace localize;
 
-// Misc
-const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
-
-// MCL
 const unsigned int localize::MCL_NUM_PARTICLES_MIN = 1'000;
 const unsigned int localize::MCL_NUM_PARTICLES_MAX = 100'000;
-const double localize::MCL_KLD_EPS = 0.02;
-const double localize::MCL_HIST_POS_RES = 0.10;
-const double localize::MCL_HIST_TH_RES = M_PI / 18.0;
-
-// Motion model
-const double localize::MOTION_LIN_VEL_N1 = 0.01;
-const double localize::MOTION_LIN_VEL_N2 = 0.01;
-const double localize::MOTION_ANG_VEL_N1 = 0.01;
-const double localize::MOTION_ANG_VEL_N2 = 0.01;
-const double localize::MOTION_TH_N1 = 0.01;
-const double localize::MOTION_TH_N2 = 0.01;
-
-// Sensor model
 const float localize::SENSOR_RANGE_NO_OBJ = 0.0;
-const float localize::SENSOR_RANGE_STD_DEV = 0.5;       // 0.5
-const float localize::SENSOR_NEW_OBJ_DECAY_RATE = 0.5;  // 0.5
-const double localize::SENSOR_WEIGHT_NO_OBJ = 15.0;
-const double localize::SENSOR_WEIGHT_NEW_OBJ = 5.0;     // 4.0
-const double localize::SENSOR_WEIGHT_MAP_OBJ = 75.0;    // 80.0
-const double localize::SENSOR_WEIGHT_RAND_EFFECT = 5.0; // 1.0
-const double localize::SENSOR_UNCERTAINTY_FACTOR = 1.1;
-const double localize::SENSOR_WEIGHT_RATIO_NEW_OBJ_THRESHOLD = 0.10;
-                                                               /*(  SENSOR_WEIGHT_NEW_OBJ
-                                                                / (  SENSOR_WEIGHT_NO_OBJ
-                                                                   + SENSOR_WEIGHT_NEW_OBJ
-                                                                   + SENSOR_WEIGHT_MAP_OBJ
-                                                                   + SENSOR_WEIGHT_RAND_EFFECT
-                                                                  )
-                                                               );*/
-const double localize::SENSOR_TABLE_RES = 0.01;
-const unsigned int localize::TH_SAMPLE_COUNT = 8;
-const unsigned int localize::TH_RAYCAST_COUNT = 656;
+const unsigned int localize::SENSOR_TH_SAMPLE_COUNT = 8;
+const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
 
 Particle::Particle(const double x,
                    const double y,
@@ -55,7 +22,7 @@ Particle::Particle(const double x,
   th_(th),
   weight_(weight),
   weight_normed_(weight_normed),
-  weights_(TH_SAMPLE_COUNT, 0.0)
+  weights_(SENSOR_TH_SAMPLE_COUNT, 0.0)
 {}
 
 Ray::Ray(const float range,

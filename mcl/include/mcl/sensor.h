@@ -10,6 +10,19 @@
 
 namespace localize
 {
+  typedef std::vector<std::vector<double>> WeightTable;
+
+  struct WeightRatio
+  {
+    // Constructors
+    WeightRatio();
+
+    WeightRatio(const size_t index, const double ratio);
+
+    size_t index_;
+    double ratio_;
+  };
+
   // Beam-based probabilistic model for a range sensor
   //
   // The model is comprised of four superimposed probability distributions:
@@ -25,20 +38,10 @@ namespace localize
   {
   public:
     // Constructor
-    BeamModel(const float range_min,                // Sensor min range in meters
-              const float range_max,                // Sensor max range in meters
-              const float range_no_obj,             // Sensor range reported when nothing is detected
-              const float range_std_dev,            // Sensor range standard deviation
-              const float new_obj_decay_rate,       // Model decay rate for new / unexpected object probability
-              const double weight_no_obj,           // Model weight for no object detected probability
-              const double weight_new_obj,          // Model weight for new / unexpected object probability
-              const double weight_map_obj,          // Model weight for mapped / expected object probability
-              const double weight_rand_effect,      // Model weight for random effect probability
-              const double uncertainty_factor,      // Model uncertainty factor - extra noise added to calculation
-              const unsigned int th_sample_count,   // Number of sampled sensor observations to use (count per revolution)
-              const unsigned int th_raycast_count,  // Number of angles for raycast (count per revolution)
-              const double table_res,               // Model table resolution (meters per cell)
-              const Map& map                        // Map
+    BeamModel(const float range_min,    // Sensor min range in meters
+              const float range_max,    // Sensor max range in meters
+              const float range_no_obj, // Sensor range reported when nothing is detected
+              const Map& map            // Map
              );
 
     // Apply the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
@@ -135,8 +138,6 @@ namespace localize
     void precalcWeightedProbs();
 
   private:
-    typedef std::vector<std::vector<double>> WeightTable;
-
     // Model parameters
     float range_min_;           // Sensor min range in meters
     float range_max_;           // Sensor max range in meters
@@ -148,7 +149,6 @@ namespace localize
     double weight_new_obj_;     // Model weight for new / unexpected object probability
     double weight_map_obj_;     // Model weight for mapped / expected object probability
     double weight_rand_effect_; // Model weight for random effect probability
-    double uncertainty_factor_; // Model uncertainty factor - extra noise added to calculation
 
     // Model lookup tables
     // First axis is incremented by ranges observed from the sensor

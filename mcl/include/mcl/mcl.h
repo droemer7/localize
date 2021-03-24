@@ -37,11 +37,7 @@ namespace localize
   {
   public:
     // Constructors
-    ParticleHistogram(const double x_res,   // Resolution for x position (meters per cell)
-                      const double y_res,   // Resolution for y position (meters per cell)
-                      const double th_res,  // Resolution for angle (rad per cell)
-                      const Map& map        // Map
-                     );
+    ParticleHistogram(const Map& map);  // Map
 
     // Update histogram occupancy with the particle's location
     // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
@@ -60,9 +56,6 @@ namespace localize
                                       const size_t th_i
                                      );
   private:
-    const double x_res_;      // Resolution for x position (meters per cell)
-    const double y_res_;      // Resolution for y position (meters per cell)
-    const double th_res_;     // Resolution for heading angle (rad per cell)
     const size_t x_size_;     // Size of x dimension (number of elements)
     const size_t y_size_;     // Size of y dimension (number of elements)
     const size_t th_size_;    // Size of angular dimension (number of elements)
@@ -83,29 +76,10 @@ namespace localize
     // Constructors
     MCL(const unsigned int mcl_num_particles_min,   // Minimum number of particles
         const unsigned int mcl_num_particles_max,   // Maximum number of particles
-        const double mcl_kld_eps,                   // KL distance threshold
-        const double mcl_hist_pos_res,              // Histogram resolution for x and y position (meters per cell)
-        const double mcl_hist_th_res,               // Histogram resolution for heading angle (rad per cell)
         const double car_length,                    // Car length
-        const double motion_lin_vel_n1,             // Motion model linear velocity noise coefficient 1
-        const double motion_lin_vel_n2,             // Motion model linear velocity noise coefficient 2
-        const double motion_ang_vel_n1,             // Motion model angular velocity noise coefficient 1
-        const double motion_ang_vel_n2,             // Motion model angular velocity noise coefficient 2
-        const double motion_th_n1,                  // Motion model final rotation noise coefficient 1
-        const double motion_th_n2,                  // Motion model final rotation noise coefficient 2
         const float sensor_range_min,               // Sensor min range in meters
         const float sensor_range_max,               // Sensor max range in meters
         const float sensor_range_no_obj,            // Sensor range reported when nothing is detected
-        const float sensor_range_std_dev,           // Sensor range standard deviation
-        const float sensor_new_obj_decay_rate,      // Sensor model decay rate for new / unexpected object probability
-        const double sensor_weight_no_obj,          // Sensor model weight for no object detected probability
-        const double sensor_weight_new_obj,         // Sensor model weight for new / unexpected object probability
-        const double sensor_weight_map_obj,         // Sensor model weight for mapped / expected object probability
-        const double sensor_weight_rand_effect,     // Sensor model weight for random effect probability
-        const double sensor_uncertainty_factor,     // Sensor model uncertainty factor - extra noise added to calculation
-        const unsigned int sensor_th_sample_count,  // Number of sampled sensor observations to use (count per revolution)
-        const unsigned int sensor_th_raycast_count, // Number of angles for raycast (count per revolution)
-        const double sensor_table_res,              // Sensor model lookup table resolution (meters per cell)
         const unsigned int map_width,               // Map number of pixels along x axis
         const unsigned int map_height,              // Map number of pixels along y axis
         const float map_x_origin,                   // Map x translation of origin (cell 0,0) relative to world frame (meters)
@@ -153,14 +127,12 @@ namespace localize
     std::recursive_mutex vel_mtx_;  // Velocity mutex
 
     const size_t num_particles_min_;  // Minimum number of particles
-    const double kld_eps_;            // KL distance threshold
     double vel_;                      // Robot linear velocity
-
-    const Map map_;                 // Map
-    VelModel motion_model_;         // Motion model
-    BeamModel sensor_model_;        // Sensor model
-    ParticleVector particle_data_;  // Particle data saved for offline tuning / analysis
-    RayScanVector sensor_data_;     // Sensor data saved for offline tuning / analysis
+    const Map map_;                   // Map
+    VelModel motion_model_;           // Motion model
+    BeamModel sensor_model_;          // Sensor model
+    ParticleVector particle_data_;    // Particle data saved for offline tuning / analysis
+    RayScanVector sensor_data_;       // Sensor data saved for offline tuning / analysis
 
     ParticleDistribution dist_;           // Particle distribution
     ParticleVector samples_;              // Sampled particles (temporary storage)

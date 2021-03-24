@@ -1,7 +1,7 @@
 #include "mcl/dist.h"
 
 static const double WEIGHT_AVG_CREEP_RATE = 0.01;
-static const double WEIGHT_AVG_SLOW_RATE = 0.30;
+static const double WEIGHT_AVG_SLOW_RATE = 0.25;
 static const double WEIGHT_AVG_FAST_RATE = 0.50;
 
 using namespace localize;
@@ -168,8 +168,6 @@ void ParticleDistribution::calcWeightStats()
   }
   printf("Weight average = %.2e\n", weightAvg());
   printf("Weight ratio = %.2f\n", weightAvgRatio());
-  printf("Weight variance = %.2e\n", weightVar());
-  printf("Weight std dev = %.2e\n", weightStdDev());
   printf("Weight relative std dev = %.2e\n", weightRelativeStdDev());
 }
 
