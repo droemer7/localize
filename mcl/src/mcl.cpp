@@ -97,8 +97,8 @@ std::vector<bool>::reference ParticleHistogram::cell(const size_t x_i,
   return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
 }
 
-MCL::MCL(const unsigned int mcl_num_particles_min,
-         const unsigned int mcl_num_particles_max,
+MCL::MCL(const unsigned int num_particles_min,
+         const unsigned int num_particles_max,
          const double car_length,
          const float sensor_range_min,
          const float sensor_range_max,
@@ -112,7 +112,7 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
          const std::vector<int8_t> map_data
         ) :
   update_num_(0),
-  num_particles_min_(mcl_num_particles_min),
+  num_particles_min_(num_particles_min),
   vel_(0.0),
   map_(map_width,
        map_height,
@@ -128,8 +128,8 @@ MCL::MCL(const unsigned int mcl_num_particles_min,
                 sensor_range_no_obj,
                 map_
                ),
-  dist_(mcl_num_particles_max),
-  samples_(mcl_num_particles_max),
+  dist_(num_particles_max),
+  samples_(num_particles_max),
   hist_(map_),
   random_sample_(map_),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))

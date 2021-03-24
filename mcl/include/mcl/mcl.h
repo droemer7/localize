@@ -74,19 +74,19 @@ namespace localize
   {
   public:
     // Constructors
-    MCL(const unsigned int mcl_num_particles_min,   // Minimum number of particles
-        const unsigned int mcl_num_particles_max,   // Maximum number of particles
-        const double car_length,                    // Car length
-        const float sensor_range_min,               // Sensor min range in meters
-        const float sensor_range_max,               // Sensor max range in meters
-        const float sensor_range_no_obj,            // Sensor range reported when nothing is detected
-        const unsigned int map_width,               // Map number of pixels along x axis
-        const unsigned int map_height,              // Map number of pixels along y axis
-        const float map_x_origin,                   // Map x translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_y_origin,                   // Map y translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_th,                         // Map angle relative to world frame (read)
-        const float map_scale,                      // Map scale relative to world frame (meters per pixel)
-        const std::vector<int8_t> map_data          // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+    MCL(const unsigned int num_particles_min, // Minimum number of particles
+        const unsigned int num_particles_max, // Maximum number of particles
+        const double car_length,              // Car length
+        const float sensor_range_min,         // Sensor min range in meters
+        const float sensor_range_max,         // Sensor max range in meters
+        const float sensor_range_no_obj,      // Sensor range reported when nothing is detected
+        const unsigned int map_width,         // Map number of pixels along x axis
+        const unsigned int map_height,        // Map number of pixels along y axis
+        const float map_x_origin,             // Map x translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_y_origin,             // Map y translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_th,                   // Map angle relative to world frame (read)
+        const float map_scale,                // Map scale relative to world frame (meters per pixel)
+        const std::vector<int8_t> map_data    // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
