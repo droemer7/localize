@@ -54,10 +54,16 @@ namespace localize
                   T& value
                  );
 
-    // Print Motion model parameters
+    // Print Motion update times (last and worst)
+    void printMotionUpdateTime(bool time_min_msec = 0.0);
+
+    // Print Sensor update times (last and worst)
+    void printSensorUpdateTime(bool time_min_msec = 0.0);
+
+    // Print Motion parameters
     void printMotionParams();
 
-    // Print Sensor model parameters
+    // Print Sensor parameters
     void printSensorParams();
 
     // Print Map parameters
@@ -98,15 +104,15 @@ namespace localize
     double drive_steer_angle_to_servo_gain_;   // Gain for converting steering angle to servo position
     double drive_steer_angle_to_servo_offset_; // Bias for converting steering angle to servo position
     double drive_steer_servo_pos_;             // Steering servo position
-    double motion_dur_msec_;                   // Motion model last update time (milliseconds)
-    double motion_dur_worst_msec_;             // Motion model worst update time (milliseconds)
+    double motion_update_time_msec_;           // Motion update last time (milliseconds)
+    double motion_update_time_worst_msec_;     // Motion update worst time (milliseconds)
 
     // Sensor model parameters
-    float sensor_range_min_;        // Sensor min range in meters
-    float sensor_range_max_;        // Sensor max range in meters
-    float sensor_range_no_obj_;     // Sensor range reported when nothing is detected
-    double sensor_dur_msec_;        // Sensor model last update time (milliseconds)
-    double sensor_dur_worst_msec_;  // Sensor model worst update time (milliseconds)
+    float sensor_range_min_;                // Sensor min range in meters
+    float sensor_range_max_;                // Sensor max range in meters
+    float sensor_range_no_obj_;             // Sensor range reported when nothing is detected
+    double sensor_update_time_msec_;        // Sensor update last time (milliseconds)
+    double sensor_update_time_worst_msec_;  // Sensor update worst time (milliseconds)
 
     // Map parameters
     unsigned int map_width_;        // Map number of pixels along x axis
@@ -116,6 +122,8 @@ namespace localize
     float map_th_;                  // Map angle relative to world frame (rad)
     float map_scale_;               // Map scale relative to world frame (meters per pixel)
     std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+
+    size_t update_num_; // TBD remove, for testing
   };
 
 } // namespace localize

@@ -98,11 +98,15 @@ namespace localize
     // Apply the sensor model to update particle weights using p(obs[t] | pose[t], map)
     void update(const RayScan& obs);
 
+    // Indicates if the robot velocity is within the stopped threshold based on the last saved value
+    bool stopped();
+
     // Save particle distribution to file in CSV format
     void save(const std::string filename,
               const bool sort = true,
               const bool overwrite = true
              );
+
   private:
     // Update particle distribution by performing resampling (based on particle weights) and/or random sampling
     // No changes are made if distribution is ok
@@ -115,14 +119,10 @@ namespace localize
     // Return true if random samples should be added to the distribution
     bool randomSampleRequired();
 
-    // Indicates if the robot velocity is within the stopped threshold based on the last saved value
-    bool stopped();
-
     // Updates the robot velocity with the input value and returns true if it is within the stopped threshold
     bool stopped(const double vel);
 
   private:
-    size_t update_num_; // TBD remove
     std::recursive_mutex dist_mtx_; // Particle distribution mutex
     std::recursive_mutex vel_mtx_;  // Velocity mutex
 
@@ -136,7 +136,7 @@ namespace localize
 
     ParticleDistribution dist_;           // Particle distribution
     ParticleVector samples_;              // Sampled particles (temporary storage)
-    ParticleOccupancyHistogram hist_sample_;  // Histogram for estimating probability distribution complexity
+    ParticleOccupancyHistogram hist_;     // Histogram for estimating probability distribution complexity
     ParticleRandomSampler random_sample_; // Random particle sampler, generates samples in free space based on the map
 
     RNG rng_; // Random number generator

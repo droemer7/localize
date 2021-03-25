@@ -102,6 +102,7 @@ void BeamModel::apply(ParticleDistribution& dist,
   removeOutliers(dist);
 
   // Recalculate weight statistics
+  printf("\n===== Sensor model update =====\n");
   dist.update();
 
   return;

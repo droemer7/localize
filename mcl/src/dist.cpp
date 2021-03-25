@@ -40,7 +40,7 @@ ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
 
 void ParticleEstimateHistogram::add(const Particle& particle)
 {
-  // Flag as modified since this changes estimate averages
+  // Flag as modified since this impacts local averaging used to determine estimates
   modified_ = true;
 
   // Calculate index
@@ -74,23 +74,29 @@ void ParticleEstimateHistogram::updateEstimates()
   if (modified_) {
     // Sort the histogram by weight, best first
     hist_sorted_ = hist_;
-    printf("count_ = %lu\n", count_);
-    printf("estimates_.size() = %lu\n", estimates_.size());
-    std::sort(hist_sorted_.begin(),
-              hist_sorted_.begin() + count_,
-              ParticleEstimateHistogramCell::compWeightGreater
-             );
+    std::sort(hist_sorted_.begin(), hist_sorted_.end(), ParticleEstimateHistogramCell::compWeightGreater);
 
     // Copy the best estimates, locally averaging each histogram cell
     size_t i = 0;
     double normalizer = 0;
 
+    printf("Pose estimate histogram count = %lu\n", count_);
+    printf("Pose estimates:\n");
+
     while (i < count_ && i < estimates_.size()) {
       normalizer = hist_sorted_[i].count_ > 0 ? 1.0 / hist_sorted_[i].count_ : 0.0;
       estimates_[i].x_ = hist_sorted_[i].x_ * normalizer;
       estimates_[i].y_ = hist_sorted_[i].y_ * normalizer;
-      estimates_[i].th_ = hist_sorted_[i].th_ * normalizer;
+      estimates_[i].th_ = wrapAngle(hist_sorted_[i].th_ * normalizer);
       estimates_[i].weight_normed_ = hist_sorted_[i].weight_normed_;
+
+      printf("Estimate %lu = %.3f, %.3f, %.3f (weight = %.2e)\n",
+             i + 1,
+             estimates_[i].x_,
+             estimates_[i].y_,
+             estimates_[i].th_ * 180.0 / M_PI,
+             estimates_[i].weight_normed_
+            );
       ++i;
     }
     modified_ = false;
@@ -117,8 +123,7 @@ size_t ParticleEstimateHistogram::count() const
 void ParticleEstimateHistogram::reset()
 {
   if (count_ > 0) {
-    ParticleEstimateHistogramCell cell;
-    std::fill(hist_.begin(), hist_.end(), cell);
+    std::fill(hist_.begin(), hist_.end(), ParticleEstimateHistogramCell());
     count_ = 0;
   }
   std::fill(estimates_.begin(), estimates_.end(), Particle());
@@ -282,6 +287,7 @@ void ParticleDistribution::calcWeightStats()
       // Update histogram now that weight has been normalized
       hist_.add(particles_[i]);
     }
+    hist_.updateEstimates();
     weight_var_ /= count_;
 
     // Calculate standard deviation
@@ -302,14 +308,6 @@ void ParticleDistribution::calcWeightStats()
   printf("Weight average = %.2e\n", weightAvg());
   printf("Weight ratio = %.2f\n", weightAvgRatio());
   printf("Weight relative std dev = %.2e\n", weightRelativeStdDev());
-
-  // TBD temp, remove and replace with real usage
-  ParticleVector estimates = hist_.estimates();
-  for (size_t i = 0; i < estimates.size(); ++i) {
-    printf("Estimate[%lu] = (%.3f, %.3f, %.3f) [weight = %.3e]\n",
-           i, estimates[i].x_, estimates[i].y_, estimates[i].th_, estimates[i].weight_normed_
-          );
-  }
 }
 
 void ParticleDistribution::resetSampler()

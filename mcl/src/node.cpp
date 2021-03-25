@@ -6,6 +6,8 @@
 #include "mcl/node.h"
 #include "mcl/common.h"
 
+static const int NUM_UPDATES = 1; // TBD remove
+
 using namespace localize;
 
 RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
@@ -34,10 +36,11 @@ MCLNode::MCLNode(const std::string& drive_vel_topic,
   timer_cb_dur_(1.0),
   drive_t_prev_(ros::Time::now()),
   drive_steer_servo_pos_(0.0),
-  motion_dur_msec_(0.0),
-  motion_dur_worst_msec_(0.0),
-  sensor_dur_msec_(0.0),
-  sensor_dur_worst_msec_(0.0)
+  motion_update_time_msec_(0.0),
+  motion_update_time_worst_msec_(0.0),
+  sensor_update_time_msec_(0.0),
+  sensor_update_time_worst_msec_(0.0),
+  update_num_(0)
 {
   // Localizer parameters
   ros::NodeHandle nh;
@@ -71,26 +74,21 @@ MCLNode::MCLNode(const std::string& drive_vel_topic,
   map_data_ = map_msg.data;
 
   // Construct the localizer with retrieved parameters before starting threads
-  try {
-    mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_min_,
-                                            num_particles_max_,
-                                            car_length_,
-                                            sensor_range_min_,
-                                            sensor_range_max_,
-                                            sensor_range_no_obj_,
-                                            map_width_,
-                                            map_height_,
-                                            map_x_origin_,
-                                            map_y_origin_,
-                                            map_th_,
-                                            map_scale_,
-                                            map_data_
-                                           )
-                                   );
-  }
-  catch (std::runtime_error error) {
-    throw std::runtime_error(error.what());
-  }
+  mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_min_,
+                                          num_particles_max_,
+                                          car_length_,
+                                          sensor_range_min_,
+                                          sensor_range_max_,
+                                          sensor_range_no_obj_,
+                                          map_width_,
+                                          map_height_,
+                                          map_x_origin_,
+                                          map_y_origin_,
+                                          map_th_,
+                                          map_scale_,
+                                          map_data_
+                                         )
+                                 );
 
   // Assign ROS callback queues
   drive_vel_nh_.setCallbackQueue(&drive_vel_cb_queue_);
@@ -151,9 +149,9 @@ void MCLNode::driveVelCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   mcl_ptr_->update(vel, steer_angle, dt);
 
   // Save duration
-  motion_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  motion_dur_worst_msec_ = motion_dur_msec_ > motion_dur_worst_msec_?
-                           motion_dur_msec_ : motion_dur_worst_msec_;
+  motion_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  motion_update_time_worst_msec_ = motion_update_time_msec_ > motion_update_time_worst_msec_?
+                                   motion_update_time_msec_ : motion_update_time_worst_msec_;
 }
 
 void MCLNode::driveSteerCb(const std_msgs::Float64::ConstPtr& msg)
@@ -169,18 +167,23 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   ros::Time start = ros::Time::now();
 
   // Update localizer with sensor data
-  // TBD remove try
-  try {
-    mcl_ptr_->update(RayScanMsg(msg));
-  }
-  catch (std::runtime_error error) {
-    throw error;
-  }
+  mcl_ptr_->update(RayScanMsg(msg));
 
   // Save duration
-  sensor_dur_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  sensor_dur_worst_msec_ = sensor_dur_msec_ > sensor_dur_worst_msec_?
-                           sensor_dur_msec_ : sensor_dur_worst_msec_;
+  sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
+                                   sensor_update_time_msec_ : sensor_update_time_worst_msec_;
+
+  bool stopped = mcl_ptr_->stopped();
+  if (!stopped || true) {
+    printf("\n***** Update %lu *****\n", ++update_num_);
+  }
+  if (   update_num_ >= NUM_UPDATES
+      && stopped
+     ) {
+    mcl_ptr_->save("particles.csv");
+    throw (std::runtime_error("Finished\n"));
+  }
 }
 
 template <class T>
@@ -200,14 +203,23 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
 {
-  if (motion_dur_msec_ > 0.01) {
-    ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_dur_msec_);
-    ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_dur_worst_msec_);
-  }
+  printMotionUpdateTime(0.01);
+  printSensorUpdateTime(0.01);
+}
 
-  if (sensor_dur_msec_ > 0.01) {
-    ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_dur_msec_);
-    ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_dur_worst_msec_);
+void MCLNode::printMotionUpdateTime(bool time_min_msec)
+{
+  if (motion_update_time_msec_ > time_min_msec) {
+    ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_update_time_msec_);
+    ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_update_time_worst_msec_);
+  }
+}
+
+void MCLNode::printSensorUpdateTime(bool time_min_msec)
+{
+  if (sensor_update_time_msec_ > time_min_msec) {
+    ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_update_time_msec_);
+    ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_update_time_worst_msec_);
   }
 }
 

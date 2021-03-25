@@ -13,7 +13,6 @@ static const double HIST_POS_RES = 0.10;          // Histogram resolution for x 
 static const double HIST_TH_RES = M_PI / 18.0;    // Histogram resolution for heading angle (rad per cell)
 static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
 static const size_t NUM_SENSOR_SCANS_TUNE = 200;  // Number of sensor scans to save for tuning the model
-static const int NUM_UPDATES = 1;                 // TBD remove
 
 using namespace localize;
 
@@ -111,7 +110,6 @@ MCL::MCL(const unsigned int num_particles_min,
          const float map_scale,
          const std::vector<int8_t> map_data
         ) :
-  update_num_(0),
   num_particles_min_(num_particles_min),
   vel_(0.0),
   map_(map_width,
@@ -130,7 +128,7 @@ MCL::MCL(const unsigned int num_particles_min,
                ),
   dist_(num_particles_max, map_),
   samples_(num_particles_max),
-  hist_sample_(map_),
+  hist_(map_),
   random_sample_(map_),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
@@ -149,6 +147,7 @@ void MCL::update(const double vel,
 {
   if (!stopped(vel)) {
     RecursiveLock lock(dist_mtx_);
+
     motion_model_.apply(dist_, vel, steering_angle, dt);
   }
 }
@@ -159,30 +158,18 @@ void MCL::update(const RayScan& obs)
   sensor_model_.update(obs);
 
   if (!stopped() || true) { // TBD remove true
-    printf("\n***** Update %lu *****\n", update_num_ + 1);
-    printf("\n===== Sensor model update =====\n");
     RecursiveLock lock(dist_mtx_);
+
     sensor_model_.apply(dist_);
     update();
-    update_num_++;
   }
-  // Run tuning
-  // TBD find a better way to make this optional
-  // Move into another function and have MCLNode call this instead
-  // if (sensor_data_.size() < NUM_SENSOR_SCANS_TUNE) {
-  //   sensor_data_.push_back(obs);
-  // }
-  // else {
-  //   sensor_model_.tune(sensor_data_, Particle(0.02, 0.0, -0.01));
-  //   throw std::runtime_error("Finished");
-  // }
-  // TBD remove
-  if (   stopped()
-      && update_num_ >= NUM_UPDATES
-     ) {
-    save("particles.csv");
-    throw std::runtime_error("Finished");
-  }
+}
+
+bool MCL::stopped()
+{
+  RecursiveLock lock(vel_mtx_);
+
+  return std::abs(vel_) < SPEED_STOPPED;
 }
 
 void MCL::update()
@@ -200,12 +187,11 @@ void MCL::update()
   bool resample = resampleRequired();
 
   // Reset histogram
-  hist_sample_.reset();
+  hist_.reset();
 
   if (   prob_sample_random
       || resample
      ) {
-    printf("\n===== Sampling =====\n");
     // Generate samples until we reach the target or max
     while (   s < samples_.size()
            && s < num_particles_target
@@ -220,8 +206,8 @@ void MCL::update()
         samples_[s] = dist_.sample();
       }
       // Update histogram with the sampled particle, and if the count increased, update the target number of samples
-      if (hist_sample_.add(samples_[s])) {
-        hist_count = hist_sample_.count();
+      if (hist_.add(samples_[s])) {
+        hist_count = hist_.count();
 
         if (hist_count > 1) {
           // Wilson-Hilferty transformation of chi-square distribution
@@ -235,11 +221,12 @@ void MCL::update()
       ++s;
     }
     // Update distribution with new sample set
+    printf("\n===== Sample update =====\n");
     dist_.update(samples_, s);
 
     printf("Prob(random) = %.2f\n", prob_sample_random);
     printf("Samples used = %lu\n", s);
-    printf("Histogram count = %lu\n", hist_count);
+    printf("Sample histogram count = %lu\n", hist_count);
     printf("---------------------------------\n");
   }
   return;
@@ -274,16 +261,10 @@ void MCL::save(const std::string filename,
   localize::save(particles, filename, overwrite);
 }
 
-bool MCL::stopped()
-{
-  RecursiveLock lock(vel_mtx_);
-
-  return std::abs(vel_) < SPEED_STOPPED;
-}
-
 bool MCL::stopped(const double vel)
 {
   RecursiveLock lock(vel_mtx_);
+
   vel_ = vel;
 
   return stopped();
