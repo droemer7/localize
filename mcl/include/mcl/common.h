@@ -170,9 +170,9 @@ namespace localize
       val_(val)
     {}
 
-    static bool compDescending(const IndexedValue<T>& item_1,
-                               const IndexedValue<T>& item_2
-                              )
+    static bool compGreater(const IndexedValue<T>& item_1,
+                            const IndexedValue<T>& item_2
+                           )
     { return item_1.val_ > item_2.val_; };
 
     size_t index_;
@@ -264,6 +264,15 @@ namespace localize
       if (angle <= -M_PI) {
         angle += M_2PI;
       }
+    }
+    return angle;
+  }
+
+  // Unwrap an angle to (0, 2pi] (angle of 0 should convert to 2pi)
+  inline double unwrapAngle(double angle)
+  {
+    while (angle < 0.0) {
+      angle += M_2PI;
     }
     return angle;
   }
@@ -366,27 +375,27 @@ namespace localize
     output.close();
   }
 
-  // Compare poses by x
-  inline bool compX(const Particle& p1, const Particle& p2)
-  { return (p1.x_ < p2.x_); };
+  // Compare poses by x, p1 x > p2 x
+  inline bool compXGreater(const Particle& p1, const Particle& p2)
+  { return (p1.x_ > p2.x_); };
 
-  // Compare poses by y
-  inline bool compY(const Particle& p1, const Particle& p2)
-  { return (p1.y_ < p2.y_); };
+  // Compare poses by y, p1 y > p2 y
+  inline bool compYGreater(const Particle& p1, const Particle& p2)
+  { return (p1.y_ > p2.y_); };
 
-  // Compare poses by theta
-  inline bool compTh(const Particle& p1, const Particle& p2)
-  { return (p1.th_ < p2.th_); };
+  // Compare poses by theta, p1 theta > p2 theta
+  inline bool compThGreater(const Particle& p1, const Particle& p2)
+  { return (p1.th_ > p2.th_); };
 
-  // Compare poses by weight
-  inline bool compWeight(const Particle& p1, const Particle& p2)
-  { return (p1.weight_ < p2.weight_); };
+  // Compare poses by weight, p1 weight > p2 weight
+  inline bool compWeightGreater(const Particle& p1, const Particle& p2)
+  { return (p1.weight_ > p2.weight_); };
 
   // Sort poses in descending value, default by weight
   inline void sort(ParticleVector& particles,
-                   bool (*comp)(const Particle& p1, const Particle& p2) = compWeight
+                   bool (*comp)(const Particle& p1, const Particle& p2) = compWeightGreater
                   )
-  { std::sort(particles.rbegin(), particles.rend(), comp); }
+  { std::sort(particles.begin(), particles.end(), comp); }
 
 } // namespace localize
 

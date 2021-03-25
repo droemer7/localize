@@ -41,13 +41,13 @@ namespace localize
 
     // Update histogram occupancy with the particle's pose
     // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
-    bool update(const Particle& particle);
+    bool add(const Particle& particle);
 
     // Histogram occupancy count
     size_t count() const;
 
-    // Clear histogram and reset occupancy count
-    void clear();
+    // Reset cell states and occupancy count
+    void reset();
 
   private:
     // Reference a cell by index
@@ -136,7 +136,7 @@ namespace localize
 
     ParticleDistribution dist_;           // Particle distribution
     ParticleVector samples_;              // Sampled particles (temporary storage)
-    ParticleOccupancyHistogram hist_;              // Histogram for estimating probability distribution complexity
+    ParticleOccupancyHistogram hist_sample_;  // Histogram for estimating probability distribution complexity
     ParticleRandomSampler random_sample_; // Random particle sampler, generates samples in free space based on the map
 
     RNG rng_; // Random number generator

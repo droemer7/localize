@@ -53,9 +53,9 @@ ParticleOccupancyHistogram::ParticleOccupancyHistogram(const Map& map) :
   count_(0)
 {}
 
-bool ParticleOccupancyHistogram::update(const Particle& particle)
+bool ParticleOccupancyHistogram::add(const Particle& particle)
 {
-  bool count_inc = false;
+  bool count_increased = false;
 
   // Calculate index
   size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / HIST_POS_RES),
@@ -70,10 +70,10 @@ bool ParticleOccupancyHistogram::update(const Particle& particle)
   // Update histogram
   if (!cell(x_i, y_i, th_i)) {
     cell(x_i, y_i, th_i) = true;
-    count_inc = true;
+    count_increased = true;
     ++count_;
   }
-  return count_inc;
+  return count_increased;
 }
 
 size_t ParticleOccupancyHistogram::count() const
@@ -81,7 +81,7 @@ size_t ParticleOccupancyHistogram::count() const
   return count_;
 }
 
-void ParticleOccupancyHistogram::clear()
+void ParticleOccupancyHistogram::reset()
 {
   if (count_ > 0) {
     std::fill(hist_.begin(), hist_.end(), false);
@@ -90,9 +90,9 @@ void ParticleOccupancyHistogram::clear()
 }
 
 std::vector<bool>::reference ParticleOccupancyHistogram::cell(const size_t x_i,
-                                                     const size_t y_i,
-                                                     const size_t th_i
-                                                    )
+                                                              const size_t y_i,
+                                                              const size_t th_i
+                                                             )
 {
   return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
 }
@@ -128,9 +128,9 @@ MCL::MCL(const unsigned int num_particles_min,
                 sensor_range_no_obj,
                 map_
                ),
-  dist_(num_particles_max),
+  dist_(num_particles_max, map_),
   samples_(num_particles_max),
-  hist_(map_),
+  hist_sample_(map_),
   random_sample_(map_),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
@@ -199,8 +199,8 @@ void MCL::update()
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
 
-  // Clear histogram
-  hist_.clear();
+  // Reset histogram
+  hist_sample_.reset();
 
   if (   prob_sample_random
       || resample
@@ -220,8 +220,8 @@ void MCL::update()
         samples_[s] = dist_.sample();
       }
       // Update histogram with the sampled particle, and if the count increased, update the target number of samples
-      if (hist_.update(samples_[s])) {
-        hist_count = hist_.count();
+      if (hist_sample_.add(samples_[s])) {
+        hist_count = hist_sample_.count();
 
         if (hist_count > 1) {
           // Wilson-Hilferty transformation of chi-square distribution

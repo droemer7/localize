@@ -5,13 +5,80 @@
 
 namespace localize
 {
+  struct ParticleEstimateHistogramCell
+  {
+    // Constructors
+    ParticleEstimateHistogramCell();
+
+    // Compare cells by weight, cell 1 weight > cell 2 weight
+    static bool compWeightGreater(const ParticleEstimateHistogramCell& cell_1,
+                                  const ParticleEstimateHistogramCell& cell_2
+                                 );
+
+    double x_;
+    double y_;
+    double th_;
+    double weight_normed_;
+    size_t count_;
+  };
+
+  // Histogram to estimate a multimodal distribution of poses (x, y, th) by weight
+  class ParticleEstimateHistogram
+  {
+  public:
+    // Constructors
+    ParticleEstimateHistogram(const Map& map);  // Map
+
+    // Update histogram with the particle
+    void add(const Particle& particle);
+
+    // Update the estimates by sorting the histogram and selecting the best local averages
+    void updateEstimates();
+
+    // Return the top particle estimates, lower indexes are better estimates
+    // Calls updateEstimates() if the histogram was modified since this was done
+    const ParticleVector& estimates();
+
+    // Return the particle estimate from the list by index, lower indexes are better estimates
+    // Calls updateEstimates() if the histogram was modified since this was done
+    const Particle& estimate(size_t i);
+
+    // Number of estimates
+    size_t count() const;
+
+    // Reset histogram data and estimates
+    void reset();
+
+  private:
+    // Reference a cell by index
+    ParticleEstimateHistogramCell& cell(const size_t x_i,
+                                        const size_t y_i,
+                                        const size_t th_i
+                                       );
+  private:
+    const size_t x_size_;     // Size of x dimension (number of elements)
+    const size_t y_size_;     // Size of y dimension (number of elements)
+    const size_t th_size_;    // Size of angular dimension (number of elements)
+    const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
+    const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
+    const double th_origin_;  // Angle relative to world frame (rad)
+
+    std::vector<ParticleEstimateHistogramCell> hist_;         // Histogram
+    std::vector<ParticleEstimateHistogramCell> hist_sorted_;  // Histogram sorted for estimate generation
+
+    ParticleVector estimates_;  // Pose estimates
+
+    bool modified_;  // Histogram was modified so estimates need to be regenerated on next request
+    size_t count_;   // Histogram occupancy count
+  };
+
   class ParticleDistribution
   {
   public:
     // Constructors
-    ParticleDistribution();
-
-    ParticleDistribution(const size_t max_count);  // Number of particles for which to reserve space
+    ParticleDistribution(const size_t max_count, // Number of particles for which to reserve space
+                         const Map& map          // Map
+                        );
 
     // Copies new particles to the distribution and updates size, does not do anything else
     void copy(const ParticleVector& particles,
@@ -74,6 +141,8 @@ namespace localize
     double sample_step_;       // Sample step size, this is 1 / size(distribution)
     double sample_sum_;        // Current weight sum
     double sample_sum_target_; // Target for weight sum
+
+    ParticleEstimateHistogram hist_;  // Histogram for generating locally averaged pose estimates
 
     RNG rng_; // Random number generator
     std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])

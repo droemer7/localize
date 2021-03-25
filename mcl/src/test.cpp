@@ -167,48 +167,13 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
-  ParticleVector particles(4);
+  std::vector<int> list = {4, 1, 0, 9, 1, 3, 3, 10, 2};
 
-  for (size_t i = 0; i < particles.size(); ++i) {
-    particles[i].x_ = i;
-    particles[i].y_ = i;
-    particles[i].th_ = i;
+  std::sort(list.begin(), list.begin() + 4, std::greater<int>());
+
+  for (size_t i = 0; i < 1; ++i) {
+    printf("list[%lu] = %d\n", i, list[i]);
   }
-  particles[0].weight_ = 0.00001;
-  particles[1].weight_ = 0.00001;
-  particles[2].weight_ = 0.99999;
-  particles[3].weight_ = 0.00001;
-
-  ParticleDistribution dist(100);
-  dist.copy(particles, particles.size());
-  dist.update();
-  ParticleVector samples(particles.size() / 2);
-
-  for (size_t i = 0; i < samples.size(); ++i) {
-    samples[i] = dist.sample();
-  }
-  for (size_t i = 0; i < samples.size(); ++i) {
-    printf("(i=%lu) %.3e, %.3e, %.3e, %.3e, %.3e\n",
-           i,
-           samples[i].x_,
-           samples[i].y_,
-           samples[i].th_,
-           samples[i].weight_,
-           samples[i].weight_normed_
-          );
-  }
-  dist.update(samples, samples.size());
-
-  SmoothedValue<double> smoothDouble(0.5);
-
-  smoothDouble.update(1.0);
-
-  printf("value = %.4f\n", static_cast<double>(smoothDouble));
-  smoothDouble.update(200.0);
-  //smoothDouble.update(200.0);
-  //smoothDouble.update(200.0);
-
-  printf("value = %.4f\n", static_cast<double>(smoothDouble));
 
   return 0;
 }

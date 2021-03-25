@@ -271,7 +271,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
     // printf("Outlier ratio[%lu] = %.2e\n", weight_ratios[i].index_, weight_ratios[i].ratio_);
   }
   // Sort ratios according to worst outliers first, carrying along the corresponding weight index
-  std::sort(weight_ratios.begin(), weight_ratios.end(), IndexedWeight::compDescending);
+  std::sort(weight_ratios.begin(), weight_ratios.end(), IndexedWeight::compGreater);
 
   // Evaluate the sorted weight ratios list and remove the worst outliers, up to half at most
   // Observed ranges and their corresponding weights are considered outliers if they appear
