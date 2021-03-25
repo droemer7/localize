@@ -12,17 +12,6 @@ namespace localize
 {
   typedef std::vector<std::vector<double>> WeightTable;
 
-  struct WeightRatio
-  {
-    // Constructors
-    WeightRatio();
-
-    WeightRatio(const size_t index, const double ratio);
-
-    size_t index_;
-    double ratio_;
-  };
-
   // Beam-based probabilistic model for a range sensor
   //
   // The model is comprised of four superimposed probability distributions:

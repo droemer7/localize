@@ -17,16 +17,6 @@ static const float RANGE_EPSILON = 1e-5;                      // Maximum delta b
 
 using namespace localize;
 
-WeightRatio::WeightRatio() :
-  index_(0),
-  ratio_(0.0)
-{}
-
-WeightRatio::WeightRatio(const size_t index, const double ratio) :
-  index_(index),
-  ratio_(ratio)
-{}
-
 BeamModel::BeamModel(const float range_min,
                      const float range_max,
                      const float range_no_obj,
@@ -267,23 +257,21 @@ float BeamModel::repair(float range)
 void BeamModel::removeOutliers(ParticleDistribution& dist)
 {
   // Calculate ratios and pair them with their index
-  std::vector<WeightRatio> weight_ratios(rays_obs_sample_.size());
+  IndexedWeightVector weight_ratios(rays_obs_sample_.size());
 
   for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
     weight_ratios[i].index_ = i;
 
     if (rays_obs_sample_[i].weight_sum_ > 0) {
-      weight_ratios[i].ratio_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
+      weight_ratios[i].val_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
     }
     else {
-      weight_ratios[i].ratio_ = 0.0;
+      weight_ratios[i].val_ = 0.0;
     }
     // printf("Outlier ratio[%lu] = %.2e\n", weight_ratios[i].index_, weight_ratios[i].ratio_);
   }
   // Sort ratios according to worst outliers first, carrying along the corresponding weight index
-  auto worstDescending = [](const WeightRatio& ratio_1, const WeightRatio& ratio_2)
-                           { return ratio_1.ratio_ > ratio_2.ratio_; };
-  std::sort(weight_ratios.begin(), weight_ratios.end(), worstDescending);
+  std::sort(weight_ratios.begin(), weight_ratios.end(), IndexedWeight::compDescending);
 
   // Evaluate the sorted weight ratios list and remove the worst outliers, up to half at most
   // Observed ranges and their corresponding weights are considered outliers if they appear
@@ -294,12 +282,12 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   while (   i < weight_ratios.size()
          && reject_count < weight_ratios.size() / 2  // Only reject half at most so we aren't totally blind
         ) {
-    if (weight_ratios[i].ratio_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
+    if (weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
       ++reject_count;
       printf("Rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
              rays_obs_sample_[weight_ratios[i].index_].range_,
              rays_obs_sample_[weight_ratios[i].index_].th_ * 180.0 / M_PI,
-             weight_ratios[i].ratio_
+             weight_ratios[i].val_
             );
     }
     else {

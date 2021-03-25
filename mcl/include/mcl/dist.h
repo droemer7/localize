@@ -59,16 +59,16 @@ namespace localize
     void resetSampler();
 
   private:
-    ParticleVector particles_; // Particles in distribution
-    size_t count_;             // Number of particles in use - in general less than particle vector size
+    ParticleVector particles_;  // Particles in distribution
+    size_t count_;              // Number of particles in use - in general less than particle vector size
 
-    double weight_sum_;                       // Sum of particle weights
-    SmoothedValue<double> weight_avg_creep_;  // Smoothed average particle weight, creep rate
-    SmoothedValue<double> weight_avg_slow_;   // Smoothed average particle weight, slow rate
-    SmoothedValue<double> weight_avg_fast_;   // Smoothed average particle weight, fast rate
-    double weight_var_;                       // Particle weight variance
-    double weight_std_dev_;                   // Particle weight standard deviation
-    double weight_relative_std_dev_;          // Particle weight relative standard deviation
+    double weight_sum_;               // Sum of particle weights
+    SmoothedWeight weight_avg_creep_; // Smoothed average particle weight, creep rate
+    SmoothedWeight weight_avg_slow_;  // Smoothed average particle weight, slow rate
+    SmoothedWeight weight_avg_fast_;  // Smoothed average particle weight, fast rate
+    double weight_var_;               // Particle weight variance
+    double weight_std_dev_;           // Particle weight standard deviation
+    double weight_relative_std_dev_;  // Particle weight relative standard deviation
 
     size_t sample_s_;          // Sample index
     double sample_step_;       // Sample step size, this is 1 / size(distribution)

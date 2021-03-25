@@ -152,6 +152,37 @@ namespace localize
   };
 
   template <class T>
+  struct IndexedValue
+  {
+    static_assert(std::is_integral<T>::value || std::is_floating_point<T>::value,
+                  "IndexedValue: T must be an integral or floating point type"
+                 );
+    // Constructors
+    IndexedValue() :
+      index_(0),
+      val_(0)
+    {}
+
+    IndexedValue(const size_t index,
+                 const T val
+                ) :
+      index_(index),
+      val_(val)
+    {}
+
+    static bool compDescending(const IndexedValue<T>& item_1,
+                               const IndexedValue<T>& item_2
+                              )
+    { return item_1.val_ > item_2.val_; };
+
+    size_t index_;
+    T val_;
+  };
+
+  typedef IndexedValue<double> IndexedWeight;
+  typedef std::vector<IndexedWeight> IndexedWeightVector;
+
+  template <class T>
   class SmoothedValue
   {
     static_assert(std::is_floating_point<T>::value, "SmoothedValue: T must be a floating point type");
@@ -201,6 +232,8 @@ namespace localize
     T val_;
     bool initialized_;
   };
+
+  typedef SmoothedValue<double> SmoothedWeight;
 
   // Approximate equality check for floating point values
   // The Art of Comptuer Programming, Volume 2, Seminumeric Algorithms (Knuth 1997)
