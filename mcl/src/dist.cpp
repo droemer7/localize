@@ -10,10 +10,10 @@ static const double WEIGHT_AVG_FAST_RATE = 0.50;  // Weight average smoothing ra
 using namespace localize;
 
 ParticleEstimateHistogramCell::ParticleEstimateHistogramCell() :
-  x_(0.0),
-  y_(0.0),
-  th_(0.0),
-  weight_normed_(0.0),
+  x_sum_(0.0),
+  y_sum_(0.0),
+  th_sum_(0.0),
+  weight_normed_sum_(0.0),
   count_(0)
 {}
 
@@ -21,7 +21,7 @@ bool ParticleEstimateHistogramCell::compWeightGreater(const ParticleEstimateHist
                                                       const ParticleEstimateHistogramCell& cell_2
                                                      )
 {
-  return cell_1.weight_normed_ > cell_2.weight_normed_;
+  return cell_1.weight_normed_sum_ > cell_2.weight_normed_sum_;
 }
 
 ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
@@ -60,10 +60,10 @@ void ParticleEstimateHistogram::add(const Particle& particle)
     ++count_;
   }
   // Update corresponding estimate
-  cell_.x_ += particle.x_;
-  cell_.y_ += particle.y_;
-  cell_.th_ += unwrapAngle(particle.th_);
-  cell_.weight_normed_ += particle.weight_normed_;
+  cell_.x_sum_ += particle.x_;
+  cell_.y_sum_ += particle.y_;
+  cell_.th_sum_ += unwrapAngle(particle.th_);
+  cell_.weight_normed_sum_ += particle.weight_normed_;
   ++cell_.count_;
 
   return;
@@ -80,15 +80,14 @@ void ParticleEstimateHistogram::updateEstimates()
     size_t i = 0;
     double normalizer = 0;
 
-    printf("Pose estimate histogram count = %lu\n", count_);
-    printf("Pose estimates:\n");
+    printf("Estimate histogram count = %lu\n", count_);
 
-    while (i < count_ && i < estimates_.size()) {
+    while (i < count_ && i < estimates_.size() && i < hist_sorted_.size()) {
       normalizer = hist_sorted_[i].count_ > 0 ? 1.0 / hist_sorted_[i].count_ : 0.0;
-      estimates_[i].x_ = hist_sorted_[i].x_ * normalizer;
-      estimates_[i].y_ = hist_sorted_[i].y_ * normalizer;
-      estimates_[i].th_ = wrapAngle(hist_sorted_[i].th_ * normalizer);
-      estimates_[i].weight_normed_ = hist_sorted_[i].weight_normed_;
+      estimates_[i].x_ = hist_sorted_[i].x_sum_ * normalizer;
+      estimates_[i].y_ = hist_sorted_[i].y_sum_ * normalizer;
+      estimates_[i].th_ = wrapAngle(hist_sorted_[i].th_sum_ * normalizer);
+      estimates_[i].weight_normed_ = hist_sorted_[i].weight_normed_sum_;
 
       printf("Estimate %lu = %.3f, %.3f, %.3f (weight = %.2e)\n",
              i + 1,
@@ -103,16 +102,16 @@ void ParticleEstimateHistogram::updateEstimates()
   }
 }
 
-const ParticleVector& ParticleEstimateHistogram::estimates()
+ParticleVector ParticleEstimateHistogram::estimates()
 {
   updateEstimates();
   return estimates_;
 }
 
-const Particle& ParticleEstimateHistogram::estimate(size_t i)
+Particle ParticleEstimateHistogram::estimate(size_t e)
 {
   updateEstimates();
-  return estimates_[i];
+  return estimates_[e];
 }
 
 size_t ParticleEstimateHistogram::count() const
@@ -199,7 +198,17 @@ void ParticleDistribution::update(const ParticleVector& particles,
   update();
 }
 
-Particle& ParticleDistribution::particle(size_t p)
+ParticleVector ParticleDistribution::estimates()
+{
+  return hist_.estimates();
+}
+
+Particle ParticleDistribution::estimate(const size_t e)
+{
+  return hist_.estimate(e);
+}
+
+Particle& ParticleDistribution::particle(const size_t p)
 {
   return particles_[p];
 }
@@ -287,7 +296,6 @@ void ParticleDistribution::calcWeightStats()
       // Update histogram now that weight has been normalized
       hist_.add(particles_[i]);
     }
-    hist_.updateEstimates();
     weight_var_ /= count_;
 
     // Calculate standard deviation

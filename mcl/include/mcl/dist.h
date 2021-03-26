@@ -15,10 +15,10 @@ namespace localize
                                   const ParticleEstimateHistogramCell& cell_2
                                  );
 
-    double x_;
-    double y_;
-    double th_;
-    double weight_normed_;
+    double x_sum_;
+    double y_sum_;
+    double th_sum_;
+    double weight_normed_sum_;
     size_t count_;
   };
 
@@ -33,20 +33,19 @@ namespace localize
     void add(const Particle& particle);
 
     // Update the estimates by sorting the histogram and selecting the best local averages
+    // If no changes have been made to the histogram since this was last called, no calculations are performed
     void updateEstimates();
 
-    // Return the top particle estimates, lower indexes are better estimates
-    // Calls updateEstimates() if the histogram was modified since this was done
-    const ParticleVector& estimates();
+    // Return the top particle estimates - lower indexes are better estimates
+    ParticleVector estimates();
 
-    // Return the particle estimate from the list by index, lower indexes are better estimates
-    // Calls updateEstimates() if the histogram was modified since this was done
-    const Particle& estimate(size_t i);
+    // Return the particle estimate from the list by index - lower indexes are better estimates
+    Particle estimate(const size_t e = 0);
 
     // Number of estimates
     size_t count() const;
 
-    // Reset histogram data and estimates
+    // Reset histogram and estimates
     void reset();
 
   private:
@@ -66,7 +65,7 @@ namespace localize
     std::vector<ParticleEstimateHistogramCell> hist_;         // Histogram
     std::vector<ParticleEstimateHistogramCell> hist_sorted_;  // Histogram sorted for estimate generation
 
-    ParticleVector estimates_;  // Pose estimates
+    ParticleVector estimates_;  // Averaged estimates
 
     bool modified_;  // Histogram was modified so estimates need to be regenerated on next request
     size_t count_;   // Histogram occupancy count
@@ -93,8 +92,14 @@ namespace localize
                 const size_t count = 0
                );
 
+    // Return the top particle estimates - lower indexes are better estimates
+    ParticleVector estimates();
+
+    // Return the particle estimate from the list by index - lower indexes are better estimates
+    Particle estimate(const size_t e = 0);
+
     // Reference to a particle in the distribution
-    Particle& particle(size_t p);
+    Particle& particle(const size_t p);
 
     // Samples a particle (with replacement) from the distribution with probability proportional to its weight
     Particle& sample();

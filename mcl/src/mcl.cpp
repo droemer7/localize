@@ -5,7 +5,7 @@
 #include "mcl/mcl.h"
 
 static const double WEIGHT_AVG_LOST = 1e-8 ;      // Average weight below which we assume we are lost (required for random sampling)
-static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Weight sigma below which the weights are considered consistent (required for resampling)
+static const double WEIGHT_DEV_CONSISTENT = 1.0;  // Weight sigma below which the weights are considered consistent (required for resampling)
 static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2 / 9;                // Fraction 2/9
@@ -163,6 +163,20 @@ void MCL::update(const RayScan& obs)
     sensor_model_.apply(dist_);
     update();
   }
+}
+
+ParticleVector MCL::estimates()
+{
+  RecursiveLock lock(dist_mtx_);
+
+  return dist_.estimates();
+}
+
+Particle MCL::estimate(const size_t e)
+{
+  RecursiveLock lock(dist_mtx_);
+
+  return dist_.estimate(e);
 }
 
 bool MCL::stopped()

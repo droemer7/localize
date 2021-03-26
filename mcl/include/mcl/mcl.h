@@ -27,9 +27,9 @@ namespace localize
 
     RNG rng_; // Random number generator
 
-    std::uniform_real_distribution<double> x_dist_;     // Distribution of map x locations relative to world frame
-    std::uniform_real_distribution<double> y_dist_;     // Distribution of map y locations relative to world frame
-    std::uniform_real_distribution<double> th_dist_;    // Distribution of theta [-pi, +pi) relative to world frame
+    std::uniform_real_distribution<double> x_dist_;   // Distribution of map x locations relative to world frame
+    std::uniform_real_distribution<double> y_dist_;   // Distribution of map y locations relative to world frame
+    std::uniform_real_distribution<double> th_dist_;  // Distribution of theta [-pi, +pi) relative to world frame
   };
 
   // Histogram representing occupancy of pose space (x, y, th)
@@ -97,6 +97,12 @@ namespace localize
 
     // Apply the sensor model to update particle weights using p(obs[t] | pose[t], map)
     void update(const RayScan& obs);
+
+    // Return the top particle estimates - lower indexes are better estimates
+    ParticleVector estimates();
+
+    // Return the particle estimate from the list by index - lower indexes are better estimates
+    Particle estimate(const size_t e = 0);
 
     // Indicates if the robot velocity is within the stopped threshold based on the last saved value
     bool stopped();

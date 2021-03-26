@@ -163,6 +163,11 @@ void MCLNode::driveSteerCb(const std_msgs::Float64::ConstPtr& msg)
 
 void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
+  // TBD remove
+  bool stopped = mcl_ptr_->stopped();
+  if (!stopped || true) {
+    printf("\n***** Update %lu *****\n", ++update_num_);
+  }
   // Start timer
   ros::Time start = ros::Time::now();
 
@@ -173,14 +178,11 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
   sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
-
-  bool stopped = mcl_ptr_->stopped();
-  if (!stopped || true) {
-    printf("\n***** Update %lu *****\n", ++update_num_);
-  }
+  // TBD remove
   if (   update_num_ >= NUM_UPDATES
       && stopped
      ) {
+    printSensorUpdateTime();
     mcl_ptr_->save("particles.csv");
     throw (std::runtime_error("Finished\n"));
   }

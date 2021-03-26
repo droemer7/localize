@@ -94,6 +94,8 @@ void BeamModel::apply(ParticleDistribution& dist,
                       const bool calc_enable
                      )
 {
+  printf("\n===== Sensor model update =====\n");
+
   // Calculate particle weights
   for (size_t i = 0; i < dist.count(); ++i) {
     apply(dist.particle(i));
@@ -102,7 +104,6 @@ void BeamModel::apply(ParticleDistribution& dist,
   removeOutliers(dist);
 
   // Recalculate weight statistics
-  printf("\n===== Sensor model update =====\n");
   dist.update();
 
   return;

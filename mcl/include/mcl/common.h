@@ -268,11 +268,14 @@ namespace localize
     return angle;
   }
 
-  // Unwrap an angle to (0, 2pi] (angle of 0 should convert to 2pi)
+  // Unwrap an angle < 0.0 or > 2pi to [0.0, 2pi) (angle of -0.0 should convert to <2pi)
   inline double unwrapAngle(double angle)
   {
     while (angle < 0.0) {
       angle += M_2PI;
+    }
+    while (angle > M_2PI) {
+      angle -= M_2PI;
     }
     return angle;
   }
