@@ -63,7 +63,7 @@ bool ParticleOccupancyHistogram::add(const Particle& particle)
   size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / HIST_POS_RES),
                         static_cast<double>(y_size_ - 1)
                        );
-  size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / HIST_TH_RES),
+  size_t th_i = std::min(std::max(0.0, unwrapAngle(particle.th_ - th_origin_) / HIST_TH_RES),
                          static_cast<double>(th_size_ - 1)
                         );
   // Update histogram
@@ -133,11 +133,29 @@ MCL::MCL(const unsigned int num_particles_min,
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
   // Initialize distribution with random samples in the map's free space
-  for (size_t i = 0; i < samples_.size(); ++i) {
-    samples_[i] = random_sample_();
+  // TBD restore
+  // for (size_t i = 0; i < samples_.size(); ++i) {
+  //   samples_[i] = random_sample_();
+  // }
+  double top_sum = 0.0;
+  for (size_t i = 0; i < 10; ++i) {
+    samples_[i] = Particle(0, 0, 1.0 * (i + 165.0) * M_PI / 180.0);
+    top_sum += samples_[i].th_;
   }
+  double bot_sum = 0.0;
+  for (size_t i = 10; i < 20; ++i) {
+    samples_[i] = Particle(0, 0, -1.0 * (i - 10 + 140.0) * M_PI / 180.0);
+    bot_sum += samples_[i].th_;
+  }
+  double sum = 0.0;
+  for (size_t i = 0; i < 20; ++i) {
+    printf("samples_[%lu] = (%.2f, %.2f, %.4f)\n", i, samples_[i].x_, samples_[i].y_, samples_[i].th_ * 180.0 / M_PI);
+    sum += samples_[i].th_;
+  }
+  printf("top avg = %.4f\n", top_sum * 180.0 / M_PI / 10.0);
+  printf("bot avg = %.4f\n", bot_sum * 180.0 / M_PI / 10.0);
   // Copy the new samples to the distribution
-  dist_.copy(samples_, samples_.size());
+  dist_.copy(samples_, 20/*samples_.size()*/);
 }
 
 void MCL::update(const double vel,
@@ -161,7 +179,8 @@ void MCL::update(const RayScan& obs)
     RecursiveLock lock(dist_mtx_);
 
     sensor_model_.apply(dist_);
-    update();
+    dist_.estimate();
+    //update();
   }
 }
 

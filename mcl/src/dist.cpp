@@ -2,7 +2,7 @@
 
 static const size_t NUM_ESTIMATES = 5;            // Number of pose estimates to provide
 static const double HIST_POS_RES = 0.50;          // Histogram resolution for x and y position (meters per cell)
-static const double HIST_TH_RES = M_PI / 4.0;     // Histogram resolution for heading angle (rad per cell)
+static const double HIST_TH_RES = M_2PI / 3.0;    // Histogram resolution for heading angle (rad per cell)
 static const double WEIGHT_AVG_CREEP_RATE = 0.01; // Weight average smoothing rate, very slow
 static const double WEIGHT_AVG_SLOW_RATE = 0.25;  // Weight average smoothing rate, slow
 static const double WEIGHT_AVG_FAST_RATE = 0.50;  // Weight average smoothing rate, fast
@@ -12,7 +12,10 @@ using namespace localize;
 ParticleEstimateHistogramCell::ParticleEstimateHistogramCell() :
   x_sum_(0.0),
   y_sum_(0.0),
-  th_sum_(0.0),
+  th_top_sum_(0.0),
+  th_bot_sum_(0.0),
+  th_top_count_(0),
+  th_bot_count_(0),
   weight_normed_sum_(0.0),
   count_(0)
 {}
@@ -50,7 +53,7 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / HIST_POS_RES),
                         static_cast<double>(y_size_ - 1)
                        );
-  size_t th_i = std::min(std::max(0.0, (particle.th_ - th_origin_) / HIST_TH_RES),
+  size_t th_i = std::min(std::max(0.0, (unwrapAngle(particle.th_ - th_origin_)) / HIST_TH_RES),
                          static_cast<double>(th_size_ - 1)
                         );
   // Update histogram
@@ -59,10 +62,17 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   if (cell_.count_ == 0) {
     ++count_;
   }
-  // Update corresponding estimate
   cell_.x_sum_ += particle.x_;
   cell_.y_sum_ += particle.y_;
-  cell_.th_sum_ += unwrapAngle(particle.th_);
+
+  if (particle.th_ >= 0.0) {
+    cell_.th_top_sum_ += particle.th_;
+    ++cell_.th_top_count_;
+  }
+  else {
+    cell_.th_bot_sum_ += particle.th_;
+    ++cell_.th_bot_count_;
+  }
   cell_.weight_normed_sum_ += particle.weight_normed_;
   ++cell_.count_;
 
@@ -78,7 +88,13 @@ void ParticleEstimateHistogram::updateEstimates()
 
     // Copy the best estimates, locally averaging each histogram cell
     size_t i = 0;
-    double normalizer = 0;
+    double normalizer = 0.0;
+    double th = 0.0;
+    double th_delta = 0.0;
+    double th_top_avg = 0.0;
+    double th_bot_avg = 0.0;
+    size_t th_top_count = 0.0;
+    size_t th_bot_count = 0.0;
 
     printf("Estimate histogram count = %lu\n", count_);
 
@@ -86,15 +102,36 @@ void ParticleEstimateHistogram::updateEstimates()
       normalizer = hist_sorted_[i].count_ > 0 ? 1.0 / hist_sorted_[i].count_ : 0.0;
       estimates_[i].x_ = hist_sorted_[i].x_sum_ * normalizer;
       estimates_[i].y_ = hist_sorted_[i].y_sum_ * normalizer;
-      estimates_[i].th_ = wrapAngle(hist_sorted_[i].th_sum_ * normalizer);
+
+      // To compute the average angle, we first need to average the top half plane (positive) angles and bottom half
+      // plane (negative) angles
+      th_top_count = hist_sorted_[i].th_top_count_;
+      th_bot_count = hist_sorted_[i].th_bot_count_;
+      th_top_avg = th_top_count > 0 ? hist_sorted_[i].th_top_sum_ / th_top_count : 0.0;
+      th_bot_avg = th_bot_count > 0 ? hist_sorted_[i].th_bot_sum_ / th_bot_count : 0.0;
+
+      // Calculate the delta between the two angles - choose whichever is smaller
+      // The delta is applied to the top angle to bring it closer to the bottom angle, so if top - bottom < pi,
+      // the delta is negative
+      if (th_top_avg - th_bot_avg < M_PI) {
+        th_delta = th_bot_avg - th_top_avg;
+      }
+      else {
+        th_delta = (M_PI - th_top_avg) + (M_PI + th_bot_avg);
+      }
+      // Offset from the top angle by a fraction of the delta between the two angles, proportional to the weight of the bottom
+      th = th_top_avg + th_delta * th_bot_count / (th_bot_count + th_top_count);
+      estimates_[i].th_ = wrapAngle(th);
       estimates_[i].weight_normed_ = hist_sorted_[i].weight_normed_sum_;
 
-      printf("Estimate %lu = %.3f, %.3f, %.3f (weight = %.2e)\n",
+      printf("Estimate %lu = %.3f, %.3f, %.3f (weight = %.2e) (top count = %lu, bot count = %lu)\n",
              i + 1,
              estimates_[i].x_,
              estimates_[i].y_,
              estimates_[i].th_ * 180.0 / M_PI,
-             estimates_[i].weight_normed_
+             estimates_[i].weight_normed_,
+             th_top_count,
+             th_bot_count
             );
       ++i;
     }

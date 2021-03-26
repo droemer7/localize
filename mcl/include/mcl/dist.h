@@ -17,7 +17,10 @@ namespace localize
 
     double x_sum_;
     double y_sum_;
-    double th_sum_;
+    double th_top_sum_;   // Sum of angles in the top half plane (-pi, 0.0) of the (-pi, pi] space
+    double th_bot_sum_;   // Sum of angles in the bottom half plane (0.0, pi] of the (-pi, pi] space
+    size_t th_top_count_; // Count of angles in the top half plane (-pi, 0.0) of the (-pi, pi] space
+    size_t th_bot_count_; // Count of angles in the bottom half plane (0.0, pi] of the (-pi, pi] space
     double weight_normed_sum_;
     size_t count_;
   };
