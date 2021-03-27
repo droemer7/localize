@@ -280,6 +280,24 @@ namespace localize
     return angle;
   }
 
+  // Calculates the delta between two angles that are wrapped to (-pi, pi]
+  // Delta is the difference from angle 1 to angle 2
+  // For example: +175, +150 ==> -25
+  //              -160, -150 ==> +10
+  //               170, -150 ==> +40
+  // Function assumes radian units, above degrees are given for example only
+  inline double wrappedAngleDelta(double angle_1, double angle_2)
+  {
+    double delta = 0.0;
+    if (std::abs(angle_1 - angle_2) < M_PI) {
+      delta = angle_2 - angle_1;
+    }
+    else {
+      delta = (M_PI - angle_1) + (M_PI + angle_2);
+    }
+    return delta;
+  }
+
   // Saves data to file in CSV format
   template <class T>
   void save(const std::vector<std::vector<T>>& data_matrix,

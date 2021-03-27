@@ -6,7 +6,7 @@
 #include "mcl/node.h"
 #include "mcl/common.h"
 
-static const int NUM_UPDATES = 1; // TBD remove
+static const int NUM_UPDATES = 10; // TBD remove
 
 using namespace localize;
 
@@ -165,7 +165,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
   // TBD remove
   bool stopped = mcl_ptr_->stopped();
-  if (!stopped || true) {
+  if (!stopped) {
     printf("\n***** Update %lu *****\n", ++update_num_);
   }
   // Start timer

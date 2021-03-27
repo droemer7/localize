@@ -175,11 +175,11 @@ int main(int argc, char** argv)
     printf("list[%lu] = %d\n", i, list[i]);
   }
 
-  double prob = 0.0;
+  // double th_delta = (M_PI - th_top_avg) + (M_PI + th_bot_avg); // TBD check simplifying to bot + top
+  double th_top_avg = 170.0 * M_PI / 180.0;
+  double th_bot_avg = -150.0 * M_PI / 180.0;
 
-  if (!prob) {
-    printf("zero");
-  }
+  printf("th_delta = %.4f\n", wrappedAngleDelta(th_top_avg, th_bot_avg) * 180.0 / M_PI);
 
   return 0;
 }

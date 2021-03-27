@@ -3,12 +3,15 @@
 
 #include "mcl/dist.h"
 
-static const size_t NUM_ESTIMATES = 5;            // Number of pose estimates to provide
-static const double HIST_POS_RES = 0.50;          // Histogram resolution for x and y position (meters per cell)
-static const double HIST_TH_RES = M_PI_2;         // Histogram resolution for heading angle (rad per cell)
-static const double WEIGHT_AVG_CREEP_RATE = 0.01; // Weight average smoothing rate, very slow
-static const double WEIGHT_AVG_SLOW_RATE = 0.25;  // Weight average smoothing rate, slow
-static const double WEIGHT_AVG_FAST_RATE = 0.50;  // Weight average smoothing rate, fast
+static const size_t NUM_ESTIMATES = 5;                    // Number of pose estimates to provide
+static const double ESTIMATE_MERGE_DXY_MAX = 1e-1;        // Maximum x or y delta for two estimates to be combined
+static const double ESTIMATE_MERGE_DTH_MAX = M_PI / 72.0; // Maximum angular delta for two estimates to be combined
+static const double ESTIMATE_WEIGHT_MIN = 1e-1;           // Minimum normalized weight for an estimate to be used
+static const double HIST_POS_RES = 0.5;                   // Histogram resolution for x and y position (meters per cell)
+static const double HIST_TH_RES = M_PI / 2.0;             // Histogram resolution for heading angle (rad per cell)
+static const double WEIGHT_AVG_CREEP_RATE = 0.005;        // Weight average smoothing rate, very slow
+static const double WEIGHT_AVG_SLOW_RATE = 0.10;          // Weight average smoothing rate, slow
+static const double WEIGHT_AVG_FAST_RATE = 0.50;          // Weight average smoothing rate, fast
 
 using namespace localize;
 
@@ -101,10 +104,15 @@ void ParticleEstimateHistogram::updateEstimates()
 
     printf("Estimate histogram count = %lu\n", count_);
 
-    while (i < count_ && i < estimates_.size() && i < hist_sorted_.size()) {
+    while (   i < count_
+           && i < estimates_.size()
+           && i < hist_sorted_.size()
+          ) {
+      if (hist_sorted_[i].weight_normed_sum_ < ESTIMATE_WEIGHT_MIN) {
+        break;
+      }
+      // Calculate normalizer for x and y sums
       normalizer = hist_sorted_[i].count_ > 0 ? 1.0 / hist_sorted_[i].count_ : 0.0;
-      estimates_[i].x_ = hist_sorted_[i].x_sum_ * normalizer;
-      estimates_[i].y_ = hist_sorted_[i].y_sum_ * normalizer;
 
       // To compute the average angle, we first need to average the top half plane (positive) angles and bottom half
       // plane (negative) angles
@@ -113,15 +121,16 @@ void ParticleEstimateHistogram::updateEstimates()
       th_top_avg = th_top_count > 0 ? hist_sorted_[i].th_top_sum_ / th_top_count : 0.0;
       th_bot_avg = th_bot_count > 0 ? hist_sorted_[i].th_bot_sum_ / th_bot_count : 0.0;
 
-      // Calculate the delta between the two angles - choose whichever is smaller
-      if (th_top_avg - th_bot_avg < M_PI) {
-        th_delta = th_bot_avg - th_top_avg;
-      }
-      else {
-        th_delta = (M_PI - th_top_avg) + (M_PI + th_bot_avg);
-      }
+      // Get the delta from top -> bottom, in the direction that is closest
+      // TBD reverify this
+      th_delta = wrappedAngleDelta(th_top_avg, th_bot_avg);
+
       // Offset from the top angle by a fraction of the delta between the two angles, proportional to the weight of the bottom
       th = th_top_avg + th_delta * th_bot_count / (th_bot_count + th_top_count);
+
+      // Populate estimate
+      estimates_[i].x_ = hist_sorted_[i].x_sum_ * normalizer;
+      estimates_[i].y_ = hist_sorted_[i].y_sum_ * normalizer;
       estimates_[i].th_ = wrapAngle(th);
       estimates_[i].weight_normed_ = hist_sorted_[i].weight_normed_sum_;
 
@@ -136,6 +145,30 @@ void ParticleEstimateHistogram::updateEstimates()
             );
       ++i;
     }
+    // TBD CONTINUE
+    // // Go back through the estimates and average again if they are close to each other
+    // // This smoothes the histogram discretization effects
+    // double dx = 0.0;
+    // double dy = 0.0;
+    // double dth = 0.0;
+    // i = 0;
+
+    // while (   i + 1 < count_
+    //        && i + 1 < estimates_.size()
+    //        && i + 1 < hist_sorted_.size()
+    //       ) {
+    //   dx = estimates_[i].x_ - estimates_[i + 1].x_;
+    //   dy = estimates_[i].y_ - estimates_[i + 1].y_;
+    //   dth = wrappedAngleDelta(estimates_[i].th_, estimates_[i + 1].th_);
+
+    //   if (   std::abs(dx < ESTIMATE_MERGE_DXY_MAX)
+    //       && std::abs(dy < ESTIMATE_MERGE_DXY_MAX)
+    //       && std::abs(dth < ESTIMATE_MERGE_DTH_MAX)
+    //      ) {
+    //     estimates_[i].x_ += estimates_[i + 1].x_;
+    //     estimates_[i].y_ += estimates_[i + 1].y_;
+    //   }
+    // }
     modified_ = false;
   }
 }

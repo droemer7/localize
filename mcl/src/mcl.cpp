@@ -4,11 +4,11 @@
 
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_LOST = 1e-8 ;      // Average weight below which we assume we are lost (required for random sampling)
+static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
 static const double WEIGHT_DEV_CONSISTENT = 1.0;  // Weight sigma below which the weights are considered consistent (required for resampling)
 static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
-static const double F_2_9 = 2 / 9;                // Fraction 2/9
+static const double F_2_9 = 2.0 / 9.0;            // Fraction 2/9
 static const double HIST_POS_RES = 0.10;          // Histogram resolution for x and y position (meters per cell)
 static const double HIST_TH_RES = M_PI / 18.0;    // Histogram resolution for heading angle (rad per cell)
 static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
@@ -177,7 +177,7 @@ void MCL::update(const RayScan& obs)
   // Cache observation before requesting lock
   sensor_model_.update(obs);
 
-  if (!stopped() || true) { // TBD remove true
+  if (!stopped()) { // TBD remove true
     RecursiveLock lock(dist_mtx_);
 
     sensor_model_.apply(dist_);
@@ -265,6 +265,7 @@ void MCL::update()
     printf("Sample histogram count = %lu\n", hist_count);
     printf("---------------------------------\n");
   }
+  dist_.estimate(); // TBD remove
   return;
 }
 
@@ -294,7 +295,8 @@ void MCL::save(const std::string filename,
   if (sort) {
     localize::sort(particles);
   }
-  localize::save(dist_.estimates(), filename, overwrite);
+  ParticleVector estimates = dist_.estimates();
+  localize::save(estimates, filename, overwrite);
   localize::save(particles, filename, false);
 }
 
