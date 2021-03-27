@@ -183,7 +183,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
       && stopped
      ) {
     printSensorUpdateTime();
-    mcl_ptr_->save("particles.csv");
+    mcl_ptr_->save("results.csv");
     throw (std::runtime_error("Finished\n"));
   }
 }

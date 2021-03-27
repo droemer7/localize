@@ -175,5 +175,11 @@ int main(int argc, char** argv)
     printf("list[%lu] = %d\n", i, list[i]);
   }
 
+  double prob = 0.0;
+
+  if (!prob) {
+    printf("zero");
+  }
+
   return 0;
 }

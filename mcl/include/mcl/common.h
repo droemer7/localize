@@ -289,7 +289,7 @@ namespace localize
   {
     std::ofstream output(DATA_PATH + filename,
                          overwrite ? std::ofstream::trunc :
-                                     std::ofstream::ate
+                                     std::ofstream::app
                         );
     for (const std::vector<T>& row : data_matrix) {
       for (const T& val : row) {
@@ -297,6 +297,7 @@ namespace localize
       }
       output << "\n";
     }
+    output << "\n";
     output.close();
   }
 
@@ -343,7 +344,7 @@ namespace localize
   {
     std::ofstream output(DATA_PATH + filename,
                          overwrite ? std::ofstream::trunc :
-                                     std::ofstream::ate
+                                     std::ofstream::app
                         );
     output << "Particles\n";
     output << "x, y, theta (deg), weight, normalized weight\n";
@@ -357,6 +358,7 @@ namespace localize
              << particle.weight_ << ", "
              << particle.weight_normed_ << ", " << "\n";
     }
+    output << "\n";
     output.close();
   }
 
@@ -368,13 +370,14 @@ namespace localize
   {
     std::ofstream output(DATA_PATH + filename,
                          overwrite ? std::ofstream::trunc :
-                                     std::ofstream::ate
+                                     std::ofstream::app
                         );
     output << "Rays\n";
     output << "range, theta (deg)\n";
     for (const RaySample& ray : rays) {
       output << std::fixed << std::setprecision(3) << ray.range_ << ", " << ray.th_ * 180.0 / M_PI << ", " << "\n";
     }
+    output << "\n";
     output.close();
   }
 

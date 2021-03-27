@@ -1,8 +1,11 @@
+#include <cmath>
+#include <math.h>
+
 #include "mcl/dist.h"
 
 static const size_t NUM_ESTIMATES = 5;            // Number of pose estimates to provide
 static const double HIST_POS_RES = 0.50;          // Histogram resolution for x and y position (meters per cell)
-static const double HIST_TH_RES = M_2PI / 3.0;    // Histogram resolution for heading angle (rad per cell)
+static const double HIST_TH_RES = M_PI_2;         // Histogram resolution for heading angle (rad per cell)
 static const double WEIGHT_AVG_CREEP_RATE = 0.01; // Weight average smoothing rate, very slow
 static const double WEIGHT_AVG_SLOW_RATE = 0.25;  // Weight average smoothing rate, slow
 static const double WEIGHT_AVG_FAST_RATE = 0.50;  // Weight average smoothing rate, fast
@@ -47,13 +50,13 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   modified_ = true;
 
   // Calculate index
-  size_t x_i = std::min(std::max(0.0, (particle.x_ - x_origin_) / HIST_POS_RES),
+  size_t x_i = std::min(std::max(0.0, particle.x_ - x_origin_) / HIST_POS_RES,
                         static_cast<double>(x_size_ - 1)
                        );
-  size_t y_i = std::min(std::max(0.0, (particle.y_ - y_origin_) / HIST_POS_RES),
+  size_t y_i = std::min(std::max(0.0, particle.y_ - y_origin_) / HIST_POS_RES,
                         static_cast<double>(y_size_ - 1)
                        );
-  size_t th_i = std::min(std::max(0.0, (unwrapAngle(particle.th_ - th_origin_)) / HIST_TH_RES),
+  size_t th_i = std::min(std::max(0.0, unwrapAngle(particle.th_ - th_origin_) / HIST_TH_RES),
                          static_cast<double>(th_size_ - 1)
                         );
   // Update histogram
@@ -65,7 +68,7 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   cell_.x_sum_ += particle.x_;
   cell_.y_sum_ += particle.y_;
 
-  if (particle.th_ >= 0.0) {
+  if (std::signbit(particle.th_)) {
     cell_.th_top_sum_ += particle.th_;
     ++cell_.th_top_count_;
   }
@@ -111,8 +114,6 @@ void ParticleEstimateHistogram::updateEstimates()
       th_bot_avg = th_bot_count > 0 ? hist_sorted_[i].th_bot_sum_ / th_bot_count : 0.0;
 
       // Calculate the delta between the two angles - choose whichever is smaller
-      // The delta is applied to the top angle to bring it closer to the bottom angle, so if top - bottom < pi,
-      // the delta is negative
       if (th_top_avg - th_bot_avg < M_PI) {
         th_delta = th_bot_avg - th_top_avg;
       }
