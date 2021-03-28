@@ -51,8 +51,6 @@ namespace localize
                ) const;
 
     // Operators
-    void operator+=(const Particle& particle);
-
     bool operator==(const ParticleEstimateHistogramCell& rhs) const
     { return compare(*this, rhs) == 0; }
 
@@ -71,12 +69,18 @@ namespace localize
     bool operator>=(const ParticleEstimateHistogramCell& rhs) const
     { return compare(*this, rhs) >= 0; }
 
+    ParticleEstimateHistogramCell& operator+=(const ParticleEstimateHistogramCell& rhs);
+
+    const ParticleEstimateHistogramCell operator+(const ParticleEstimateHistogramCell& rhs) const;
+
+    void add(const Particle& particle);
+
     double x_sum_;              // Sum of particle x positions
     double y_sum_;              // Sum of particle y positions
     double th_top_sum_;         // Sum of particle angles in the top half plane of (-pi, pi]
     double th_bot_sum_;         // Sum of particle angles in the bottom half plane of (-pi, pi]
-    double weight_normed_sum_;  // Sum of particle normalized weights for this cell
     size_t th_top_count_;       // Count of angles in the top half plane (-pi, 0.0) of the (-pi, pi] space
+    double weight_normed_sum_;  // Sum of particle normalized weights for this cell
     size_t count_;              // Count of particles in this cell
   };
 
@@ -127,9 +131,8 @@ namespace localize
     std::vector<ParticleEstimateHistogramCell> hist_sorted_;  // Histogram sorted for estimate generation
 
     ParticleVector estimates_;  // Averaged estimates
-
-    bool modified_;  // Histogram was modified so estimates need to be regenerated on next request
-    size_t count_;   // Histogram occupancy count
+    bool update_estimates_;     // Estimates need to be regenerated on next request because the histogram was modified
+    size_t count_;              // Histogram occupancy count
   };
 
 } // namespace localize

@@ -100,7 +100,28 @@ int ParticleEstimateHistogramCell::compare(const ParticleEstimateHistogramCell& 
   return result;
 }
 
-void ParticleEstimateHistogramCell::operator+=(const Particle& particle)
+ParticleEstimateHistogramCell& ParticleEstimateHistogramCell::operator+=(const ParticleEstimateHistogramCell& rhs)
+{
+  x_sum_ += rhs.x_sum_;
+  y_sum_ += rhs.y_sum_;
+  th_top_sum_ += rhs.th_top_sum_;
+  th_bot_sum_ += rhs.th_bot_sum_;
+  th_top_count_ += rhs.th_top_count_;
+  weight_normed_sum_ += rhs.weight_normed_sum_;
+  count_ += rhs.count_;
+
+  return *this;
+}
+
+const ParticleEstimateHistogramCell ParticleEstimateHistogramCell::operator+(const ParticleEstimateHistogramCell& rhs) const
+{
+  ParticleEstimateHistogramCell lhs = *this;
+  lhs += rhs;
+
+  return lhs;
+}
+
+void ParticleEstimateHistogramCell::add(const Particle& particle)
 {
   x_sum_ += particle.x_;
   y_sum_ += particle.y_;
@@ -150,14 +171,14 @@ ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
   hist_(x_size_ * y_size_ * th_size_),
   hist_sorted_(x_size_ * y_size_ * th_size_),
   estimates_(NUM_ESTIMATES),
-  modified_(false),
+  update_estimates_(false),
   count_(0)
 {}
 
 void ParticleEstimateHistogram::add(const Particle& particle)
 {
   // Flag as modified since this impacts local averaging used to determine estimates
-  modified_ = true;
+  update_estimates_ = true;
 
   // Calculate index
   size_t x_i = std::min(std::max(0.0, particle.x_ - x_origin_) / HIST_ESTIMATE_POS_RES,
@@ -170,37 +191,34 @@ void ParticleEstimateHistogram::add(const Particle& particle)
                          static_cast<double>(th_size_ - 1)
                         );
   // Add particle to cell
-  cell(x_i, y_i, th_i) += particle;
+  cell(x_i, y_i, th_i).add(particle);
 
   // If this is the cell's first particle, increment the histogram's count
   if (cell(x_i, y_i, th_i).count_ == 1) {
     ++count_;
   }
-
   return;
 }
 
 void ParticleEstimateHistogram::updateEstimates()
 {
-  if (modified_) {
-    // Sort the histogram by weight, best first
+  if (update_estimates_) {
+    // Sort the histogram by weight, largest (best) first
     hist_sorted_ = hist_;
     std::sort(hist_sorted_.begin(), hist_sorted_.end(), Greater());
 
     // Copy the best estimates, locally averaging each histogram cell
-    size_t i = 0;
     printf("Estimate histogram count = %lu\n", count_);
+    size_t min_size = std::min(std::min(count_, estimates_.size()), hist_sorted_.size());
 
-    while (   i < count_
-           && i < estimates_.size()
-           && i < hist_sorted_.size()
-          ) {
+    for (size_t i = 0; i < min_size; ++i) {
       // If estimate confidence is too low to be useful, don't provide it
       if (   hist_sorted_[i].weight_normed_sum_ < ESTIMATE_WEIGHT_MIN
           && i > 0  // Always generate at least one estimate
          ) {
         break;
       }
+      // Convert cell to a particle by averaging all particles that were added to the cell
       estimates_[i] = particle(hist_sorted_[i]);
 
       printf("Estimate %lu = %.3f, %.3f, %.3f (weight = %.2e)\n",
@@ -210,32 +228,41 @@ void ParticleEstimateHistogram::updateEstimates()
              estimates_[i].th_ * 180.0 / L_PI,
              estimates_[i].weight_normed_
             );
-      ++i;
     }
     // Go back through the estimates and average again if they are close to each other
-    // This smoothes the histogram discretization effects
-    double dx = 0.0;
-    double dy = 0.0;
-    double dth = 0.0;
-    i = 0;
+    // This smoothes discretization effects that occur when a cluster of particles moves cross cell boundaries
+    ParticleEstimateHistogramCell cell_empty;
 
-    while (   i + 1 < count_
-           && i + 1 < estimates_.size()
-           && i + 1 < hist_sorted_.size()
-          ) {
-      dx = estimates_[i].x_ - estimates_[i + 1].x_;
-      dy = estimates_[i].y_ - estimates_[i + 1].y_;
-      dth = angleDelta(estimates_[i].th_, estimates_[i + 1].th_);
+    for (size_t i = 0; i < min_size; ++i) {
+      bool update_estimate = false;
 
-      if (   std::abs(dx) < ESTIMATE_MERGE_DXY_MAX
-          && std::abs(dy) < ESTIMATE_MERGE_DXY_MAX
-          && std::abs(dth) < ESTIMATE_MERGE_DTH_MAX
-         ) {
-        //hist_sorted_[i] +++= hist_sorted_[i + 1];
+      for (size_t j = 0; j < min_size; ++j) {
+        // Compute deltas and determine if estimates are sufficiently close to each other to be merged
+        if (   i != j
+            && hist_sorted_[j].count_ > 0
+            && std::abs(estimates_[i].x_ - estimates_[j].x_) < ESTIMATE_MERGE_DXY_MAX
+            && std::abs(estimates_[i].y_ - estimates_[j].y_) < ESTIMATE_MERGE_DXY_MAX
+            && std::abs(angleDelta(estimates_[i].th_, estimates_[j].th_)) < ESTIMATE_MERGE_DTH_MAX
+           ) {
+          // Sum histogram cells so the correct weighted average can be determined for the particle estimate later
+          hist_sorted_[i] += hist_sorted_[j];
+          hist_sorted_[j] = cell_empty;
+          update_estimate = true;
+        }
       }
-      ++i;
+      // Update particle estimate by averaging the updated sums for this histogram cell
+      if (update_estimate) {
+        estimates_[i] = particle(hist_sorted_[i]);
+        printf("Updated estimate %lu = %.3f, %.3f, %.3f (weight = %.2e)\n",
+               i + 1,
+               estimates_[i].x_,
+               estimates_[i].y_,
+               estimates_[i].th_ * 180.0 / L_PI,
+               estimates_[i].weight_normed_
+              );
+      }
     }
-    modified_ = false;
+    update_estimates_ = false;
   }
 }
 

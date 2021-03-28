@@ -188,8 +188,8 @@ int main(int argc, char** argv)
     printf("particles[%lu] = %.2f, \n", i, particles[i].weight_);
   }
 
-  double top = 80.0 * L_PI / 180.0;
-  double bot = -60.0 * L_PI / 180.0;
+  double top = 5.0 * L_PI / 180.0;
+  double bot = 715.0 * L_PI / 180.0;
 
   printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
 
@@ -203,5 +203,37 @@ int main(int argc, char** argv)
     printf("false\n");
   }
 
+  std::vector<ParticleEstimateHistogramCell> cells(3);
+
+  cells[0].x_sum_ += 1.0;
+  cells[0].y_sum_ += 2.0;
+  cells[0].th_top_sum_ += 3.0;
+  cells[0].th_bot_sum_ += 4.0;
+  cells[0].th_top_count_ += 5;
+  cells[0].weight_normed_sum_ += 6.0;
+  cells[0].count_ += 7;
+
+  cells[1].x_sum_ += 1.44;
+  cells[1].y_sum_ += 2.44;
+  cells[1].th_top_sum_ += 3.44;
+  cells[1].th_bot_sum_ += 4.44;
+  cells[1].th_top_count_ += 10;
+  cells[1].weight_normed_sum_ += 6.44;
+  cells[1].count_ += 11;
+
+  cells[2] = cells[0] + cells[1];
+
+  for (size_t i = 0; i < cells.size(); ++i) {
+    printf("cells[%lu] = %.2f, %.2f, %.2f, %.2f, %lu, %.2f, %lu\n",
+           i,
+           cells[i].x_sum_,
+           cells[i].y_sum_,
+           cells[i].th_top_sum_,
+           cells[i].th_bot_sum_,
+           cells[i].th_top_count_,
+           cells[i].weight_normed_sum_,
+           cells[i].count_
+          );
+  }
   return 0;
 }

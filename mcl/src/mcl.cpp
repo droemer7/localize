@@ -58,26 +58,6 @@ MCL::MCL(const unsigned int num_particles_min,
   }
   // Copy the new samples to the distribution
   dist_.copy(samples_, samples_.size());
-
-  // TBD remove
-  // double top_sum = 0.0;
-  // for (size_t i = 0; i < 10; ++i) {
-  //   samples_[i] = Particle(0, 0, 1.0 * (i) * L_PI / 180.0);
-  //   top_sum += samples_[i].th_;
-  // }
-  // double bot_sum = 0.0;
-  // for (size_t i = 10; i < 20; ++i) {
-  //   samples_[i] = Particle(0, 0, -1.0 * (i - 10) * L_PI / 180.0);
-  //   bot_sum += samples_[i].th_;
-  // }
-  // double sum = 0.0;
-  // for (size_t i = 0; i < 20; ++i) {
-  //   printf("samples_[%lu] = (%.2f, %.2f, %.4f)\n", i, samples_[i].x_, samples_[i].y_, samples_[i].th_ * 180.0 / L_PI);
-  //   sum += samples_[i].th_;
-  // }
-  // printf("top avg = %.4f\n", top_sum * 180.0 / L_PI / 10.0);
-  // printf("bot avg = %.4f\n", bot_sum * 180.0 / L_PI / 10.0);
-  // dist_.copy(samples_, 20);
 }
 
 void MCL::update(const double vel,
@@ -136,7 +116,7 @@ void MCL::update()
   size_t s = 0;
 
   // The probability of random samples is based on the change in average confidence and decreases as the confidence
-  // improves.
+  // improves
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
 
@@ -151,7 +131,7 @@ void MCL::update()
            && s < num_particles_target
           ) {
       // Generate a new random particle and apply the sensor model to update its weight
-      if (   prob_sample_random   // Don't waste time generating a new random number if probability is zero
+      if (   prob_sample_random   // Don't generate a new random number if probability is zero
           && prob_(rng_.engine()) < prob_sample_random
          ) {
         samples_[s] = random_sample_();
@@ -207,6 +187,7 @@ void MCL::save(const std::string filename,
               )
 {
   RecursiveLock lock(dist_mtx_);
+  ParticleVector estimates(dist_.estimates());
   ParticleVector particles(dist_.count());
 
   for (size_t i = 0; i < dist_.count(); ++i) {
@@ -215,7 +196,6 @@ void MCL::save(const std::string filename,
   if (sort) {
     std::sort(particles.begin(), particles.end(), Greater());
   }
-  ParticleVector estimates = dist_.estimates();
   localize::save(estimates, filename, overwrite);
   localize::save(particles, filename, false);
 }
