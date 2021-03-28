@@ -5,68 +5,14 @@
 #include <vector>
 #include <random>
 
-#include "mcl/dist.h"
+#include "mcl/distribution.h"
+#include "mcl/histogram.h"
 #include "mcl/motion.h"
 #include "mcl/sensor.h"
 #include "mcl/common.h"
 
 namespace localize
 {
-  // A sampler which chooses a random particle in free space
-  class ParticleRandomSampler
-  {
-  public:
-    // Constructors
-    explicit ParticleRandomSampler(const Map& map);
-
-    // Generates a random particle in free space
-    Particle operator()();
-
-  private:
-    const Map& map_;  // Occupancy map
-
-    RNG rng_; // Random number generator
-
-    std::uniform_real_distribution<double> x_dist_;   // Distribution of map x locations relative to world frame
-    std::uniform_real_distribution<double> y_dist_;   // Distribution of map y locations relative to world frame
-    std::uniform_real_distribution<double> th_dist_;  // Distribution of theta [-pi, +pi) relative to world frame
-  };
-
-  // Histogram representing occupancy of pose space (x, y, th)
-  class ParticleOccupancyHistogram
-  {
-  public:
-    // Constructors
-    ParticleOccupancyHistogram(const Map& map);  // Map
-
-    // Update histogram occupancy with the particle's pose
-    // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
-    bool add(const Particle& particle);
-
-    // Histogram occupancy count
-    size_t count() const;
-
-    // Reset cell states and occupancy count
-    void reset();
-
-  private:
-    // Reference a cell by index
-    std::vector<bool>::reference cell(const size_t x_i,
-                                      const size_t y_i,
-                                      const size_t th_i
-                                     );
-  private:
-    const size_t x_size_;     // Size of x dimension (number of elements)
-    const size_t y_size_;     // Size of y dimension (number of elements)
-    const size_t th_size_;    // Size of angular dimension (number of elements)
-    const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
-    const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
-    const double th_origin_;  // Angle relative to world frame (rad)
-
-    std::vector<bool> hist_;  // Histogram
-    size_t count_;            // Histogram occupancy count
-  };
-
   // Monte-Carlo Localization
   // Localization technique to approximate the possible distribution of poses
   // by a set of random samples drawn from its probability distribution.

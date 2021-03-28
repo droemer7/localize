@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <assert.h>
 #include <cmath>
 
 #include "mcl/sensor.h"
@@ -45,7 +46,7 @@ BeamModel::BeamModel(const float range_min,
              range_max / map.scale,
              TH_RAYCAST_COUNT
             ),
-  th_sample_dist_(0.0, M_2PI / SENSOR_TH_SAMPLE_COUNT)
+  th_sample_dist_(0.0, L_2PI / SENSOR_TH_SAMPLE_COUNT)
 {
   // Precalculate the sensor model and create tables
   precalcWeightedProbs();
@@ -223,7 +224,7 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
       && rays_obs_sample.size() > 0
      ) {
     // Generate a random offset for the sampled set to start from
-    size_t o_step_size = (M_2PI / rays_obs_sample.size()) / obs.th_inc_;
+    size_t o_step_size = (L_2PI / rays_obs_sample.size()) / obs.th_inc_;
     size_t o = th_sample_dist_(rng_.engine()) / obs.th_inc_;
     size_t s = 0;
 
@@ -259,37 +260,36 @@ float BeamModel::repair(float range)
 void BeamModel::removeOutliers(ParticleDistribution& dist)
 {
   // Calculate ratios and pair them with their index
-  IndexedWeightVector weight_ratios(rays_obs_sample_.size());
+  IndexedWeightVector outlier_weight_ratios(rays_obs_sample_.size());
 
   for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
-    weight_ratios[i].index_ = i;
+    outlier_weight_ratios[i].index_ = i;
 
     if (rays_obs_sample_[i].weight_sum_ > 0) {
-      weight_ratios[i].val_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
+      outlier_weight_ratios[i].val_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
     }
     else {
-      weight_ratios[i].val_ = 0.0;
+      outlier_weight_ratios[i].val_ = 0.0;
     }
-    // printf("Outlier ratio[%lu] = %.2e\n", weight_ratios[i].index_, weight_ratios[i].ratio_);
   }
-  // Sort ratios according to worst outliers first, carrying along the corresponding weight index
-  std::sort(weight_ratios.begin(), weight_ratios.end(), IndexedWeight::compGreater);
+  // Sort ratios according to largest outliers first, carrying along the corresponding weight index
+  std::sort(outlier_weight_ratios.begin(), outlier_weight_ratios.end(), Greater());
 
-  // Evaluate the sorted weight ratios list and remove the worst outliers, up to half at most
+  // Evaluate the sorted weight ratios and remove the largest outliers, up to half at most
   // Observed ranges and their corresponding weights are considered outliers if they appear
   // likely to be due to a new / unexpected object
   size_t i = 0;
   size_t reject_count = 0;
 
-  while (   i < weight_ratios.size()
-         && reject_count < weight_ratios.size() / 2  // Only reject half at most so we aren't totally blind
+  while (   i < outlier_weight_ratios.size()
+         && reject_count < outlier_weight_ratios.size() / 2  // Only reject half at most so we aren't totally blind
         ) {
-    if (weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
+    if (outlier_weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
       ++reject_count;
       printf("Rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
-             rays_obs_sample_[weight_ratios[i].index_].range_,
-             rays_obs_sample_[weight_ratios[i].index_].th_ * 180.0 / M_PI,
-             weight_ratios[i].val_
+             rays_obs_sample_[outlier_weight_ratios[i].index_].range_,
+             rays_obs_sample_[outlier_weight_ratios[i].index_].th_ * 180.0 / L_PI,
+             outlier_weight_ratios[i].val_
             );
     }
     else {
@@ -298,22 +298,18 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
     ++i;
   }
   // Recalculate weights, undoing the outlier contributions
-  double weight_partial = 0.0;
-
-  if (weight_ratios.size() > 0) {
+  if (outlier_weight_ratios.size() > 0) {
     for (size_t i = 0; i < dist.count(); ++i) {
 
-      // Reset weight for each rejected index
+      // Remove weight for each rejected index
       for (size_t j = 0; j < reject_count; ++j) {
-        weight_partial = dist.particle(i).weights_[weight_ratios[j].index_];
+        double& weight_partial = dist.particle(i).weights_[outlier_weight_ratios[j].index_];
         weight_partial = std::pow(weight_partial, WEIGHT_UNCERTAINTY_FACTOR);
 
-        if (weight_partial > 0.0) {
-          dist.particle(i).weight_ /= weight_partial;
-        }
-        else {
-          dist.particle(i).weight_ = 1.0;
-        }
+        // Partial weight should never be zero here, because we should only have selected non-zero weights earlier
+        assert(weight_partial > 0.0);
+        dist.particle(i).weight_ /= weight_partial;
+        weight_partial = 0.0;
       }
     }
   }

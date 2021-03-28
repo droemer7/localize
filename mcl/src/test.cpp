@@ -167,19 +167,41 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
-  std::vector<int> list = {4, 1, 0, 9, 1, 3, 3, 10, 2};
+  ParticleVector particles(5);
+  for (size_t i = 0; i < particles.size(); ++i) {
+    particles[i].x_ = 10.0 / (i+1);
+    particles[i].y_ = 5.0 / (i+1);
+    particles[i].th_ = 3.0 / (i+1);
+    particles[i].weight_ = i / 10.0;
+    particles[i].weight_normed_ = -1.0 * i;
+  }
+  std::vector<int> v = {4, 1, 0, 9, 1, 3, 3, 10, 2};
 
-  std::sort(list.begin(), list.begin() + 4, std::greater<int>());
+  std::sort(v.begin(), v.end(), Greater());
+  std::sort(particles.begin(), particles.end(), Greater());
 
-  for (size_t i = 0; i < 1; ++i) {
-    printf("list[%lu] = %d\n", i, list[i]);
+  for (size_t i = 0; i < v.size(); ++i) {
+    printf("v = %d, ", v[i]);
+  }
+  printf("\n");
+  for (size_t i = 0; i < particles.size(); ++i) {
+    printf("particles[%lu] = %.2f, \n", i, particles[i].weight_);
   }
 
-  // double th_delta = (M_PI - th_top_avg) + (M_PI + th_bot_avg); // TBD check simplifying to bot + top
-  double th_top_avg = 170.0 * M_PI / 180.0;
-  double th_bot_avg = -150.0 * M_PI / 180.0;
+  double top = 80.0 * L_PI / 180.0;
+  double bot = -60.0 * L_PI / 180.0;
 
-  printf("th_delta = %.4f\n", wrappedAngleDelta(th_top_avg, th_bot_avg) * 180.0 / M_PI);
+  printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
+
+  SmoothedValue<double> smoothed_val(0.0, 2.0);
+  double val = 3.0;
+
+  if (smoothed_val >= val) {
+    printf("true\n");
+  }
+  else {
+    printf("false\n");
+  }
 
   return 0;
 }

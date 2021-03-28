@@ -26,7 +26,8 @@ include_directories(
 add_executable(mcl src/main.cpp
                    src/node.cpp
                    src/mcl.cpp
-                   src/dist.cpp
+                   src/distribution.cpp
+                   src/histogram.cpp
                    src/motion.cpp
                    src/sensor.cpp
                    src/common.cpp
@@ -41,7 +42,8 @@ target_link_libraries(mcl
 # Test executable
 add_executable(mcl_test src/test.cpp
                         src/mcl.cpp
-                        src/dist.cpp
+                        src/distribution.cpp
+                        src/histogram.cpp
                         src/motion.cpp
                         src/sensor.cpp
                         src/common.cpp

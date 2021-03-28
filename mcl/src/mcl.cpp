@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <float.h>
 #include <random>
 
@@ -6,95 +8,13 @@
 
 static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
 static const double WEIGHT_DEV_CONSISTENT = 1.0;  // Weight sigma below which the weights are considered consistent (required for resampling)
+static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2.0 / 9.0;            // Fraction 2/9
-static const double HIST_POS_RES = 0.10;          // Histogram resolution for x and y position (meters per cell)
-static const double HIST_TH_RES = M_PI / 18.0;    // Histogram resolution for heading angle (rad per cell)
-static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
 static const size_t NUM_SENSOR_SCANS_TUNE = 200;  // Number of sensor scans to save for tuning the model
 
 using namespace localize;
-
-ParticleRandomSampler::ParticleRandomSampler(const Map& map) :
-  map_(map),
-  x_dist_(map_.x_origin, std::nextafter(map_.width * map_.scale + map_.x_origin, std::numeric_limits<double>::max())),
-  y_dist_(map_.y_origin, std::nextafter(map_.height * map_.scale + map_.y_origin, std::numeric_limits<double>::max())),
-  th_dist_(-M_PI, M_PI)
-{}
-
-Particle ParticleRandomSampler::operator()()
-{
-  Particle particle;
-  bool occupied = true;
-
-  // Regenerate x & y until free space is found
-  while (occupied) {
-    particle.x_ = x_dist_(rng_.engine());
-    particle.y_ = y_dist_(rng_.engine());
-    occupied = map_.occupied(particle.x_, particle.y_);
-  }
-  // Any theta is allowed
-  particle.th_ = th_dist_(rng_.engine());
-
-  // Particle weight is 0.0 until updated by the sensor model
-  return particle;
-}
-
-ParticleOccupancyHistogram::ParticleOccupancyHistogram(const Map& map) :
-  x_size_(std::round(map.width * map.scale / HIST_POS_RES)),
-  y_size_(std::round(map.height * map.scale / HIST_POS_RES)),
-  th_size_(std::round((M_2PI + map.th_origin) / HIST_TH_RES)),
-  x_origin_(map.x_origin),
-  y_origin_(map.y_origin),
-  th_origin_(map.th_origin),
-  hist_(x_size_ * y_size_ * th_size_, false),
-  count_(0)
-{}
-
-bool ParticleOccupancyHistogram::add(const Particle& particle)
-{
-  bool count_increased = false;
-
-  // Calculate index
-  size_t x_i = std::min(std::max(0.0, particle.x_ - x_origin_) / HIST_POS_RES,
-                        static_cast<double>(x_size_ - 1)
-                       );
-  size_t y_i = std::min(std::max(0.0, particle.y_ - y_origin_) / HIST_POS_RES,
-                        static_cast<double>(y_size_ - 1)
-                       );
-  size_t th_i = std::min(std::max(0.0, unwrapAngle(particle.th_ - th_origin_) / HIST_TH_RES),
-                         static_cast<double>(th_size_ - 1)
-                        );
-  // Update histogram
-  if (!cell(x_i, y_i, th_i)) {
-    cell(x_i, y_i, th_i) = true;
-    count_increased = true;
-    ++count_;
-  }
-  return count_increased;
-}
-
-size_t ParticleOccupancyHistogram::count() const
-{
-  return count_;
-}
-
-void ParticleOccupancyHistogram::reset()
-{
-  if (count_ > 0) {
-    std::fill(hist_.begin(), hist_.end(), false);
-    count_ = 0;
-  }
-}
-
-std::vector<bool>::reference ParticleOccupancyHistogram::cell(const size_t x_i,
-                                                              const size_t y_i,
-                                                              const size_t th_i
-                                                             )
-{
-  return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
-}
 
 MCL::MCL(const unsigned int num_particles_min,
          const unsigned int num_particles_max,
@@ -142,21 +62,21 @@ MCL::MCL(const unsigned int num_particles_min,
   // TBD remove
   // double top_sum = 0.0;
   // for (size_t i = 0; i < 10; ++i) {
-  //   samples_[i] = Particle(0, 0, 1.0 * (i) * M_PI / 180.0);
+  //   samples_[i] = Particle(0, 0, 1.0 * (i) * L_PI / 180.0);
   //   top_sum += samples_[i].th_;
   // }
   // double bot_sum = 0.0;
   // for (size_t i = 10; i < 20; ++i) {
-  //   samples_[i] = Particle(0, 0, -1.0 * (i - 10) * M_PI / 180.0);
+  //   samples_[i] = Particle(0, 0, -1.0 * (i - 10) * L_PI / 180.0);
   //   bot_sum += samples_[i].th_;
   // }
   // double sum = 0.0;
   // for (size_t i = 0; i < 20; ++i) {
-  //   printf("samples_[%lu] = (%.2f, %.2f, %.4f)\n", i, samples_[i].x_, samples_[i].y_, samples_[i].th_ * 180.0 / M_PI);
+  //   printf("samples_[%lu] = (%.2f, %.2f, %.4f)\n", i, samples_[i].x_, samples_[i].y_, samples_[i].th_ * 180.0 / L_PI);
   //   sum += samples_[i].th_;
   // }
-  // printf("top avg = %.4f\n", top_sum * 180.0 / M_PI / 10.0);
-  // printf("bot avg = %.4f\n", bot_sum * 180.0 / M_PI / 10.0);
+  // printf("top avg = %.4f\n", top_sum * 180.0 / L_PI / 10.0);
+  // printf("bot avg = %.4f\n", bot_sum * 180.0 / L_PI / 10.0);
   // dist_.copy(samples_, 20);
 }
 
@@ -293,7 +213,7 @@ void MCL::save(const std::string filename,
     particles[i] = dist_.particle(i);
   }
   if (sort) {
-    localize::sort(particles);
+    std::sort(particles.begin(), particles.end(), Greater());
   }
   ParticleVector estimates = dist_.estimates();
   localize::save(estimates, filename, overwrite);

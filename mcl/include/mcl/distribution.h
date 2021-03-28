@@ -1,79 +1,14 @@
-#ifndef DIST_H
-#define DIST_H
+#ifndef DISTRIBUTION_H
+#define DISTRIBUTION_H
+
+#include <random>
 
 #include "mcl/common.h"
+#include "mcl/histogram.h"
+#include "mcl/util.h"
 
 namespace localize
 {
-  struct ParticleEstimateHistogramCell
-  {
-    // Constructors
-    ParticleEstimateHistogramCell();
-
-    // Compare cells by weight, cell 1 weight > cell 2 weight
-    static bool compWeightGreater(const ParticleEstimateHistogramCell& cell_1,
-                                  const ParticleEstimateHistogramCell& cell_2
-                                 );
-
-    double x_sum_;
-    double y_sum_;
-    double th_top_sum_;   // Sum of angles in the top half plane (-pi, 0.0) of the (-pi, pi] space
-    double th_bot_sum_;   // Sum of angles in the bottom half plane (0.0, pi] of the (-pi, pi] space
-    size_t th_top_count_; // Count of angles in the top half plane (-pi, 0.0) of the (-pi, pi] space
-    size_t th_bot_count_; // Count of angles in the bottom half plane (0.0, pi] of the (-pi, pi] space
-    double weight_normed_sum_;
-    size_t count_;
-  };
-
-  // Histogram to estimate a multimodal distribution of poses (x, y, th) by weight
-  class ParticleEstimateHistogram
-  {
-  public:
-    // Constructors
-    ParticleEstimateHistogram(const Map& map);  // Map
-
-    // Update histogram with the particle
-    void add(const Particle& particle);
-
-    // Update the estimates by sorting the histogram and selecting the best local averages
-    // If no changes have been made to the histogram since this was last called, no calculations are performed
-    void updateEstimates();
-
-    // Return the top particle estimates - lower indexes are better estimates
-    ParticleVector estimates();
-
-    // Return the particle estimate from the list by index - lower indexes are better estimates
-    Particle estimate(const size_t e = 0);
-
-    // Number of estimates
-    size_t count() const;
-
-    // Reset histogram and estimates
-    void reset();
-
-  private:
-    // Reference a cell by index
-    ParticleEstimateHistogramCell& cell(const size_t x_i,
-                                        const size_t y_i,
-                                        const size_t th_i
-                                       );
-  private:
-    const size_t x_size_;     // Size of x dimension (number of elements)
-    const size_t y_size_;     // Size of y dimension (number of elements)
-    const size_t th_size_;    // Size of angular dimension (number of elements)
-    const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
-    const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
-    const double th_origin_;  // Angle relative to world frame (rad)
-
-    std::vector<ParticleEstimateHistogramCell> hist_;         // Histogram
-    std::vector<ParticleEstimateHistogramCell> hist_sorted_;  // Histogram sorted for estimate generation
-
-    ParticleVector estimates_;  // Averaged estimates
-
-    bool modified_;  // Histogram was modified so estimates need to be regenerated on next request
-    size_t count_;   // Histogram occupancy count
-  };
-
   class ParticleDistribution
   {
   public:
@@ -158,4 +93,4 @@ namespace localize
 
 } // namespace localize
 
-#endif // DIST_H
+#endif // DISTRIBUTION_H

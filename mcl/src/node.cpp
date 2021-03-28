@@ -4,7 +4,6 @@
 #include <nav_msgs/GetMap.h>
 
 #include "mcl/node.h"
-#include "mcl/common.h"
 
 static const int NUM_UPDATES = 10; // TBD remove
 

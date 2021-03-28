@@ -1,9 +1,7 @@
 #ifndef MOTION_H
 #define MOTION_H
 
-#include <vector>
-
-#include "mcl/dist.h"
+#include "mcl/distribution.h"
 #include "mcl/common.h"
 
 namespace localize

@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <chrono>
-#include <float.h>
+#include <limits>
+#include <math.h>
 
 #include "mcl/common.h"
 
@@ -21,6 +23,21 @@ Particle::Particle(const double x,
   weight_normed_(weight_normed),
   weights_(SENSOR_TH_SAMPLE_COUNT, 0.0)
 {}
+
+int Particle::compare(const Particle& lhs, const Particle& rhs) const
+{
+  int result;
+  if (lhs.weight_ < rhs.weight_) {
+    result = -1;
+  }
+  else if (lhs.weight_ > rhs.weight_) {
+    result = 1;
+  }
+  else { // lhs.weight_ == rhs.weight_
+    result = 0;
+  }
+  return result;
+}
 
 Ray::Ray(const float range,
          const float th
@@ -101,14 +118,27 @@ bool Map::occupied(float x, float y) const
   return isOccupiedNT(x, y);
 }
 
-RNG::RNG()
+ParticleRandomSampler::ParticleRandomSampler(const Map& map) :
+  map_(map),
+  x_dist_(map_.x_origin, std::nextafter(map_.width * map_.scale + map_.x_origin, std::numeric_limits<double>::max())),
+  y_dist_(map_.y_origin, std::nextafter(map_.height * map_.scale + map_.y_origin, std::numeric_limits<double>::max())),
+  th_dist_(-L_PI, L_PI)
+{}
+
+Particle ParticleRandomSampler::operator()()
 {
-  // Initialize random number generator
-  // Source: https://stackoverflow.com/a/13446015
-  std::random_device dev;
-  std::chrono::_V2::system_clock::duration time = std::chrono::_V2::system_clock::now().time_since_epoch();
-  std::mt19937::result_type time_seconds = std::chrono::duration_cast<std::chrono::seconds>(time).count();
-  std::mt19937::result_type time_microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-  std::mt19937::result_type seed = dev() ^ (time_seconds + time_microseconds);
-  gen_.seed(seed);
+  Particle particle;
+  bool occupied = true;
+
+  // Regenerate x & y until free space is found
+  while (occupied) {
+    particle.x_ = x_dist_(rng_.engine());
+    particle.y_ = y_dist_(rng_.engine());
+    occupied = map_.occupied(particle.x_, particle.y_);
+  }
+  // Any theta is allowed
+  particle.th_ = th_dist_(rng_.engine());
+
+  // Particle weight is 0.0 until updated by the sensor model
+  return particle;
 }

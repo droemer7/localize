@@ -1,15 +1,15 @@
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef COMMON_H
+#define COMMON_H
 
 #include <cmath>
 #include <iomanip>
 #include <float.h>
 #include <fstream>
 #include <mutex>
-#include <random>
 #include <string>
-#include <type_traits>
 #include <vector>
+
+#include "mcl/util.h"
 
 #include "includes/RangeLib.h"
 
@@ -33,6 +33,28 @@ namespace localize
                       const double weight = 0.0,        // Importance weight
                       const double weight_normed = 0.0  // Normalized importance weight
                      );
+
+    // Compare particles by weight
+    int compare(const Particle& lhs, const Particle& rhs) const;
+
+    // Operators
+    bool operator==(const Particle& rhs) const
+    { return compare(*this, rhs) == 0; }
+
+    bool operator!=(const Particle& rhs) const
+    { return compare(*this, rhs) != 0; }
+
+    bool operator<(const Particle& rhs) const
+    { return compare(*this, rhs) < 0; }
+
+    bool operator>(const Particle& rhs) const
+    { return compare(*this, rhs) > 0; }
+
+    bool operator<=(const Particle& rhs) const
+    { return compare(*this, rhs) <= 0; }
+
+    bool operator>=(const Particle& rhs) const
+    { return compare(*this, rhs) >= 0; }
 
     double x_;              // X position (meters)
     double y_;              // Y position (meters)
@@ -117,186 +139,26 @@ namespace localize
     bool occupied(float x, float y) const;
   };
 
-  // RNG wrapper to seed properly
-  class RNG
+  // A sampler which chooses a random particle in free space
+  class ParticleRandomSampler
   {
-  public:
-    // Constructor
-    RNG();
-
-    // A reference to the random number engine
-    std::mt19937& engine()
-    { return gen_; }
-
-  private:
-    std::mt19937 gen_;  // Generator for random numbers
-  };
-
-  // Normal distribution sampler
-  template <class T>
-  class NormalDistributionSampler
-  {
-  public:
-    // Generates a random sample from a normal distribution specified by the mean and standard deviation
-    T gen(const T mean,
-          const T std_dev
-         )
-    {
-      typename std::normal_distribution<T>::param_type params(mean, std_dev);
-      return distribution_(rng_.engine(), params);
-    }
-
-  private:
-    RNG rng_;                                   // Random number engine
-    std::normal_distribution<T> distribution_;  // Normal distribution from which to sample
-  };
-
-  template <class T>
-  struct IndexedValue
-  {
-    static_assert(std::is_integral<T>::value || std::is_floating_point<T>::value,
-                  "IndexedValue: T must be an integral or floating point type"
-                 );
-    // Constructors
-    IndexedValue() :
-      index_(0),
-      val_(0)
-    {}
-
-    IndexedValue(const size_t index,
-                 const T val
-                ) :
-      index_(index),
-      val_(val)
-    {}
-
-    static bool compGreater(const IndexedValue<T>& item_1,
-                            const IndexedValue<T>& item_2
-                           )
-    { return item_1.val_ > item_2.val_; };
-
-    size_t index_;
-    T val_;
-  };
-
-  typedef IndexedValue<double> IndexedWeight;
-  typedef std::vector<IndexedWeight> IndexedWeightVector;
-
-  template <class T>
-  class SmoothedValue
-  {
-    static_assert(std::is_floating_point<T>::value, "SmoothedValue: T must be a floating point type");
-
   public:
     // Constructors
-    explicit SmoothedValue(const double rate) : // Smoothing rate
-      rate_(rate),
-      val_(0.0),
-      initialized_(false)
-    {}
+    explicit ParticleRandomSampler(const Map& map);
 
-    SmoothedValue(const double rate,  // Smoothing rate
-                  const T val         // Initial value
-                 ):
-      SmoothedValue(rate)
-    {
-      update(val);
-    }
-
-    // Update and return the new value
-    void update(const T val)
-    {
-      val_ = initialized_ ? val_ + rate_ * (val - val_) :
-                            val;
-      initialized_ = true;
-      return;
-    }
-
-    // Return the current value
-    operator T() const
-    { return val_; }
-
-    // Resets the internal state so the next update will set the initial value
-    void reset()
-    { initialized_ = false; }
-
-    // Resets the value to the one specified
-    void reset(const T val)
-    {
-      reset();
-      update(val);
-    }
+    // Generates a random particle in free space
+    Particle operator()();
 
   private:
-    double rate_;
-    T val_;
-    bool initialized_;
+    const Map& map_;  // Occupancy map
+
+    RNG rng_; // Random number generator
+
+    std::uniform_real_distribution<double> x_dist_;   // Distribution of map x locations relative to world frame
+    std::uniform_real_distribution<double> y_dist_;   // Distribution of map y locations relative to world frame
+    std::uniform_real_distribution<double> th_dist_;  // Distribution of theta [-pi, +pi) relative to world frame
   };
 
-  typedef SmoothedValue<double> SmoothedWeight;
-
-  // Approximate equality check for floating point values
-  // The Art of Comptuer Programming, Volume 2, Seminumeric Algorithms (Knuth 1997)
-  // Section 4.2.2. Equation 22
-  inline bool approxEqual(const float a,
-                          const float b,
-                          const float epsilon
-                         )
-  { return std::abs(a - b) <= epsilon * std::max(std::abs(a), std::abs(b)); }
-
-  inline bool approxEqual(const double a,
-                          const double b,
-                          const double epsilon
-                         )
-  { return std::abs(a - b) <= epsilon * std::max(std::abs(a), std::abs(b)); }
-
-  // Wrap an angle to (-pi, pi] (angle of -pi should convert to +pi)
-  inline double wrapAngle(double angle)
-  {
-    if (angle > M_PI) {
-      angle = std::fmod(angle, M_2PI);
-      if (angle > M_PI) {
-        angle -= M_2PI;
-      }
-    }
-    else if (angle <= -M_PI) {
-      angle = std::fmod(angle, -M_2PI);
-      if (angle <= -M_PI) {
-        angle += M_2PI;
-      }
-    }
-    return angle;
-  }
-
-  // Unwrap an angle < 0.0 or > 2pi to [0.0, 2pi) (angle of -0.0 should convert to <2pi)
-  inline double unwrapAngle(double angle)
-  {
-    while (angle < 0.0) {
-      angle += M_2PI;
-    }
-    while (angle > M_2PI) {
-      angle -= M_2PI;
-    }
-    return angle;
-  }
-
-  // Calculates the delta between two angles that are wrapped to (-pi, pi]
-  // Delta is the difference from angle 1 to angle 2
-  // For example: +175, +150 ==> -25
-  //              -160, -150 ==> +10
-  //               170, -150 ==> +40
-  // Function assumes radian units, above degrees are given for example only
-  inline double wrappedAngleDelta(double angle_1, double angle_2)
-  {
-    double delta = 0.0;
-    if (std::abs(angle_1 - angle_2) < M_PI) {
-      delta = angle_2 - angle_1;
-    }
-    else {
-      delta = (M_PI - angle_1) + (M_PI + angle_2);
-    }
-    return delta;
-  }
 
   // Saves data to file in CSV format
   template <class T>
@@ -371,7 +233,7 @@ namespace localize
       output << std::fixed << std::setprecision(3)
              << particle.x_ << ", "
              << particle.y_ << ", "
-             << particle.th_ * 180.0 / M_PI << ", "
+             << particle.th_ * 180.0 / L_PI << ", "
              << std::scientific << std::setprecision(4)
              << particle.weight_ << ", "
              << particle.weight_normed_ << ", " << "\n";
@@ -393,34 +255,12 @@ namespace localize
     output << "Rays\n";
     output << "range, theta (deg)\n";
     for (const RaySample& ray : rays) {
-      output << std::fixed << std::setprecision(3) << ray.range_ << ", " << ray.th_ * 180.0 / M_PI << ", " << "\n";
+      output << std::fixed << std::setprecision(3) << ray.range_ << ", " << ray.th_ * 180.0 / L_PI << ", " << "\n";
     }
     output << "\n";
     output.close();
   }
 
-  // Compare poses by x, p1 x > p2 x
-  inline bool compXGreater(const Particle& p1, const Particle& p2)
-  { return (p1.x_ > p2.x_); };
-
-  // Compare poses by y, p1 y > p2 y
-  inline bool compYGreater(const Particle& p1, const Particle& p2)
-  { return (p1.y_ > p2.y_); };
-
-  // Compare poses by theta, p1 theta > p2 theta
-  inline bool compThGreater(const Particle& p1, const Particle& p2)
-  { return (p1.th_ > p2.th_); };
-
-  // Compare poses by weight, p1 weight > p2 weight
-  inline bool compWeightGreater(const Particle& p1, const Particle& p2)
-  { return (p1.weight_ > p2.weight_); };
-
-  // Sort poses in descending value, default by weight
-  inline void sort(ParticleVector& particles,
-                   bool (*comp)(const Particle& p1, const Particle& p2) = compWeightGreater
-                  )
-  { std::sort(particles.begin(), particles.end(), comp); }
-
 } // namespace localize
 
-#endif // UTIL_H
+#endif // COMMON_H
