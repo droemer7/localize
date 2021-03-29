@@ -180,60 +180,35 @@ int main(int argc, char** argv)
   std::sort(v.begin(), v.end(), Greater());
   std::sort(particles.begin(), particles.end(), Greater());
 
+  printf("v = ");
   for (size_t i = 0; i < v.size(); ++i) {
-    printf("v = %d, ", v[i]);
+    printf("%d, ", v[i]);
   }
   printf("\n");
+  printf("particles = ");
   for (size_t i = 0; i < particles.size(); ++i) {
-    printf("particles[%lu] = %.2f, \n", i, particles[i].weight_);
+    printf("%.2f, ", particles[i].weight_);
   }
+  printf("\n");
 
-  double top = 5.0 * L_PI / 180.0;
-  double bot = 715.0 * L_PI / 180.0;
-
+  double top = -179.0 * L_PI / 180.0;
+  double bot = 175.0 * L_PI / 180.0;
   printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
 
-  SmoothedValue<double> smoothed_val(0.0, 2.0);
-  double val = 3.0;
+  top = 230.0 * L_PI / 180.0;
+  bot = -10.0 * L_PI / 180.0;
+  printf("\n");
+  printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
 
-  if (smoothed_val >= val) {
-    printf("true\n");
-  }
-  else {
-    printf("false\n");
-  }
+  top = -175.0 * L_PI / 180.0;
+  bot = 150.0 * L_PI / 180.0;
+  printf("\n");
+  printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
 
-  std::vector<ParticleEstimateHistogramCell> cells(3);
+  top = 150.0 * L_PI / 180.0;
+  bot = -175.0 * L_PI / 180.0;
+  printf("\n");
+  printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
 
-  cells[0].x_sum_ += 1.0;
-  cells[0].y_sum_ += 2.0;
-  cells[0].th_top_sum_ += 3.0;
-  cells[0].th_bot_sum_ += 4.0;
-  cells[0].th_top_count_ += 5;
-  cells[0].weight_normed_sum_ += 6.0;
-  cells[0].count_ += 7;
-
-  cells[1].x_sum_ += 1.44;
-  cells[1].y_sum_ += 2.44;
-  cells[1].th_top_sum_ += 3.44;
-  cells[1].th_bot_sum_ += 4.44;
-  cells[1].th_top_count_ += 10;
-  cells[1].weight_normed_sum_ += 6.44;
-  cells[1].count_ += 11;
-
-  cells[2] = cells[0] + cells[1];
-
-  for (size_t i = 0; i < cells.size(); ++i) {
-    printf("cells[%lu] = %.2f, %.2f, %.2f, %.2f, %lu, %.2f, %lu\n",
-           i,
-           cells[i].x_sum_,
-           cells[i].y_sum_,
-           cells[i].th_top_sum_,
-           cells[i].th_bot_sum_,
-           cells[i].th_top_count_,
-           cells[i].weight_normed_sum_,
-           cells[i].count_
-          );
-  }
   return 0;
 }

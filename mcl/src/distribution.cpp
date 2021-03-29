@@ -68,14 +68,9 @@ void ParticleDistribution::update(const ParticleVector& particles,
   update();
 }
 
-ParticleVector ParticleDistribution::estimates()
+const ParticleVector& ParticleDistribution::estimates()
 {
   return hist_.estimates();
-}
-
-Particle ParticleDistribution::estimate(const size_t e)
-{
-  return hist_.estimate(e);
 }
 
 Particle& ParticleDistribution::particle(const size_t p)
@@ -83,7 +78,7 @@ Particle& ParticleDistribution::particle(const size_t p)
   return particles_[p];
 }
 
-Particle& ParticleDistribution::sample()
+const Particle& ParticleDistribution::sample()
 {
   // If we've reached the end, wrap back around
   if (sample_s_ + 1 >= count_) {

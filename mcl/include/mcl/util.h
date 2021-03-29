@@ -268,25 +268,37 @@ namespace localize
     return angle;
   }
 
-  // Calculates the delta from angle 1 to angle 2, in the direction that is shortest
+  // Calculates the delta from angle 1 to angle 2 (rad), in the direction that is shortest
   // For example: +175, +150 => -25
-  //              -160, -150 => +10
+  // (in degrees) -160, -150 => +10
   //               170, -150 => +40
   //               230, -10  => +120
-  // Function assumes radian units, above degrees are given for example only
+  //              -179,  175 => -6
   inline double angleDelta(double angle_1, double angle_2)
   {
-    double delta = 0.0;
+    // Make sure angles are in a common coordinate space
     angle_1 = wrapAngle(angle_1);
     angle_2 = wrapAngle(angle_2);
 
-    if (std::abs(angle_1 - angle_2) < L_PI) {
-      delta = angle_2 - angle_1;
+    int angle_1_sign = std::signbit(angle_1);
+    int angle_2_sign = std::signbit(angle_2);
+
+    // If angles are the same sign, angle 2 - angle 1 is the correct delta
+    double delta_1_to_2 = angle_2 - angle_1;
+
+    // If angle 1 > 0 and angle 1 - angle 2 is more than a half circle, handle rollover
+    if (   angle_1_sign == 0
+        && angle_1 - angle_2 > L_PI
+       ) {
+      delta_1_to_2 += L_2PI;
     }
-    else {
-      delta = (L_PI - angle_1) + (L_PI + angle_2);
+    // If angle 2 > 0 and angle 2 - angle 1 is more than a half circle, handle rollover
+    else if (   angle_2_sign == 0
+             && angle_2 - angle_1 > L_PI
+            ) {
+      delta_1_to_2 -= L_2PI;
     }
-    return delta;
+    return delta_1_to_2;
   }
 
 } // namespace localize

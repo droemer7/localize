@@ -86,13 +86,6 @@ ParticleVector MCL::estimates()
   return dist_.estimates();
 }
 
-Particle MCL::estimate(const size_t e)
-{
-  RecursiveLock lock(dist_mtx_);
-
-  return dist_.estimate(e);
-}
-
 bool MCL::stopped()
 {
   RecursiveLock lock(vel_mtx_);

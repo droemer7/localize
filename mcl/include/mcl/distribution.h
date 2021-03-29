@@ -28,16 +28,13 @@ namespace localize
                );
 
     // Return the top particle estimates - lower indexes are better estimates
-    ParticleVector estimates();
-
-    // Return the particle estimate from the list by index - lower indexes are better estimates
-    Particle estimate(const size_t e = 0);
+    const ParticleVector& estimates();
 
     // Reference to a particle in the distribution
     Particle& particle(const size_t p);
 
     // Samples a particle (with replacement) from the distribution with probability proportional to its weight
-    Particle& sample();
+    const Particle& sample();
 
     // Number of particles in use - in general less than particle vector size
     size_t count() const;

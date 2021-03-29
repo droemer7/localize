@@ -40,8 +40,9 @@ namespace localize
     size_t count_;            // Histogram occupancy count
   };
 
-  struct ParticleEstimateHistogramCell
+  class ParticleEstimateHistogramCell
   {
+  public:
     // Constructors
     ParticleEstimateHistogramCell();
 
@@ -69,12 +70,22 @@ namespace localize
     bool operator>=(const ParticleEstimateHistogramCell& rhs) const
     { return compare(*this, rhs) >= 0; }
 
+    // Element wise addition
     ParticleEstimateHistogramCell& operator+=(const ParticleEstimateHistogramCell& rhs);
 
+    // Element wise addition
     const ParticleEstimateHistogramCell operator+(const ParticleEstimateHistogramCell& rhs) const;
 
+    // Add particle to cell
     void add(const Particle& particle);
 
+    // Convert cell to a particle by computing the average of all particles added to the cell
+    friend Particle particle(const ParticleEstimateHistogramCell& cell);
+
+    // Cell particle count
+    size_t count() const;
+
+  private:
     double x_sum_;              // Sum of particle x positions
     double y_sum_;              // Sum of particle y positions
     double th_top_sum_;         // Sum of particle angles in the top half plane of (-pi, pi]
@@ -84,7 +95,6 @@ namespace localize
     size_t count_;              // Count of particles in this cell
   };
 
-  // Convert cell to a particle by computing the average of all particles added to the cell
   Particle particle(const ParticleEstimateHistogramCell& cell);
 
   // Histogram to estimate a multimodal distribution of poses (x, y, th) by weight
@@ -97,21 +107,20 @@ namespace localize
     // Update histogram with the particle
     void add(const Particle& particle);
 
-    // Update the estimates by sorting the histogram and selecting the best local averages
-    // If no changes have been made to the histogram since this was last called, no calculations are performed
-    void updateEstimates();
+    // Calculates the estimates by sorting the histogram and selecting the best local averages
+    void calcEstimates();
 
     // Return the top particle estimates - lower indexes are better estimates
-    ParticleVector estimates();
-
-    // Return the particle estimate from the list by index - lower indexes are better estimates
-    Particle estimate(const size_t e = 0);
-
-    // Number of estimates
-    size_t count() const;
+    const ParticleVector& estimates();
 
     // Reset histogram and estimates
     void reset();
+
+    // Histogram occupancy count (not the number of estimates)
+    size_t count() const;
+
+  private:
+    void printEstimate(const size_t e) const;
 
   private:
     // Reference a cell by index
@@ -130,7 +139,7 @@ namespace localize
     std::vector<ParticleEstimateHistogramCell> hist_;         // Histogram
     std::vector<ParticleEstimateHistogramCell> hist_sorted_;  // Histogram sorted for estimate generation
 
-    ParticleVector estimates_;  // Averaged estimates
+    ParticleVector estimates_;  // Best estimates
     bool update_estimates_;     // Estimates need to be regenerated on next request because the histogram was modified
     size_t count_;              // Histogram occupancy count
   };

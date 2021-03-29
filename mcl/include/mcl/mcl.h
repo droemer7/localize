@@ -43,9 +43,6 @@ namespace localize
     // Return the top particle estimates - lower indexes are better estimates
     ParticleVector estimates();
 
-    // Return the particle estimate from the list by index - lower indexes are better estimates
-    Particle estimate(const size_t e = 0);
-
     // Indicates if the robot velocity is within the stopped threshold based on the last saved value
     bool stopped();
 
