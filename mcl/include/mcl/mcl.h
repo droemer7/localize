@@ -1,15 +1,11 @@
 #ifndef MCL_H
 #define MCL_H
 
-#include <mutex>
-#include <vector>
-#include <random>
-
+#include "mcl/common.h"
 #include "mcl/distribution.h"
 #include "mcl/histogram.h"
 #include "mcl/motion.h"
 #include "mcl/sensor.h"
-#include "mcl/common.h"
 
 namespace localize
 {

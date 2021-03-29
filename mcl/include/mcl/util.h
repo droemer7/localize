@@ -1,7 +1,12 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <float.h>
+#include <limits>
+#include <math.h>
 #include <random>
 #include <type_traits>
 

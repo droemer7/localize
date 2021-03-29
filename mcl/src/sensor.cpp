@@ -306,7 +306,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
         double& weight_partial = dist.particle(i).weights_[outlier_weight_ratios[j].index_];
         weight_partial = std::pow(weight_partial, WEIGHT_UNCERTAINTY_FACTOR);
 
-        // Partial weight should never be zero here, because we should only have selected non-zero weights earlier
+        // Partial weight should never be zero here, because we should have rejected only non-zero weights earlier
         assert(weight_partial > 0.0);
         dist.particle(i).weight_ /= weight_partial;
         weight_partial = 0.0;

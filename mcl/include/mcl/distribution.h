@@ -1,11 +1,8 @@
 #ifndef DISTRIBUTION_H
 #define DISTRIBUTION_H
 
-#include <random>
-
 #include "mcl/common.h"
 #include "mcl/histogram.h"
-#include "mcl/util.h"
 
 namespace localize
 {

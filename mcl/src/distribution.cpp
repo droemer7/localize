@@ -1,8 +1,3 @@
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <math.h>
-
 #include "mcl/distribution.h"
 
 static const double WEIGHT_AVG_CREEP_RATE = 0.005;        // Weight average smoothing rate, very slow
@@ -181,9 +176,9 @@ void ParticleDistribution::calcWeightStats()
     // No particles, reinitialize
     hist_.reset();
     weight_sum_ = 0.0;
-    weight_avg_creep_.reset(0.0);
-    weight_avg_slow_.reset(0.0);
-    weight_avg_fast_.reset(0.0);
+    weight_avg_creep_.reset();
+    weight_avg_slow_.reset();
+    weight_avg_fast_.reset();
     weight_var_ = 0.0;
     weight_std_dev_ = 0.0;
     weight_relative_std_dev_ = 0.0;

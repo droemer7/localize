@@ -2,20 +2,22 @@
 #define MCL_NODE_H
 
 #include <memory>
-#include <mutex>
-#include <string>
 
 #include <ros/ros.h>
 #include <ros/callback_queue.h>
+#include <ros/service.h>
 #include <ros/spinner.h>
 #include <ros/subscriber.h>
 
+#include <tf2/utils.h>
+
+#include <nav_msgs/GetMap.h>
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Float64.h>
 #include <vesc_msgs/VescStateStamped.h>
 
-#include "mcl/mcl.h"
 #include "mcl/common.h"
+#include "mcl/mcl.h"
 
 namespace localize
 {

@@ -1,9 +1,3 @@
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <float.h>
-#include <random>
-
 #include "mcl/mcl.h"
 
 static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
@@ -165,7 +159,7 @@ void MCL::update()
     printf("Sample histogram count = %lu\n", hist_count);
     printf("---------------------------------\n");
   }
-  dist_.estimate(); // TBD remove
+  dist_.estimates(); // TBD remove
   return;
 }
 

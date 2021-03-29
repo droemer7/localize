@@ -3,7 +3,6 @@
 
 #include <cmath>
 #include <iomanip>
-#include <float.h>
 #include <fstream>
 #include <mutex>
 #include <string>
