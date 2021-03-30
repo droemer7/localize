@@ -11,6 +11,7 @@ static const double TH_N2 = 0.01;       // Final rotation noise coefficient 2
 
 using namespace localize;
 
+// ========== VelModel ========== //
 VelModel::VelModel(const double car_length) :
   car_length_(car_length)
 {}
@@ -69,3 +70,4 @@ void VelModel::apply(ParticleDistribution& dist,
   }
   return;
 }
+// ========== End VelModel ========== //

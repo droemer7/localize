@@ -82,9 +82,6 @@ void testParticleHistogramVector1D()
 
   std::chrono::duration<double> dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
 
-  // for (size_t i = 0; i < hist.size(); ++i) {
-  //   printf("%d, ", static_cast<bool>(hist[i]));
-  // }
   printf("Reset histogram in %.2f ms\n", dur.count() * 1000.0);
   printf("--- Test complete ---\n");
 }

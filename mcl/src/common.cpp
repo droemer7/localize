@@ -10,6 +10,7 @@ using namespace localize;
 const unsigned int localize::SENSOR_TH_SAMPLE_COUNT = 8;
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
 
+// ========== Particle ========== //
 Particle::Particle(const double x,
                    const double y,
                    const double th,
@@ -45,7 +46,9 @@ Ray::Ray(const float range,
   range_(range),
   th_(th)
 {}
+// ========== End Particle ========== //
 
+// ========== RaySample ========== //
 RaySample::RaySample(const float range,
                      const float th,
                      const double weight_new_obj_sum,
@@ -59,15 +62,9 @@ RaySample::RaySample(const float range,
 RaySample::RaySample(const Ray& ray) :
   RaySample(ray.range_, ray.th_)
 {}
+// ========== End RaySample ========== //
 
-void RaySample::operator=(const Ray& ray)
-{
-  range_ = ray.range_;
-  th_ = ray.th_;
-
-  return;
-}
-
+// ========== RayScan ========== //
 RayScan::RayScan(RayVector rays,
                  float th_inc,
                  float t_inc,
@@ -84,7 +81,9 @@ RayScan::RayScan(size_t num_rays) :
 {
   rays_.resize(num_rays);
 }
+// ========== End RayScan ========== //
 
+// ========== Map ========== //
 // Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
 Map::Map(const unsigned int width,
          const unsigned int height,
@@ -117,7 +116,9 @@ bool Map::occupied(float x, float y) const
 
   return isOccupiedNT(x, y);
 }
+// ========== Map ========== //
 
+// ========== ParticleRandomSampler ========== //
 ParticleRandomSampler::ParticleRandomSampler(const Map& map) :
   map_(map),
   x_dist_(map_.x_origin, std::nextafter(map_.width * map_.scale + map_.x_origin, std::numeric_limits<double>::max())),
@@ -142,3 +143,4 @@ Particle ParticleRandomSampler::operator()()
   // Particle weight is 0.0 until updated by the sensor model
   return particle;
 }
+// ========== End ParticleRandomSampler ========== //

@@ -10,6 +10,7 @@ static const size_t NUM_SENSOR_SCANS_TUNE = 200;  // Number of sensor scans to s
 
 using namespace localize;
 
+// ========== MCL ========== //
 MCL::MCL(const unsigned int num_particles_min,
          const unsigned int num_particles_max,
          const double car_length,
@@ -195,3 +196,4 @@ bool MCL::stopped(const double vel)
 
   return stopped();
 }
+// ========== End MCL ========== //

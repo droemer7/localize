@@ -4,6 +4,7 @@ static const int NUM_UPDATES = 10; // TBD remove
 
 using namespace localize;
 
+// ========== RayScanMsg ========== //
 RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
   RayScan(msg->ranges.size())
 {
@@ -17,7 +18,9 @@ RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
   }
   rays_ = rays_;
 }
+// ========== End RayScanMsg ========== //
 
+// ========== MCLNode ========== //
 MCLNode::MCLNode(const std::string& drive_vel_topic,
                  const std::string& drive_steer_topic,
                  const std::string& sensor_topic,
@@ -244,3 +247,4 @@ void MCLNode::printMapParams()
   ROS_INFO("MCL: map_th = %f", map_th_);
   ROS_INFO("MCL: map_scale = %f", map_scale_);
 }
+// ========== End MCLNode ========== //

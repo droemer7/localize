@@ -92,8 +92,6 @@ namespace localize
 
     explicit RaySample(const Ray& ray);
 
-    void operator=(const Ray& ray);
-
     double weight_new_obj_sum_; // Sum of weights across the distribution for this angle representing a new / unexpected object
     double weight_sum_;         // Sum of weights across the distribution for this angle
   };

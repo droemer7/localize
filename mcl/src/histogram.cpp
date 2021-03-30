@@ -65,6 +65,7 @@ std::vector<bool>::reference ParticleOccupancyHistogram::cell(const size_t x_i,
 {
   return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
 }
+// ========== End ParticleOccupancyHistogram ========== //
 
 // ========== ParticleEstimateHistogramCell ========== //
 ParticleEstimateHistogramCell::ParticleEstimateHistogramCell() :
@@ -131,6 +132,11 @@ void ParticleEstimateHistogramCell::add(const Particle& particle)
   ++count_;
 }
 
+size_t ParticleEstimateHistogramCell::count() const
+{
+  return count_;
+}
+
 Particle localize::particle(const ParticleEstimateHistogramCell& cell)
 {
   // Calculate average x and y
@@ -152,11 +158,6 @@ Particle localize::particle(const ParticleEstimateHistogramCell& cell)
   double th_avg = wrapAngle(th_top_avg + th_avg_delta * th_bot_count / (th_bot_count + th_top_count));
 
   return Particle(x_avg, y_avg, th_avg, 0.0, cell.weight_normed_sum_);
-}
-
-size_t ParticleEstimateHistogramCell::count() const
-{
-  return count_;
 }
 
 // ========== ParticleEstimateHistogram ========== //
@@ -309,3 +310,4 @@ void ParticleEstimateHistogram::printEstimate(const size_t e) const
          estimates_[e].weight_normed_
         );
 }
+// ========== ParticleEstimateHistogram ========== //

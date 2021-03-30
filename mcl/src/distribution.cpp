@@ -6,6 +6,7 @@ static const double WEIGHT_AVG_FAST_RATE = 0.50;          // Weight average smoo
 
 using namespace localize;
 
+// ========== ParticleDistribution ========== //
 ParticleDistribution::ParticleDistribution(const size_t max_count,
                                            const Map& map
                                           ) :
@@ -198,3 +199,4 @@ void ParticleDistribution::resetSampler()
     sample_sum_ = 0.0;
   }
 }
+// ========== End ParticleDistribution ========== //

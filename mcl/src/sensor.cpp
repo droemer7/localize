@@ -18,6 +18,7 @@ static const float RANGE_EPSILON = 1e-5;                      // Maximum delta b
 
 using namespace localize;
 
+// ========== BeamModel ========== //
 BeamModel::BeamModel(const float range_min,
                      const float range_max,
                      const float range_no_obj,
@@ -232,7 +233,7 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
     while (   o < obs.rays_.size()
            && s < rays_obs_sample.size()
           ) {
-      rays_obs_sample[s++] = obs.rays_[o];
+      rays_obs_sample[s++] = RaySample(obs.rays_[o]);
       o += o_step_size;
     }
     rays_obs_sample.resize(s);
@@ -241,7 +242,7 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
   else if (   obs.rays_.size() == 1
            && rays_obs_sample.size() > 0
           ) {
-    rays_obs_sample[0] = obs.rays_[0];
+    rays_obs_sample[0] = RaySample(obs.rays_[0]);
     rays_obs_sample.resize(1);
   }
   return rays_obs_sample;
@@ -431,3 +432,4 @@ void BeamModel::precalcWeightedProbs()
     }
   }
 }
+// ========== End BeamModel ========== //

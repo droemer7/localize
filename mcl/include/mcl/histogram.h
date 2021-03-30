@@ -79,11 +79,11 @@ namespace localize
     // Add particle to cell
     void add(const Particle& particle);
 
-    // Convert cell to a particle by computing the average of all particles added to the cell
-    friend Particle particle(const ParticleEstimateHistogramCell& cell);
-
     // Cell particle count
     size_t count() const;
+
+    // Convert cell to a particle by computing the average of all particles added to the cell
+    friend Particle particle(const ParticleEstimateHistogramCell& cell);
 
   private:
     double x_sum_;              // Sum of particle x positions
@@ -122,7 +122,6 @@ namespace localize
   private:
     void printEstimate(const size_t e) const;
 
-  private:
     // Reference a cell by index
     ParticleEstimateHistogramCell& cell(const size_t x_i,
                                         const size_t y_i,
