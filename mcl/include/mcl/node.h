@@ -9,6 +9,7 @@
 #include <ros/spinner.h>
 #include <ros/subscriber.h>
 
+#include <tf2_ros/transform_listener.h>
 #include <tf2/utils.h>
 
 #include <nav_msgs/GetMap.h>

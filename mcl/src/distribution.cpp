@@ -186,14 +186,13 @@ void ParticleDistribution::calcWeightStats()
 
 void ParticleDistribution::resetSampler()
 {
+  sample_s_ = 0;
   if (count_ > 0) {
-    sample_s_ = 0;
     sample_step_ = 1.0 / count_;
     sample_sum_target_ = prob_(rng_.engine()) * sample_step_;
     sample_sum_ = particles_[0].weight_normed_;
   }
   else {
-    sample_s_ = 0;
     sample_step_ = 0.0;
     sample_sum_target_ = 0.0;
     sample_sum_ = 0.0;

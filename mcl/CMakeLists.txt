@@ -3,6 +3,7 @@ project(mcl)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  tf2_ros
   std_msgs
   vesc_msgs
 )
@@ -12,6 +13,7 @@ catkin_package(
   LIBRARIES mcl
   CATKIN_DEPENDS
     roscpp
+    tf2_ros
     std_msgs
     vesc_msgs
 )

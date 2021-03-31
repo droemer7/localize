@@ -11,9 +11,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>roscpp</depend>
+  <depend>tf2_ros</depend>
   <depend>std_msgs</depend>
   <depend>vesc_msgs</depend>
-
-  <build_depend>range_lib</build_depend>
-  <build_export_depend>range_lib</build_export_depend>
 </package>

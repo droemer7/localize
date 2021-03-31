@@ -204,6 +204,16 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 {
   printMotionUpdateTime(0.01);
   printSensorUpdateTime(0.01);
+
+  tf2_ros::Buffer buffer;
+  tf2_ros::TransformListener listener(buffer);
+
+  if (buffer.canTransform("car/base_link", "car/laser_link", ros::Time::now(), ros::Duration(5.0))) {
+    printf("MCL: Transform exists\n");
+  }
+  else {
+    printf("MCL: Failed to find transform\n");
+  }
 }
 
 void MCLNode::printMotionUpdateTime(bool time_min_msec)
