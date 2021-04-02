@@ -83,28 +83,7 @@ namespace localize
     size_t count() const;
 
     // Convert cell to a particle by computing the average of all particles added to the cell
-    friend Particle particle(const ParticleEstimateHistogramCell& cell)
-    {
-      // Calculate average x and y
-      double normalizer = cell.count_ > 0 ? 1.0 / cell.count_ : 0.0;
-      double x_avg = cell.x_sum_ * normalizer;
-      double y_avg = cell.y_sum_ * normalizer;
-
-      // Calculate average angle
-      // First average the top half plane (positive) angles and bottom half plane (negative) angles
-      size_t th_top_count = cell.th_top_count_;
-      size_t th_bot_count = cell.count_ - th_top_count;
-      double th_top_avg = th_top_count > 0 ? cell.th_top_sum_ / th_top_count : 0.0;
-      double th_bot_avg = th_bot_count > 0 ? cell.th_bot_sum_ / th_bot_count : 0.0;
-
-      // Get the delta from top -> bottom, in whichever direction is closest
-      double th_avg_delta = angleDelta(th_top_avg, th_bot_avg);
-
-      // Offset from the top angle by a fraction of the delta between the two angles, proportional to the weight of the bottom
-      double th_avg = wrapAngle(th_top_avg + th_avg_delta * th_bot_count / (th_bot_count + th_top_count));
-
-      return Particle(x_avg, y_avg, th_avg, 0.0, cell.weight_normed_sum_);
-    }
+    friend Particle particle(const ParticleEstimateHistogramCell& cell);
 
   private:
     double x_sum_;              // Sum of particle x positions
