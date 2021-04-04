@@ -9,7 +9,10 @@
 #include <ros/spinner.h>
 #include <ros/subscriber.h>
 
+#include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/exceptions.h>
 #include <tf2/utils.h>
 
 #include <nav_msgs/GetMap.h>
@@ -76,6 +79,8 @@ namespace localize
     std::mutex servo_mtx_;  // Servo mutex
 
     // ROS interface
+    std::string sensor_frame_id_;
+    std::string odom_frame_id_;
     ros::NodeHandle drive_vel_nh_;
     ros::NodeHandle drive_steer_nh;
     ros::NodeHandle sensor_nh_;
@@ -94,6 +99,10 @@ namespace localize
     ros::Duration timer_cb_dur_;
     ros::Time drive_t_prev_;
     ros::Timer status_timer_;
+
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
+    tf2_ros::TransformBroadcaster tf_broadcaster_;
 
     // MCL
     std::unique_ptr<MCL> mcl_ptr_;

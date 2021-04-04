@@ -87,6 +87,11 @@ ParticleVector MCL::estimates()
   return dist_.estimates();
 }
 
+Particle MCL::estimate()
+{
+  return estimates()[0];
+}
+
 bool MCL::stopped()
 {
   RecursiveLock lock(vel_mtx_);

@@ -1,6 +1,6 @@
 #include "mcl/node.h"
 
-static const int NUM_UPDATES = 10; // TBD remove
+static const int NUM_UPDATES = 50; // TBD remove
 
 using namespace localize;
 
@@ -30,8 +30,10 @@ MCLNode::MCLNode(const std::string& drive_vel_topic,
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  timer_cb_dur_(1.0),
+  timer_cb_dur_(0.2),
   drive_t_prev_(ros::Time::now()),
+  tf_buffer_(ros::Duration(1)),
+  tf_listener_(tf_buffer_, true, ros::TransportHints().tcpNoDelay()),
   drive_steer_servo_pos_(0.0),
   motion_update_time_msec_(0.0),
   motion_update_time_worst_msec_(0.0),
@@ -43,17 +45,20 @@ MCLNode::MCLNode(const std::string& drive_vel_topic,
   ros::NodeHandle nh;
   if (   !getParam(nh, "localizer/num_particles_min", num_particles_min_)
       || !getParam(nh, "localizer/num_particles_max", num_particles_max_)
+      || !getParam(nh, "vesc/frame_id", odom_frame_id_)
       || !getParam(nh, "vesc/chassis_length", car_length_)
       || !getParam(nh, "vesc/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
       || !getParam(nh, "vesc/speed_to_erpm_offset", drive_vel_to_erpm_offset_)
       || !getParam(nh, "vesc/steering_angle_to_servo_gain", drive_steer_angle_to_servo_gain_)
       || !getParam(nh, "vesc/steering_angle_to_servo_offset", drive_steer_angle_to_servo_offset_)
+      || !getParam(nh, "laser/frame_id", sensor_frame_id_)
       || !getParam(nh, "laser/range_min", sensor_range_min_)
       || !getParam(nh, "laser/range_max", sensor_range_max_)
       || !getParam(nh, "laser/range_no_obj", sensor_range_no_obj_)
      ) {
     throw std::runtime_error("MCL: Missing required parameters");
   }
+
   // Map parameters
   nav_msgs::GetMap get_map_msg;
   if (   !ros::service::waitForService(map_topic, ros::Duration(5))
@@ -175,6 +180,49 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
   sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
+
+  // Temp TBD move somewhere
+  Particle laser_pose = mcl_ptr_->estimate();
+
+  try {
+    geometry_msgs::TransformStamped tf_laser_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
+                                                                                  sensor_frame_id_,
+                                                                                  ros::Time(0)
+                                                                                 );
+    geometry_msgs::TransformStamped tf_odom_to_map;
+
+    double odom_to_map_x = laser_pose.x_ - tf_laser_to_odom.transform.translation.x;
+    double odom_to_map_y = laser_pose.y_ - tf_laser_to_odom.transform.translation.y;
+    tf2::Quaternion odom_to_map_th;
+    odom_to_map_th.setRPY(0.0, 0.0, laser_pose.th_ - tf2::getYaw(tf_laser_to_odom.transform.rotation));
+
+    tf_odom_to_map.header.stamp = ros::Time::now();
+    tf_odom_to_map.header.frame_id = "map";
+    tf_odom_to_map.child_frame_id = odom_frame_id_;
+    tf_odom_to_map.transform.translation.x = odom_to_map_x;
+    tf_odom_to_map.transform.translation.y = odom_to_map_y;
+    tf_odom_to_map.transform.translation.z = 0.0;
+    tf_odom_to_map.transform.rotation.x = odom_to_map_th.x();
+    tf_odom_to_map.transform.rotation.y = odom_to_map_th.y();
+    tf_odom_to_map.transform.rotation.z = odom_to_map_th.z();
+    tf_odom_to_map.transform.rotation.w = odom_to_map_th.w();
+
+    // TBD remove
+    if (   update_num_ >= NUM_UPDATES
+        && stopped
+       ) {
+      printf("MCL: Transform: %.3f, %.3f, %.3f\n",
+             odom_to_map_x,
+             odom_to_map_y,
+             tf2::getYaw(odom_to_map_th) * 180.0 / L_PI
+            );
+      tf_broadcaster_.sendTransform(tf_odom_to_map);
+    }
+  }
+  catch (tf2::TransformException & except) {
+    ROS_WARN("MCL: Frame '%s' or '%s' not found", sensor_frame_id_.c_str(), odom_frame_id_.c_str());
+  }
+
   // TBD remove
   if (   update_num_ >= NUM_UPDATES
       && stopped
@@ -204,16 +252,6 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 {
   printMotionUpdateTime(0.01);
   printSensorUpdateTime(0.01);
-
-  tf2_ros::Buffer buffer;
-  tf2_ros::TransformListener listener(buffer);
-
-  if (buffer.canTransform("car/base_link", "car/laser_link", ros::Time::now(), ros::Duration(5.0))) {
-    printf("MCL: Transform exists\n");
-  }
-  else {
-    printf("MCL: Failed to find transform\n");
-  }
 }
 
 void MCLNode::printMotionUpdateTime(bool time_min_msec)

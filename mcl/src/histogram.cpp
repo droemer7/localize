@@ -212,8 +212,8 @@ void ParticleEstimateHistogram::calcEstimates()
 
   // Generate initial estimates
   printf("\n===== Calculating estimates =====\n");
-  printf("Initial estimates:\n");
   printf("Estimate histogram count = %lu\n", count_);
+  printf("Initial estimates:\n");
   assert(count_ <= hist_sorted_.size());
   estimates_.resize(std::min(count_, NUM_ESTIMATES));
 
@@ -227,7 +227,6 @@ void ParticleEstimateHistogram::calcEstimates()
   ParticleEstimateHistogramCell cell_default;
   Particle particle_default;
 
-  printf("Combined estimates:\n");
   for (size_t i = 0; i < estimates_.size(); ++i) {
     bool update_estimate = false;
 
@@ -265,7 +264,7 @@ void ParticleEstimateHistogram::calcEstimates()
     if (   estimates_[i].weight_normed_ <= 0.0
         && i > 0
        ) {
-      estimates_.resize(i - 1);
+      estimates_.resize(i);
       break;
     }
     printEstimate(i);

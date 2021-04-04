@@ -53,8 +53,8 @@
   <!-- MCL -->
   <group ns="$(arg car_name)">
     <node pkg="mcl" type="mcl" name="localizer" output="screen">
-      <param name="num_particles_min" type="int" value="$(arg num_particles_min)"/>
-      <param name="num_particles_max" type="int" value="$(arg num_particles_max)"/>
+      <param name="num_particles_min" type="int"    value="$(arg num_particles_min)"/>
+      <param name="num_particles_max" type="int"    value="$(arg num_particles_max)"/>
     </node>
   </group>
 </launch>
