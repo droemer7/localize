@@ -34,7 +34,7 @@ namespace localize
     const size_t th_size_;    // Size of angular dimension (number of elements)
     const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
     const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
-    const double th_origin_;  // Angle relative to world frame (rad)
+    const double th_origin_;  // Angle relative to world frame (rad, range 0 to 2pi)
 
     std::vector<bool> hist_;  // Histogram
     size_t count_;            // Histogram occupancy count

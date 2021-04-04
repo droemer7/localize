@@ -14,7 +14,7 @@ using namespace localize;
 ParticleOccupancyHistogram::ParticleOccupancyHistogram(const Map& map) :
   x_size_(std::round(map.width * map.scale / HIST_OCCUPANCY_POS_RES)),
   y_size_(std::round(map.height * map.scale / HIST_OCCUPANCY_POS_RES)),
-  th_size_(std::round((L_2PI + map.th_origin) / HIST_OCCUPANCY_TH_RES)),
+  th_size_(std::round(L_2PI / HIST_OCCUPANCY_TH_RES)),
   x_origin_(map.x_origin),
   y_origin_(map.y_origin),
   th_origin_(map.th_origin),
@@ -27,15 +27,19 @@ bool ParticleOccupancyHistogram::add(const Particle& particle)
   bool count_increased = false;
 
   // Calculate index
-  size_t x_i = std::min(std::max(0.0, particle.x_ - x_origin_) / HIST_OCCUPANCY_POS_RES,
-                        static_cast<double>(x_size_ - 1)
-                       );
-  size_t y_i = std::min(std::max(0.0, particle.y_ - y_origin_) / HIST_OCCUPANCY_POS_RES,
-                        static_cast<double>(y_size_ - 1)
-                       );
-  size_t th_i = std::min(std::max(0.0, unwrapAngle(particle.th_ - th_origin_) / HIST_OCCUPANCY_TH_RES),
-                         static_cast<double>(th_size_ - 1)
-                        );
+  size_t x_i = std::max(0.0, static_cast<size_t>(particle.x_ - x_origin_) / HIST_OCCUPANCY_POS_RES);
+  size_t y_i = std::max(0.0, static_cast<size_t>(particle.y_ - y_origin_) / HIST_OCCUPANCY_POS_RES);
+  size_t th_i = particle.th_ >= th_origin_ ?
+                  std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_) / HIST_OCCUPANCY_TH_RES)
+                : std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_ + L_2PI) / HIST_OCCUPANCY_TH_RES);
+
+  // TBD remove
+  if (x_i > x_size_ || y_i > y_size_ || th_i > th_size_) {
+    printf("ParticleOccupancyHistogram data = %.1f, %.1f\n", particle.x_, x_origin_);
+    printf("ParticleOccupancyHistogram data = %.1f, %.1f\n", particle.y_, y_origin_);
+    printf("ParticleOccupancyHistogram indexes = %lu, %lu, %lu\n", x_i, y_i, th_i);
+  }
+
   // Update histogram
   if (!cell(x_i, y_i, th_i)) {
     cell(x_i, y_i, th_i) = true;
@@ -167,7 +171,7 @@ namespace localize
 ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
   x_size_(std::round(map.width * map.scale / HIST_ESTIMATE_POS_RES)),
   y_size_(std::round(map.height * map.scale / HIST_ESTIMATE_POS_RES)),
-  th_size_(std::round((L_2PI + map.th_origin) / HIST_ESTIMATE_TH_RES)),
+  th_size_(std::round(L_2PI / HIST_ESTIMATE_TH_RES)),
   x_origin_(map.x_origin),
   y_origin_(map.y_origin),
   th_origin_(map.th_origin),
@@ -183,17 +187,28 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   // Flag as modified since this impacts local averaging used to determine estimates
   update_estimates_ = true;
 
+  // Determine delta theta (handle rollover)
+  double delta_th = 0.0;
+  if (particle.th_ >= th_origin_) {
+    delta_th = particle.th_ - th_origin_;
+  }
+  else {
+    delta_th = particle.th_ - th_origin_ + L_2PI;
+  }
   // Calculate index
-  size_t x_i = std::min(std::max(0.0, particle.x_ - x_origin_) / HIST_ESTIMATE_POS_RES,
-                        static_cast<double>(x_size_ - 1)
-                       );
-  size_t y_i = std::min(std::max(0.0, particle.y_ - y_origin_) / HIST_ESTIMATE_POS_RES,
-                        static_cast<double>(y_size_ - 1)
-                       );
-  size_t th_i = std::min(std::max(0.0, unwrapAngle(particle.th_ - th_origin_) / HIST_ESTIMATE_TH_RES),
-                         static_cast<double>(th_size_ - 1)
-                        );
-  // Add particle to cell
+  size_t x_i = std::max(0.0, static_cast<size_t>(particle.x_ - x_origin_) / HIST_ESTIMATE_POS_RES);
+  size_t y_i = std::max(0.0, static_cast<size_t>(particle.y_ - y_origin_) / HIST_ESTIMATE_POS_RES);
+  size_t th_i = particle.th_ >= th_origin_ ?
+                  std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_) / HIST_ESTIMATE_TH_RES)
+                : std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_ + L_2PI) / HIST_ESTIMATE_TH_RES);
+
+  // TBD remove
+  if (x_i > x_size_ || y_i > y_size_ || th_i > th_size_) {
+    printf("ParticleEstimateHistogram data = %.1f, %.1f\n", particle.x_, x_origin_);
+    printf("ParticleEstimateHistogram data = %.1f, %.1f\n", particle.y_, y_origin_);
+    printf("ParticleEstimateHistogram indexes = %lu, %lu, %lu\n", x_i, y_i, th_i);
+  }
+
   cell(x_i, y_i, th_i).add(particle);
 
   // If this is the cell's first particle, increment the histogram's count

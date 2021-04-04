@@ -1,5 +1,6 @@
 #include "mcl/mcl.h"
 
+// TBD restore to 1e-8
 static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
 static const double WEIGHT_DEV_CONSISTENT = 1.0;  // Weight sigma below which the weights are considered consistent (required for resampling)
 static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
@@ -112,6 +113,9 @@ void MCL::update()
   // improves
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
+
+  // TBD remove
+  prob_sample_random = 1.0;
 
   // Reset histogram
   hist_.reset();

@@ -318,9 +318,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
 
 size_t BeamModel::tableIndex(const float range)
 {
-  return std::min(std::max(0.0, range / weight_table_res_),
-                  static_cast<double>(weight_table_size_ - 1)
-                 );
+  return static_cast<size_t>(range) / weight_table_res_;
 }
 
 double BeamModel::lookupWeightedProbNewObj(const float range_obs,

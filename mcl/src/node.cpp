@@ -30,7 +30,7 @@ MCLNode::MCLNode(const std::string& drive_vel_topic,
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  timer_cb_dur_(0.2),
+  timer_cb_dur_(1),
   drive_t_prev_(ros::Time::now()),
   tf_buffer_(ros::Duration(1)),
   tf_listener_(tf_buffer_, true, ros::TransportHints().tcpNoDelay()),
@@ -182,7 +182,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
 
   // Temp TBD move somewhere
-  Particle laser_pose = mcl_ptr_->estimate();
+  Particle tf_laser_to_map = mcl_ptr_->estimate();
 
   try {
     geometry_msgs::TransformStamped tf_laser_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
@@ -191,10 +191,10 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
                                                                                  );
     geometry_msgs::TransformStamped tf_odom_to_map;
 
-    double odom_to_map_x = laser_pose.x_ - tf_laser_to_odom.transform.translation.x;
-    double odom_to_map_y = laser_pose.y_ - tf_laser_to_odom.transform.translation.y;
+    double odom_to_map_x = tf_laser_to_map.x_ - tf_laser_to_odom.transform.translation.x;
+    double odom_to_map_y = tf_laser_to_map.y_ - tf_laser_to_odom.transform.translation.y;
     tf2::Quaternion odom_to_map_th;
-    odom_to_map_th.setRPY(0.0, 0.0, laser_pose.th_ - tf2::getYaw(tf_laser_to_odom.transform.rotation));
+    odom_to_map_th.setRPY(0.0, 0.0, tf_laser_to_map.th_ - tf2::getYaw(tf_laser_to_odom.transform.rotation));
 
     tf_odom_to_map.header.stamp = ros::Time::now();
     tf_odom_to_map.header.frame_id = "map";
@@ -211,7 +211,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
     if (   update_num_ >= NUM_UPDATES
         && stopped
        ) {
-      printf("MCL: Transform: %.3f, %.3f, %.3f\n",
+      printf("MCL: map to odom: %.3f, %.3f, %.3f\n",
              odom_to_map_x,
              odom_to_map_y,
              tf2::getYaw(odom_to_map_th) * 180.0 / L_PI
