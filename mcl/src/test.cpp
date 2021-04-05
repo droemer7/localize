@@ -156,39 +156,8 @@ void testResize(const size_t count)
   printf("--- Test complete ---\n");
 }
 
-int main(int argc, char** argv)
+void testAngleUtils()
 {
-  // testParticleHistogramArray();
-  // testParticleHistogramVector3D();
-  // testParticleHistogramArray1D();
-  // testParticleHistogramVector1D();
-  // test3Dto1DVector();
-  // testResize(100'000);
-
-  ParticleVector particles(5);
-  for (size_t i = 0; i < particles.size(); ++i) {
-    particles[i].x_ = 10.0 / (i+1);
-    particles[i].y_ = 5.0 / (i+1);
-    particles[i].th_ = 3.0 / (i+1);
-    particles[i].weight_ = i / 10.0;
-    particles[i].weight_normed_ = -1.0 * i;
-  }
-  std::vector<int> v = {4, 1, 0, 9, 1, 3, 3, 10, 2};
-
-  std::sort(v.begin(), v.end(), Greater());
-  std::sort(particles.begin(), particles.end(), Greater());
-
-  printf("v = ");
-  for (size_t i = 0; i < v.size(); ++i) {
-    printf("%d, ", v[i]);
-  }
-  printf("\n");
-  printf("particles = ");
-  for (size_t i = 0; i < particles.size(); ++i) {
-    printf("%.2f, ", particles[i].weight_);
-  }
-  printf("\n");
-
   double top = -179.0 * L_PI / 180.0;
   double bot = 175.0 * L_PI / 180.0;
   printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
@@ -211,9 +180,29 @@ int main(int argc, char** argv)
   printf("\n");
   printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
   printf("th_avg = %.4f\n", wrapAngle(top + angleDelta(top, bot) * bot_count / (bot_count + top_count)) * 180.0 / L_PI);
+}
 
-  size_t test = std::round(16.0 / 0.01) + 1.0;
-  printf("testing round = %lu\n", test);
+// struct ParticleHistogramIndex
+// {
+//   ParticleHistogramIndex(const size_t x, const size_t y, const size_t th) :
+//     x_(x),
+//     y_(y),
+//     th_(th)
+//   {}
+
+//   size_t x_;
+//   size_t y_;
+//   size_t th_;
+// };
+
+int main(int argc, char** argv)
+{
+  // testParticleHistogramArray();
+  // testParticleHistogramVector3D();
+  // testParticleHistogramArray1D();
+  // testParticleHistogramVector1D();
+  // test3Dto1DVector();
+  // testResize(100'000);
 
   return 0;
 }

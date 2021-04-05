@@ -55,6 +55,8 @@ namespace localize
     // Values decrease from 1.0 if recent confidence is worse than in the past
     double weightAvgRatio() const;
 
+    void printWeightStats() const;
+
   private:
     // Recalculates distribution statistics
     void calcWeightStats();

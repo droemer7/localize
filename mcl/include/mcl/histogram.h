@@ -95,6 +95,11 @@ namespace localize
     size_t count_;              // Count of particles in this cell
   };
 
+  // Compare estimate histogram cells by weight, descending
+  bool cellEstimateGreater(const ParticleEstimateHistogramCell* lhs,
+                           const ParticleEstimateHistogramCell* rhs
+                          );
+
   // Histogram to estimate a multimodal distribution of poses (x, y, th) by weight
   class ParticleEstimateHistogram
   {
@@ -133,8 +138,8 @@ namespace localize
     const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
     const double th_origin_;  // Angle relative to world frame (rad)
 
-    std::vector<ParticleEstimateHistogramCell> hist_;         // Histogram
-    std::vector<ParticleEstimateHistogramCell> hist_sorted_;  // Histogram sorted for estimate generation
+    std::vector<ParticleEstimateHistogramCell> hist_;   // Histogram
+    std::vector<ParticleEstimateHistogramCell*> cells_; // Pointers to populated cells
 
     ParticleVector estimates_;  // Best estimates
     bool update_estimates_;     // Estimates need to be regenerated on next request because the histogram was modified

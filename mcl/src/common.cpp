@@ -28,13 +28,13 @@ Particle::Particle(const double x,
 int Particle::compare(const Particle& lhs, const Particle& rhs) const
 {
   int result;
-  if (lhs.weight_ < rhs.weight_) {
+  if (lhs.weight_normed_ < rhs.weight_normed_) {
     result = -1;
   }
-  else if (lhs.weight_ > rhs.weight_) {
+  else if (lhs.weight_normed_ > rhs.weight_normed_) {
     result = 1;
   }
-  else { // lhs.weight_ == rhs.weight_
+  else { // lhs.weight_normed_ == rhs.weight_normed_
     result = 0;
   }
   return result;

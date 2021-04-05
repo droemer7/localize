@@ -5,8 +5,8 @@ static const double ESTIMATE_MERGE_DXY_MAX = 0.10;        // Maximum x or y delt
 static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 72.0; // Maximum angular delta for two estimates to be combined
 static const double HIST_OCCUPANCY_POS_RES = 0.10;        // Occupancy histogram resolution for x and y position (meters per cell)
 static const double HIST_OCCUPANCY_TH_RES = L_PI / 18.0;  // Occupancy histogram resolution for heading angle (rad per cell)
-static const double HIST_ESTIMATE_POS_RES = 0.50;         // Estimate histogram resolution for x and y position (meters per cell)
-static const double HIST_ESTIMATE_TH_RES = L_PI / 2.0;    // Estimate histogram resolution for heading angle (rad per cell)
+static const double HIST_ESTIMATE_POS_RES = 0.25;         // Estimate histogram resolution for x and y position (meters per cell)
+static const double HIST_ESTIMATE_TH_RES = L_PI / 4.0;    // Estimate histogram resolution for heading angle (rad per cell)
 
 using namespace localize;
 
@@ -172,6 +172,13 @@ namespace localize
   }
 } // namespace localize
 
+bool localize::cellEstimateGreater(const ParticleEstimateHistogramCell* lhs,
+                                   const ParticleEstimateHistogramCell* rhs
+                                  )
+{
+  return *lhs > *rhs;
+}
+
 // ========== ParticleEstimateHistogram ========== //
 ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
   x_size_(std::round(map.width * map.scale / HIST_ESTIMATE_POS_RES)),
@@ -181,7 +188,6 @@ ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
   y_origin_(map.y_origin),
   th_origin_(map.th_origin),
   hist_(x_size_ * y_size_ * th_size_),
-  hist_sorted_(x_size_ * y_size_ * th_size_),
   estimates_(NUM_ESTIMATES),
   update_estimates_(false),
   count_(0)
@@ -189,9 +195,6 @@ ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
 
 void ParticleEstimateHistogram::add(const Particle& particle)
 {
-  // Flag as modified since this impacts local averaging used to determine estimates
-  update_estimates_ = true;
-
   // Calculate index
   long x_i = (particle.x_ - x_origin_) / HIST_ESTIMATE_POS_RES;
   long y_i = (particle.y_ - y_origin_) / HIST_ESTIMATE_POS_RES;
@@ -204,36 +207,37 @@ void ParticleEstimateHistogram::add(const Particle& particle)
      && 0 <= th_i && th_i < th_size_
     ) {
     // Add particle to histogram in the corresponding cell
-    cell(x_i, y_i, th_i).add(particle);
+    ParticleEstimateHistogramCell& cell_curr = cell(x_i, y_i, th_i);
+    cell_curr.add(particle);
 
     // If this is the cell's first particle, increment the histogram's count
-    if (cell(x_i, y_i, th_i).count() == 1) {
+    if (cell_curr.count() == 1) {
+      cells_.push_back(&cell_curr);
       ++count_;
     }
   }
+  // Flag as modified since this impacts local averaging used to determine estimates
+  update_estimates_ = count_ > 0;
+
   return;
 }
 
 // TBD remove print statements
 void ParticleEstimateHistogram::calcEstimates()
 {
-  // Sort the histogram by weight, largest (best) first
-  hist_sorted_ = hist_;
-  std::sort(hist_sorted_.begin(), hist_sorted_.end(), Greater());
-
-  // Generate initial estimates
   printf("\n===== Calculating estimates =====\n");
-  printf("Estimate histogram count = %lu\n", count_);
-  printf("Initial estimates:\n");
-  assert(count_ <= hist_sorted_.size());
-  estimates_.resize(std::min(count_, NUM_ESTIMATES));
+  printf("Estimate histogram count = %lu\n", cells_.size());
+
+  // Sort all populated histogram cells by weight, largest (best) first
+  std::sort(cells_.begin(), cells_.end(), cellEstimateGreater);
+
+  // Convert histogram cells to particles by averaging all particles in each cell
+  estimates_.resize(std::min(cells_.size(), NUM_ESTIMATES));
 
   for (size_t i = 0; i < estimates_.size(); ++i) {
-    // Convert cell to a particle by averaging all particles that were added to the cell
-    estimates_[i] = particle(hist_sorted_[i]);
-    printEstimate(i);
+    estimates_[i] = particle(*cells_[i]);
   }
-  // Go back through the estimates and average again if they are close to each other
+  // Make another pass and average estimates if they are close to each other
   // This smoothes discretization effects that occur when a cluster of particles moves cross cell boundaries
   ParticleEstimateHistogramCell cell_default;
   Particle particle_default;
@@ -241,26 +245,26 @@ void ParticleEstimateHistogram::calcEstimates()
   for (size_t i = 0; i < estimates_.size(); ++i) {
     bool update_estimate = false;
 
-    if (hist_sorted_[i].count() > 0) {
+    if (cells_[i]->count() > 0) {
       for (size_t j = i + 1; j < estimates_.size(); ++j) {
         // Compute deltas and determine if estimates are sufficiently close to each other to be merged
-        if (   hist_sorted_[j].count() > 0
+        if (   cells_[j]->count() > 0
             && std::abs(estimates_[i].x_ - estimates_[j].x_) < ESTIMATE_MERGE_DXY_MAX
             && std::abs(estimates_[i].y_ - estimates_[j].y_) < ESTIMATE_MERGE_DXY_MAX
             && std::abs(angleDelta(estimates_[i].th_, estimates_[j].th_)) < ESTIMATE_MERGE_DTH_MAX
            ) {
           // Sum histogram cells so the correct weighted average can be determined for the particle estimate later
-          hist_sorted_[i] += hist_sorted_[j];
+          *cells_[i] += *cells_[j];
           update_estimate = true;
 
-          // Reset histogram cell & estimate pair since they are now being combined with another
-          hist_sorted_[j] = cell_default;
+          // Reset histogram cell and estimate so they are not reused
+          *cells_[j] = cell_default;
           estimates_[j] = particle_default;
         }
       }
       // Regenerate particle estimate by averaging the updated histogram cell
       if (update_estimate) {
-        estimates_[i] = particle(hist_sorted_[i]);
+        estimates_[i] = particle(*cells_[i]);
       }
     }
   }
@@ -268,7 +272,6 @@ void ParticleEstimateHistogram::calcEstimates()
   std::sort(estimates_.begin(), estimates_.end(), Greater());
 
   // Ignore zero weight estimates, but always generate at least one estimate
-  printf("Final estimates:\n");
   for (size_t i = 0; i < estimates_.size(); ++i) {
     if (   estimates_[i].weight_normed_ <= 0.0
         && i > 0
@@ -293,6 +296,7 @@ void ParticleEstimateHistogram::reset()
 {
   if (count_ > 0) {
     std::fill(hist_.begin(), hist_.end(), ParticleEstimateHistogramCell());
+    cells_.resize(0);
     count_ = 0;
   }
   std::fill(estimates_.begin(), estimates_.end(), Particle());
@@ -305,6 +309,7 @@ ParticleEstimateHistogramCell& ParticleEstimateHistogram::cell(const size_t x_i,
 {
   return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
 }
+
 size_t ParticleEstimateHistogram::count() const
 {
   return count_;

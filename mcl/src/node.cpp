@@ -1,6 +1,6 @@
 #include "mcl/node.h"
 
-static const int NUM_UPDATES = 50; // TBD remove
+static const int NUM_UPDATES = 25; // TBD remove
 
 using namespace localize;
 
@@ -30,7 +30,7 @@ MCLNode::MCLNode(const std::string& drive_vel_topic,
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  timer_cb_dur_(1),
+  timer_cb_dur_(0.5),
   drive_t_prev_(ros::Time::now()),
   tf_buffer_(ros::Duration(1)),
   tf_listener_(tf_buffer_, true, ros::TransportHints().tcpNoDelay()),
@@ -181,7 +181,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
 
-  // Temp TBD move somewhere
+  // TBD move somewhere
   Particle tf_laser_to_map = mcl_ptr_->estimate();
 
   try {

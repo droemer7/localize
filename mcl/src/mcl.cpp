@@ -114,7 +114,6 @@ void MCL::update()
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
 
-  // Reset histogram
   hist_.reset();
 
   if (   prob_sample_random
@@ -157,7 +156,6 @@ void MCL::update()
     printf("Prob(random) = %.2f\n", prob_sample_random);
     printf("Samples used = %lu\n", s);
     printf("Sample histogram count = %lu\n", hist_count);
-    printf("---------------------------------\n");
   }
   dist_.estimates(); // TBD remove
   return;

@@ -130,6 +130,13 @@ double ParticleDistribution::weightAvgRatio() const
   return ratio;
 }
 
+void ParticleDistribution::printWeightStats() const
+{
+  printf("Weight average = %.2e\n", weightAvg());
+  printf("Weight ratio = %.2f\n", weightAvgRatio());
+  printf("Weight relative std dev = %.2e\n", weightRelativeStdDev());
+}
+
 void ParticleDistribution::calcWeightStats()
 {
   if (count_ > 0) {
@@ -179,9 +186,6 @@ void ParticleDistribution::calcWeightStats()
     weight_std_dev_ = 0.0;
     weight_relative_std_dev_ = 0.0;
   }
-  printf("Weight average = %.2e\n", weightAvg());
-  printf("Weight ratio = %.2f\n", weightAvgRatio());
-  printf("Weight relative std dev = %.2e\n", weightRelativeStdDev());
 }
 
 void ParticleDistribution::resetSampler()
