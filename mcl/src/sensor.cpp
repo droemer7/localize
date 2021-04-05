@@ -1,7 +1,3 @@
-#include <algorithm>
-#include <assert.h>
-#include <cmath>
-
 #include "mcl/sensor.h"
 
 static const float RANGE_STD_DEV = 0.5;                       // Standard deviation in range measurements
@@ -39,7 +35,7 @@ BeamModel::BeamModel(const float range_min,
   weight_map_obj_(WEIGHT_MAP_OBJ / weights_sum_),
   weight_rand_effect_(WEIGHT_RAND_EFFECT / weights_sum_),
   weight_table_res_(WEIGHT_TABLE_RES),
-  weight_table_size_(range_max / WEIGHT_TABLE_RES + 1),
+  weight_table_size_(std::round(range_max / WEIGHT_TABLE_RES) + 1.0),
   weight_table_new_obj_(weight_table_size_, std::vector<double>(weight_table_size_)),
   weight_table_(weight_table_size_, std::vector<double>(weight_table_size_)),
   rays_obs_sample_(SENSOR_TH_SAMPLE_COUNT),
@@ -47,6 +43,10 @@ BeamModel::BeamModel(const float range_min,
              range_max / map.scale,
              TH_RAYCAST_COUNT
             ),
+  map_x_min_(map.x_origin),
+  map_y_min_(map.y_origin),
+  map_x_max_(map.width * map.scale + map.x_origin),
+  map_y_max_(map.height * map.scale + map.y_origin),
   th_sample_dist_(0.0, L_2PI / SENSOR_TH_SAMPLE_COUNT)
 {
   // Precalculate the sensor model and create tables
@@ -57,38 +57,45 @@ void BeamModel::apply(Particle& particle,
                       const bool calc_enable
                      )
 {
-  double weight_partial_new_obj = 0.0;
-  double weight_partial = 0.0;
-  double weight = 1.0;
-  float range_obs = 0.0;
-  float range_map = 0.0;
+  // Calculate weight if particle is in bounds
+  if (   map_x_min_ <= particle.x_ && particle.x_ <= map_x_max_
+      && map_y_min_ <= particle.y_ && particle.y_ <= map_y_max_
+     ) {
+    double weight_partial_new_obj = 0.0;
+    double weight_partial = 0.0;
+    double weight = 1.0;
+    float range_map = 0.0;
 
-  for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
-    // Compute range from the map
-    range_map = raycaster_.calc_range(particle.x_,
-                                      particle.y_,
-                                      particle.th_ + rays_obs_sample_[i].th_
-                                     );
-    // Make sure ranges are valid (NaNs, negative values, etc)
-    range_obs = repair(rays_obs_sample_[i].range_);
-    range_map = repair(range_map);
+    for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
+      // Calculate range from the map
+      range_map = raycaster_.calc_range(particle.x_,
+                                        particle.y_,
+                                        particle.th_ + rays_obs_sample_[i].th_
+                                       );
+      range_map = repair(range_map);
 
-    // Calculate observed range probabilities for this particle
-    weight_partial_new_obj = calc_enable ? calcWeightedProbNewObj(range_obs, range_map) :
-                                           lookupWeightedProbNewObj(range_obs, range_map);
-    weight_partial = calc_enable ? calcWeightedProb(range_obs, range_map) :
-                                   lookupWeightedProb(range_obs, range_map);
+      // Calculate observed range probabilities for this particle
+      weight_partial_new_obj = calc_enable ? calcWeightedProbNewObj(rays_obs_sample_[i].range_, range_map) :
+                                             lookupWeightedProbNewObj(rays_obs_sample_[i].range_, range_map);
+      weight_partial = calc_enable ? calcWeightedProb(rays_obs_sample_[i].range_, range_map) :
+                                     lookupWeightedProb(rays_obs_sample_[i].range_, range_map);
 
-    // Update weight sums for this sampled ray
-    rays_obs_sample_[i].weight_new_obj_sum_ += weight_partial_new_obj;
-    rays_obs_sample_[i].weight_sum_ += weight_partial;
+      // Update weight sums for this sampled ray
+      rays_obs_sample_[i].weight_new_obj_sum_ += weight_partial_new_obj;
+      rays_obs_sample_[i].weight_sum_ += weight_partial;
 
-    // Save partial weight to particle in case we determine later its an outlier and need to remove its effect
-    particle.weights_[i] = weight_partial;
-    weight *= weight_partial;
+      // Save partial weight to particle in case we determine later its an outlier and need to remove its effect
+      particle.weights_[i] = weight_partial;
+      weight *= weight_partial;
+    }
+    // Update full weight, applying overall model uncertainty
+    particle.weight_ = std::pow(weight, WEIGHT_UNCERTAINTY_FACTOR);
   }
-  // Update full weight, applying overall model uncertainty
-  particle.weight_ = std::pow(weight, WEIGHT_UNCERTAINTY_FACTOR);
+  // Zero weight if particle is not in bounds
+  else {
+    std::fill(particle.weights_.begin(), particle.weights_.end(), 0.0);
+    particle.weight_ = 0.0;
+  }
   return;
 }
 
@@ -233,8 +240,10 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
     while (   o < obs.rays_.size()
            && s < rays_obs_sample.size()
           ) {
-      rays_obs_sample[s++] = RaySample(obs.rays_[o]);
+      rays_obs_sample[s] = RaySample(obs.rays_[o]);
+      rays_obs_sample[s].range_ = repair(rays_obs_sample[s].range_);
       o += o_step_size;
+      ++s;
     }
     rays_obs_sample.resize(s);
   }
@@ -243,18 +252,10 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
            && rays_obs_sample.size() > 0
           ) {
     rays_obs_sample[0] = RaySample(obs.rays_[0]);
+    rays_obs_sample[0].range_ = repair(rays_obs_sample[0].range_);
     rays_obs_sample.resize(1);
   }
   return rays_obs_sample;
-}
-
-float BeamModel::repair(float range)
-{
-  return (   range > range_max_
-          || std::signbit(range)
-          || std::isnan(range)
-         ) ?
-         range_no_obj_ : range;
 }
 
 // TBD remove print statements
@@ -307,7 +308,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
         double& weight_partial = dist.particle(i).weights_[outlier_weight_ratios[j].index_];
         weight_partial = std::pow(weight_partial, WEIGHT_UNCERTAINTY_FACTOR);
 
-        // Partial weight should never be zero here, because we should have rejected only non-zero weights earlier
+        // Partial weight should never be zero here because we should have selected only non-zero weights earlier
         assert(weight_partial > 0.0);
         dist.particle(i).weight_ /= weight_partial;
         weight_partial = 0.0;
@@ -316,9 +317,18 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   }
 }
 
+float BeamModel::repair(float range)
+{
+  return (   range > range_max_
+          || std::signbit(range)
+          || std::isnan(range)
+         ) ?
+         range_no_obj_ : range;
+}
+
 size_t BeamModel::tableIndex(const float range)
 {
-  return static_cast<size_t>(range) / weight_table_res_;
+  return range / weight_table_res_;
 }
 
 double BeamModel::lookupWeightedProbNewObj(const float range_obs,

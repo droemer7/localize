@@ -1,6 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <assert.h>
 #include <cmath>
 #include <iomanip>
 #include <fstream>
@@ -153,7 +154,7 @@ namespace localize
 
     std::uniform_real_distribution<double> x_dist_;   // Distribution of map x locations relative to world frame
     std::uniform_real_distribution<double> y_dist_;   // Distribution of map y locations relative to world frame
-    std::uniform_real_distribution<double> th_dist_;  // Distribution of theta [-pi, +pi) relative to world frame
+    std::uniform_real_distribution<double> th_dist_;  // Distribution of theta (-pi, +pi] relative to world frame
   };
 
 

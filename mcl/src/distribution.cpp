@@ -147,7 +147,7 @@ void ParticleDistribution::calcWeightStats()
 
     // Reinitialize weight variance, normalizer and histogram
     weight_var_ = 0.0;
-    double weight_normalizer = weight_sum_ > 0.0 ? 1 / weight_sum_ : 0.0;
+    double weight_normalizer = weight_sum_ > 0.0 ? 1.0 / weight_sum_ : 0.0;
     double weight_diff = 0.0;
     hist_.reset();
 

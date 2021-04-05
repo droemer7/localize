@@ -46,6 +46,7 @@
       <!-- Motor (parameters) -->
       <group ns="vesc">
         <rosparam file="$(find vesc_main)/config/racecar-uw-nano/vesc.yaml" command="load"/>
+        <param name="frame_id" value="$(arg car_name)/odom"/>
       </group>
     </group>
   </group>

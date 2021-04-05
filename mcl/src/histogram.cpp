@@ -1,6 +1,6 @@
 #include "mcl/histogram.h"
 
-static const size_t NUM_ESTIMATES = 10;                   // Number of pose estimates to provide
+static const size_t NUM_ESTIMATES = 5;                    // Number of pose estimates to provide
 static const double ESTIMATE_MERGE_DXY_MAX = 0.10;        // Maximum x or y delta for two estimates to be combined
 static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 72.0; // Maximum angular delta for two estimates to be combined
 static const double HIST_OCCUPANCY_POS_RES = 0.10;        // Occupancy histogram resolution for x and y position (meters per cell)
@@ -27,21 +27,18 @@ bool ParticleOccupancyHistogram::add(const Particle& particle)
   bool count_increased = false;
 
   // Calculate index
-  size_t x_i = std::max(0.0, static_cast<size_t>(particle.x_ - x_origin_) / HIST_OCCUPANCY_POS_RES);
-  size_t y_i = std::max(0.0, static_cast<size_t>(particle.y_ - y_origin_) / HIST_OCCUPANCY_POS_RES);
-  size_t th_i = particle.th_ >= th_origin_ ?
-                  std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_) / HIST_OCCUPANCY_TH_RES)
-                : std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_ + L_2PI) / HIST_OCCUPANCY_TH_RES);
+  long x_i = (particle.x_ - x_origin_) / HIST_OCCUPANCY_POS_RES;
+  long y_i = (particle.y_ - y_origin_) / HIST_OCCUPANCY_POS_RES;
+  long th_i = particle.th_ >= th_origin_ ? (particle.th_ - th_origin_) / HIST_OCCUPANCY_TH_RES
+                                         : (particle.th_ - th_origin_ + L_2PI) / HIST_OCCUPANCY_TH_RES;
 
-  // TBD remove
-  if (x_i > x_size_ || y_i > y_size_ || th_i > th_size_) {
-    printf("ParticleOccupancyHistogram data = %.1f, %.1f\n", particle.x_, x_origin_);
-    printf("ParticleOccupancyHistogram data = %.1f, %.1f\n", particle.y_, y_origin_);
-    printf("ParticleOccupancyHistogram indexes = %lu, %lu, %lu\n", x_i, y_i, th_i);
-  }
-
-  // Update histogram
-  if (!cell(x_i, y_i, th_i)) {
+  // Ignore particles out of bounds
+  if(   0 <= x_i  && x_i  < x_size_
+     && 0 <= y_i  && y_i  < y_size_
+     && 0 <= th_i && th_i < th_size_
+     && !cell(x_i, y_i, th_i)
+    ) {
+    // Add particle to histogram in the corresponding cell
     cell(x_i, y_i, th_i) = true;
     count_increased = true;
     ++count_;
@@ -126,11 +123,11 @@ void ParticleEstimateHistogramCell::add(const Particle& particle)
   y_sum_ += particle.y_;
 
   if (std::signbit(particle.th_)) {
-    th_top_sum_ += particle.th_;
-    ++th_top_count_;
+    th_bot_sum_ += particle.th_;
   }
   else {
-    th_bot_sum_ += particle.th_;
+    th_top_sum_ += particle.th_;
+    ++th_top_count_;
   }
   weight_normed_sum_ += particle.weight_normed_;
   ++count_;
@@ -145,27 +142,35 @@ namespace localize
 {
   Particle particle(const ParticleEstimateHistogramCell& cell)
   {
-    // Calculate average x and y
-    double normalizer = cell.count_ > 0 ? 1.0 / cell.count_ : 0.0;
-    double x_avg = cell.x_sum_ * normalizer;
-    double y_avg = cell.y_sum_ * normalizer;
+    Particle particle;
 
-    // Calculate average angle
-    // First average the top half plane (positive) angles and bottom half plane (negative) angles
-    size_t th_top_count = cell.th_top_count_;
-    size_t th_bot_count = cell.count_ - th_top_count;
-    double th_top_avg = th_top_count > 0 ? cell.th_top_sum_ / th_top_count : 0.0;
-    double th_bot_avg = th_bot_count > 0 ? cell.th_bot_sum_ / th_bot_count : 0.0;
+    if (cell.count_ > 0) {
+      // Calculate average x and y
+      double x_avg = cell.x_sum_ / cell.count_;
+      double y_avg = cell.y_sum_ / cell.count_;
 
-    // Get the delta from top -> bottom, in whichever direction is closest
-    double th_avg_delta = angleDelta(th_top_avg, th_bot_avg);
+      // Calculate average angle
+      // First average the top half plane (positive) angles and bottom half plane (negative) angles
+      size_t th_top_count = cell.th_top_count_;
+      size_t th_bot_count = cell.count_ - th_top_count;
+      double th_top_avg = th_top_count > 0 ? cell.th_top_sum_ / th_top_count : 0.0;
+      double th_bot_avg = th_bot_count > 0 ? cell.th_bot_sum_ / th_bot_count : 0.0;
 
-    // Offset from the top angle by a fraction of the delta between the two angles, proportional to the weight of the bottom
-    double th_avg = wrapAngle(th_top_avg + th_avg_delta * th_bot_count / (th_bot_count + th_top_count));
+      // Get the delta from top -> bottom, in whichever direction is closest
+      double th_avg_delta = angleDelta(th_top_avg, th_bot_avg);
 
-    return Particle(x_avg, y_avg, th_avg, 0.0, cell.weight_normed_sum_);
+      // Offset from the top angle by a fraction of the delta between the two angles, proportional to the weight of the bottom
+      double th_avg = wrapAngle(th_top_avg + th_avg_delta * th_bot_count / (th_bot_count + th_top_count));
+
+      // Update particle state
+      particle.x_ = x_avg;
+      particle.y_ = y_avg;
+      particle.th_ = th_avg;
+      particle.weight_normed_ = cell.weight_normed_sum_;
+    }
+    return particle;
   }
-}
+} // namespace localize
 
 // ========== ParticleEstimateHistogram ========== //
 ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
@@ -187,33 +192,24 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   // Flag as modified since this impacts local averaging used to determine estimates
   update_estimates_ = true;
 
-  // Determine delta theta (handle rollover)
-  double delta_th = 0.0;
-  if (particle.th_ >= th_origin_) {
-    delta_th = particle.th_ - th_origin_;
-  }
-  else {
-    delta_th = particle.th_ - th_origin_ + L_2PI;
-  }
   // Calculate index
-  size_t x_i = std::max(0.0, static_cast<size_t>(particle.x_ - x_origin_) / HIST_ESTIMATE_POS_RES);
-  size_t y_i = std::max(0.0, static_cast<size_t>(particle.y_ - y_origin_) / HIST_ESTIMATE_POS_RES);
-  size_t th_i = particle.th_ >= th_origin_ ?
-                  std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_) / HIST_ESTIMATE_TH_RES)
-                : std::max(0.0, static_cast<size_t>(particle.th_ - th_origin_ + L_2PI) / HIST_ESTIMATE_TH_RES);
+  long x_i = (particle.x_ - x_origin_) / HIST_ESTIMATE_POS_RES;
+  long y_i = (particle.y_ - y_origin_) / HIST_ESTIMATE_POS_RES;
+  long th_i = particle.th_ >= th_origin_ ? (particle.th_ - th_origin_) / HIST_ESTIMATE_TH_RES
+                                         : (particle.th_ - th_origin_ + L_2PI) / HIST_ESTIMATE_TH_RES;
 
-  // TBD remove
-  if (x_i > x_size_ || y_i > y_size_ || th_i > th_size_) {
-    printf("ParticleEstimateHistogram data = %.1f, %.1f\n", particle.x_, x_origin_);
-    printf("ParticleEstimateHistogram data = %.1f, %.1f\n", particle.y_, y_origin_);
-    printf("ParticleEstimateHistogram indexes = %lu, %lu, %lu\n", x_i, y_i, th_i);
-  }
+  // Ignore particles out of bounds
+  if(   0 <= x_i  && x_i  < x_size_
+     && 0 <= y_i  && y_i  < y_size_
+     && 0 <= th_i && th_i < th_size_
+    ) {
+    // Add particle to histogram in the corresponding cell
+    cell(x_i, y_i, th_i).add(particle);
 
-  cell(x_i, y_i, th_i).add(particle);
-
-  // If this is the cell's first particle, increment the histogram's count
-  if (cell(x_i, y_i, th_i).count() == 1) {
-    ++count_;
+    // If this is the cell's first particle, increment the histogram's count
+    if (cell(x_i, y_i, th_i).count() == 1) {
+      ++count_;
+    }
   }
   return;
 }
@@ -248,20 +244,18 @@ void ParticleEstimateHistogram::calcEstimates()
     if (hist_sorted_[i].count() > 0) {
       for (size_t j = i + 1; j < estimates_.size(); ++j) {
         // Compute deltas and determine if estimates are sufficiently close to each other to be merged
-        if (   i != j
-            && hist_sorted_[j].count() > 0
+        if (   hist_sorted_[j].count() > 0
             && std::abs(estimates_[i].x_ - estimates_[j].x_) < ESTIMATE_MERGE_DXY_MAX
             && std::abs(estimates_[i].y_ - estimates_[j].y_) < ESTIMATE_MERGE_DXY_MAX
             && std::abs(angleDelta(estimates_[i].th_, estimates_[j].th_)) < ESTIMATE_MERGE_DTH_MAX
            ) {
           // Sum histogram cells so the correct weighted average can be determined for the particle estimate later
           hist_sorted_[i] += hist_sorted_[j];
+          update_estimate = true;
 
           // Reset histogram cell & estimate pair since they are now being combined with another
           hist_sorted_[j] = cell_default;
           estimates_[j] = particle_default;
-
-          update_estimate = true;
         }
       }
       // Regenerate particle estimate by averaging the updated histogram cell

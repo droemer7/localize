@@ -1,8 +1,6 @@
 #ifndef SENSOR_H
 #define SENSOR_H
 
-#include <vector>
-
 #include "mcl/distribution.h"
 #include "mcl/common.h"
 
@@ -61,13 +59,13 @@ namespace localize
     // Generate a subset of ranges sampled from the full scan using the preset angle sample increment
     RaySampleVector sample(const RayScan& obs);
 
-    // Convert NaN, negative ranges and any range beyond the configured max to the range reported when nothing is
-    // detected by the sensor
-    float repair(const float range);
-
     // Removes the contribution of outliers to the particle weights
     // Outlier weights are those derived from range observations which were likely detecting new / unexpected objects
     void removeOutliers(ParticleDistribution& dist);
+
+    // Convert NaN, negative ranges and any range beyond the configured max to the range reported when nothing is
+    // detected by the sensor
+    float repair(const float range);
 
     // Converts the range value to a corresponding index in the table
     size_t tableIndex(const float range);
@@ -151,6 +149,11 @@ namespace localize
 
     RaySampleVector rays_obs_sample_; // Downsampled observations
     ranges::CDDTCast raycaster_;      // Range calculator
+
+    double map_x_min_;  // Minimum x position possible on the map
+    double map_y_min_;  // Minimum y position possible on the map
+    double map_x_max_;  // Maximum x position possible on the map
+    double map_y_max_;  // Maximum y position possible on the map
 
     RNG rng_;  // Random number engine
     std::uniform_real_distribution<double> th_sample_dist_;  // Distribution of initial sample angle offsets

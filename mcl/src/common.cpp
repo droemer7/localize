@@ -121,9 +121,11 @@ bool Map::occupied(float x, float y) const
 // ========== ParticleRandomSampler ========== //
 ParticleRandomSampler::ParticleRandomSampler(const Map& map) :
   map_(map),
-  x_dist_(map_.x_origin, std::nextafter(map_.width * map_.scale + map_.x_origin, std::numeric_limits<double>::max())),
-  y_dist_(map_.y_origin, std::nextafter(map_.height * map_.scale + map_.y_origin, std::numeric_limits<double>::max())),
-  th_dist_(-L_PI, L_PI)
+  x_dist_(map_.x_origin, map_.width * map_.scale + map_.x_origin),
+  y_dist_(map_.y_origin, map_.height * map_.scale + map_.y_origin),
+  th_dist_(std::nextafter(-L_PI, std::numeric_limits<double>::max()),
+           std::nextafter(L_PI, std::numeric_limits<double>::max())
+          )
 {}
 
 Particle ParticleRandomSampler::operator()()
@@ -140,7 +142,7 @@ Particle ParticleRandomSampler::operator()()
   // Any theta is allowed
   particle.th_ = th_dist_(rng_.engine());
 
-  // Particle weight is 0.0 until updated by the sensor model
+  // Particle weight is 0.0 until determined by the sensor model
   return particle;
 }
 // ========== End ParticleRandomSampler ========== //

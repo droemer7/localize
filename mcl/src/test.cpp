@@ -203,13 +203,17 @@ int main(int argc, char** argv)
   printf("\n");
   printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
 
-  top = 150.0 * L_PI / 180.0;
-  bot = -175.0 * L_PI / 180.0;
+  top = 0.0 * L_PI / 180.0;
+  bot = -10.0 * L_PI / 180.0;
+  size_t top_count = 1;
+  size_t bot_count = 3;
+
   printf("\n");
   printf("th_delta = %.4f\n", angleDelta(top, bot) * 180.0 / L_PI);
+  printf("th_avg = %.4f\n", wrapAngle(top + angleDelta(top, bot) * bot_count / (bot_count + top_count)) * 180.0 / L_PI);
 
-  tf2_ros::Buffer buffer;
-  tf2_ros::TransformListener listener(buffer);
+  size_t test = std::round(16.0 / 0.01) + 1.0;
+  printf("testing round = %lu\n", test);
 
   return 0;
 }

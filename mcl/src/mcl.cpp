@@ -73,7 +73,7 @@ void MCL::update(const RayScan& obs)
   // Cache observation before requesting lock
   sensor_model_.update(obs);
 
-  if (!stopped()) { // TBD remove true
+  if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
 
     sensor_model_.apply(dist_);
@@ -113,9 +113,6 @@ void MCL::update()
   // improves
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
-
-  // TBD remove
-  prob_sample_random = 1.0;
 
   // Reset histogram
   hist_.reset();
