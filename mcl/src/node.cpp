@@ -20,11 +20,13 @@ RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
 }
 
 // ========== MCLNode ========== //
-MCLNode::MCLNode(const std::string& drive_vel_topic,
+MCLNode::MCLNode(const std::string& pose_topic,
+                 const std::string& drive_vel_topic,
                  const std::string& drive_steer_topic,
                  const std::string& sensor_topic,
                  const std::string& map_topic
                 ) :
+  map_frame_id_("map"),
   drive_vel_spinner_(1, &drive_vel_cb_queue_),
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
@@ -121,6 +123,9 @@ MCLNode::MCLNode(const std::string& drive_vel_topic,
                                          &MCLNode::statusCb,
                                          this
                                         );
+  // Setup publisher for pose estimates
+  pose_pub_ = pose_nh_.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
+
   // Start threads
   drive_vel_spinner_.start();
   drive_steer_spinner_.start();
@@ -175,59 +180,19 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
   // Update localizer with sensor data
   mcl_ptr_->update(RayScanMsg(msg));
 
+  // Publish transform and pose
+  publishTf();
+  publishPose();
+
   // Save duration
   sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
   sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
 
-  // TBD move somewhere
-  Particle tf_laser_to_map = mcl_ptr_->estimate();
-
-  try {
-    geometry_msgs::TransformStamped tf_laser_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
-                                                                                  sensor_frame_id_,
-                                                                                  ros::Time(0)
-                                                                                 );
-    geometry_msgs::TransformStamped tf_odom_to_map;
-
-    double odom_to_map_x = tf_laser_to_map.x_ - tf_laser_to_odom.transform.translation.x;
-    double odom_to_map_y = tf_laser_to_map.y_ - tf_laser_to_odom.transform.translation.y;
-    tf2::Quaternion odom_to_map_th;
-    odom_to_map_th.setRPY(0.0, 0.0, tf_laser_to_map.th_ - tf2::getYaw(tf_laser_to_odom.transform.rotation));
-
-    tf_odom_to_map.header.stamp = ros::Time::now();
-    tf_odom_to_map.header.frame_id = odom_frame_id_;
-    tf_odom_to_map.child_frame_id = "map";
-    tf_odom_to_map.transform.translation.x = odom_to_map_x;
-    tf_odom_to_map.transform.translation.y = odom_to_map_y;
-    tf_odom_to_map.transform.translation.z = 0.0;
-    tf_odom_to_map.transform.rotation.x = odom_to_map_th.x();
-    tf_odom_to_map.transform.rotation.y = odom_to_map_th.y();
-    tf_odom_to_map.transform.rotation.z = odom_to_map_th.z();
-    tf_odom_to_map.transform.rotation.w = odom_to_map_th.w();
-
-    // TBD remove
-    if (   update_num_ >= NUM_UPDATES
-        && stopped
-       ) {
-      printf("MCL: odom to map: %.3f, %.3f, %.3f\n",
-             odom_to_map_x,
-             odom_to_map_y,
-             tf2::getYaw(odom_to_map_th) * 180.0 / L_PI
-            );
-      tf_broadcaster_.sendTransform(tf_odom_to_map);
-    }
-  }
-  catch (tf2::TransformException & except) {
-    ROS_WARN("MCL: Frame '%s' or '%s' not found", sensor_frame_id_.c_str(), odom_frame_id_.c_str());
-  }
-
   // TBD remove
   if (   update_num_ >= NUM_UPDATES
       && stopped
      ) {
-    printSensorUpdateTime();
-    mcl_ptr_->save("results.csv");
     throw (std::runtime_error("Finished\n"));
   }
 }
@@ -245,6 +210,64 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
     result = false;
   }
   return result;
+}
+
+void MCLNode::publishTf()
+{
+  try {
+    geometry_msgs::TransformStamped tf_laser_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
+                                                                                  sensor_frame_id_,
+                                                                                  ros::Time(0)
+                                                                                 );
+    geometry_msgs::TransformStamped tf_odom_to_map;
+
+    Particle tf_laser_to_map = mcl_ptr_->estimate();
+    double odom_to_map_x = tf_laser_to_map.x_ - tf_laser_to_odom.transform.translation.x;
+    double odom_to_map_y = tf_laser_to_map.y_ - tf_laser_to_odom.transform.translation.y;
+    tf2::Quaternion odom_to_map_orient;
+    odom_to_map_orient.setRPY(0.0, 0.0, tf_laser_to_map.th_ - tf2::getYaw(tf_laser_to_odom.transform.rotation));
+
+    tf_odom_to_map.header.stamp = ros::Time::now();
+    tf_odom_to_map.header.frame_id = odom_frame_id_;
+    tf_odom_to_map.child_frame_id = map_frame_id_;
+    tf_odom_to_map.transform.translation.x = odom_to_map_x;
+    tf_odom_to_map.transform.translation.y = odom_to_map_y;
+    tf_odom_to_map.transform.translation.z = 0.0;
+    tf_odom_to_map.transform.rotation.x = odom_to_map_orient.x();
+    tf_odom_to_map.transform.rotation.y = odom_to_map_orient.y();
+    tf_odom_to_map.transform.rotation.z = odom_to_map_orient.z();
+    tf_odom_to_map.transform.rotation.w = odom_to_map_orient.w();
+
+    // tf_broadcaster_.sendTransform(tf_odom_to_map); // TBD restore
+  }
+  catch (tf2::TransformException & except) {
+    ROS_WARN("MCL: %s", except.what());
+  }
+}
+
+void MCLNode::publishPose()
+{
+  // Get pose estimate
+  Particle pose = mcl_ptr_->estimate();
+
+  // Convert heading angle to quaternion
+  tf2::Quaternion pose_orient;
+  pose_orient.setRPY(0.0, 0.0, pose.th_);
+
+  // Construct message
+  geometry_msgs::PoseStamped pose_msg;
+  pose_msg.header.stamp = ros::Time::now();
+  pose_msg.header.frame_id = map_frame_id_;
+  pose_msg.pose.position.x = pose.x_;
+  pose_msg.pose.position.y = pose.y_;
+  pose_msg.pose.position.z = 0.0;
+  pose_msg.pose.orientation.x = pose_orient.x();
+  pose_msg.pose.orientation.y = pose_orient.y();
+  pose_msg.pose.orientation.z = pose_orient.z();
+  pose_msg.pose.orientation.w = pose_orient.w();
+
+  // Publish pose
+  pose_pub_.publish(pose_msg);
 }
 
 void MCLNode::statusCb(const ros::TimerEvent& event)

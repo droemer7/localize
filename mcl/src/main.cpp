@@ -13,7 +13,8 @@ int main(int argc, char** argv)
 
   try {
     // Start MCL node
-    MCLNode mcl_node("vesc/sensors/core",
+    MCLNode mcl_node("pose",
+                     "vesc/sensors/core",
                      "vesc/sensors/servo_position_command",
                      "laser/scan",
                      "/static_map"

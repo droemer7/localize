@@ -43,7 +43,7 @@ namespace localize
     // Return the top particle estimates - lower indexes are better estimates
     ParticleVector estimates();
 
-    // Return the best particle estimates
+    // Return the best particle estimate
     Particle estimate();
 
     // Indicates if the robot velocity is within the stopped threshold based on the last saved value
@@ -79,8 +79,6 @@ namespace localize
     const Map map_;                   // Map
     VelModel motion_model_;           // Motion model
     BeamModel sensor_model_;          // Sensor model
-    ParticleVector particle_data_;    // Particle data saved for offline tuning / analysis
-    RayScanVector sensor_data_;       // Sensor data saved for offline tuning / analysis
 
     ParticleDistribution dist_;           // Particle distribution
     ParticleVector samples_;              // Sampled particles (temporary storage)

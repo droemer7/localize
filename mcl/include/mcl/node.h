@@ -5,6 +5,7 @@
 
 #include <ros/ros.h>
 #include <ros/callback_queue.h>
+#include <ros/publisher.h>
 #include <ros/service.h>
 #include <ros/spinner.h>
 #include <ros/subscriber.h>
@@ -35,7 +36,8 @@ namespace localize
   class MCLNode
   {
   public:
-    MCLNode(const std::string& drive_vel_topic,   // Drive velocity topic name
+    MCLNode(const std::string& pose_topic,        // Pose topic name
+            const std::string& drive_vel_topic,   // Drive velocity topic name
             const std::string& drive_steer_topic, // Drive steering topic name
             const std::string& sensor_topic,      // Sensor topic name
             const std::string& map_topic          // Map topic name
@@ -53,12 +55,19 @@ namespace localize
     // Status info callback
     void statusCb(const ros::TimerEvent& event);
 
-    // Retrieves the desired parameter value from the ROS parameter server
+  private:
+    // Retrieve the desired parameter value from the ROS parameter server
     template <class T>
     bool getParam(const ros::NodeHandle& nh,
                   std::string name,
                   T& value
                  );
+
+    // Publish the transform estimated by the localizer
+    void publishTf();
+
+    // Publish the pose estimated by the localizer
+    void publishPose();
 
     // Print Motion update times (last and worst)
     void printMotionUpdateTime(bool min_msec = 0.0);
@@ -81,6 +90,8 @@ namespace localize
     // ROS interface
     std::string sensor_frame_id_;
     std::string odom_frame_id_;
+    std::string map_frame_id_;
+    ros::NodeHandle pose_nh_;
     ros::NodeHandle drive_vel_nh_;
     ros::NodeHandle drive_steer_nh;
     ros::NodeHandle sensor_nh_;
@@ -89,6 +100,7 @@ namespace localize
     ros::CallbackQueue drive_steer_cb_queue_;
     ros::CallbackQueue sensor_cb_queue_;
     ros::CallbackQueue status_cb_queue_;
+    ros::Publisher pose_pub_;
     ros::Subscriber drive_vel_sub_;
     ros::Subscriber drive_steer_sub_;
     ros::Subscriber sensor_sub_;
