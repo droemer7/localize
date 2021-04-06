@@ -10,6 +10,16 @@ using namespace localize;
 const unsigned int localize::SENSOR_TH_SAMPLE_COUNT = 8;
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
 
+// ========== Pose ========== //
+Pose::Pose(const double x,
+           const double y,
+           const double th
+          ):
+  x_(x),
+  y_(y),
+  th_(th)
+{}
+
 // ========== Particle ========== //
 Particle::Particle(const double x,
                    const double y,
@@ -17,9 +27,7 @@ Particle::Particle(const double x,
                    const double weight,
                    const double weight_normed
                   ):
-  x_(x),
-  y_(y),
-  th_(th),
+  Pose(x, y, th),
   weight_(weight),
   weight_normed_(weight_normed),
   weights_(SENSOR_TH_SAMPLE_COUNT, 0.0)
@@ -40,13 +48,13 @@ int Particle::compare(const Particle& lhs, const Particle& rhs) const
   return result;
 }
 
+// ========== Ray ========== //
 Ray::Ray(const float range,
          const float th
         ) :
   range_(range),
   th_(th)
 {}
-// ========== End Particle ========== //
 
 // ========== RaySample ========== //
 RaySample::RaySample(const float range,
@@ -62,7 +70,6 @@ RaySample::RaySample(const float range,
 RaySample::RaySample(const Ray& ray) :
   RaySample(ray.range_, ray.th_)
 {}
-// ========== End RaySample ========== //
 
 // ========== RayScan ========== //
 RayScan::RayScan(RayVector rays,
@@ -81,7 +88,6 @@ RayScan::RayScan(size_t num_rays) :
 {
   rays_.resize(num_rays);
 }
-// ========== End RayScan ========== //
 
 // ========== Map ========== //
 // Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
@@ -116,7 +122,6 @@ bool Map::occupied(float x, float y) const
 
   return isOccupiedNT(x, y);
 }
-// ========== Map ========== //
 
 // ========== ParticleRandomSampler ========== //
 ParticleRandomSampler::ParticleRandomSampler(const Map& map) :
@@ -145,4 +150,3 @@ Particle ParticleRandomSampler::operator()()
   // Particle weight is 0.0 until determined by the sensor model
   return particle;
 }
-// ========== End ParticleRandomSampler ========== //

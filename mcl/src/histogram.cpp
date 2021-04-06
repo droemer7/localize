@@ -66,7 +66,6 @@ std::vector<bool>::reference ParticleOccupancyHistogram::cell(const size_t x_i,
 {
   return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
 }
-// ========== End ParticleOccupancyHistogram ========== //
 
 // ========== ParticleEstimateHistogramCell ========== //
 ParticleEstimateHistogramCell::ParticleEstimateHistogramCell() :

@@ -61,10 +61,10 @@ namespace localize
                  );
 
     // Print Motion update times (last and worst)
-    void printMotionUpdateTime(bool time_min_msec = 0.0);
+    void printMotionUpdateTime(bool min_msec = 0.0);
 
     // Print Sensor update times (last and worst)
-    void printSensorUpdateTime(bool time_min_msec = 0.0);
+    void printSensorUpdateTime(bool min_msec = 0.0);
 
     // Print Motion parameters
     void printMotionParams();

@@ -18,7 +18,6 @@ RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
   }
   rays_ = rays_;
 }
-// ========== End RayScanMsg ========== //
 
 // ========== MCLNode ========== //
 MCLNode::MCLNode(const std::string& drive_vel_topic,
@@ -197,8 +196,8 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
     odom_to_map_th.setRPY(0.0, 0.0, tf_laser_to_map.th_ - tf2::getYaw(tf_laser_to_odom.transform.rotation));
 
     tf_odom_to_map.header.stamp = ros::Time::now();
-    tf_odom_to_map.header.frame_id = "map";
-    tf_odom_to_map.child_frame_id = odom_frame_id_;
+    tf_odom_to_map.header.frame_id = odom_frame_id_;
+    tf_odom_to_map.child_frame_id = "map";
     tf_odom_to_map.transform.translation.x = odom_to_map_x;
     tf_odom_to_map.transform.translation.y = odom_to_map_y;
     tf_odom_to_map.transform.translation.z = 0.0;
@@ -211,7 +210,7 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
     if (   update_num_ >= NUM_UPDATES
         && stopped
        ) {
-      printf("MCL: map to odom: %.3f, %.3f, %.3f\n",
+      printf("MCL: odom to map: %.3f, %.3f, %.3f\n",
              odom_to_map_x,
              odom_to_map_y,
              tf2::getYaw(odom_to_map_th) * 180.0 / L_PI
@@ -254,17 +253,17 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
   printSensorUpdateTime(0.01);
 }
 
-void MCLNode::printMotionUpdateTime(bool time_min_msec)
+void MCLNode::printMotionUpdateTime(bool min_msec)
 {
-  if (motion_update_time_msec_ > time_min_msec) {
+  if (motion_update_time_msec_ > min_msec) {
     ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_update_time_msec_);
     ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_update_time_worst_msec_);
   }
 }
 
-void MCLNode::printSensorUpdateTime(bool time_min_msec)
+void MCLNode::printSensorUpdateTime(bool min_msec)
 {
-  if (sensor_update_time_msec_ > time_min_msec) {
+  if (sensor_update_time_msec_ > min_msec) {
     ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_update_time_msec_);
     ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_update_time_worst_msec_);
   }
@@ -295,4 +294,3 @@ void MCLNode::printMapParams()
   ROS_INFO("MCL: map_th = %f", map_th_);
   ROS_INFO("MCL: map_scale = %f", map_scale_);
 }
-// ========== End MCLNode ========== //

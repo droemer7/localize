@@ -200,4 +200,3 @@ bool MCL::stopped(const double vel)
 
   return stopped();
 }
-// ========== End MCL ========== //

@@ -23,8 +23,21 @@ namespace localize
   extern const unsigned int SENSOR_TH_SAMPLE_COUNT; // Number of samples per ray scan (count per revolution)
   extern const std::string DATA_PATH;               // Full path to directory for saving data
 
-  // A particle with 2D location, heading angle and weight
-  struct Particle
+  // Robot location (x, y) and orientation (heading angle theta)
+  struct Pose
+  {
+    explicit Pose(const double x = 0.0, // X position (meters)
+                  const double y = 0.0, // Y position (meters)
+                  const double th = 0.0 // Heading angle (rad)
+                 );
+
+    double x_;  // X position (meters)
+    double y_;  // Y position (meters)
+    double th_; // Heading angle (rad)
+  };
+
+  // Weighted pose estimate
+  struct Particle : Pose
   {
     // Constructors
     explicit Particle(const double x = 0.0,             // X position (meters)
@@ -56,9 +69,6 @@ namespace localize
     bool operator>=(const Particle& rhs) const
     { return compare(*this, rhs) >= 0; }
 
-    double x_;              // X position (meters)
-    double y_;              // Y position (meters)
-    double th_;             // Heading angle (rad)
     double weight_;         // Importance weight (not normalized)
     double weight_normed_;  // Normalized importance weight
     std::vector<double> weights_; // Partial importance weights listed by sample angle index

@@ -440,4 +440,3 @@ void BeamModel::precalcWeightedProbs()
     }
   }
 }
-// ========== End BeamModel ========== //

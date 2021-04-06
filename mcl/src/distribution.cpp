@@ -202,4 +202,3 @@ void ParticleDistribution::resetSampler()
     sample_sum_ = 0.0;
   }
 }
-// ========== End ParticleDistribution ========== //

@@ -70,4 +70,3 @@ void VelModel::apply(ParticleDistribution& dist,
   }
   return;
 }
-// ========== End VelModel ========== //
