@@ -12,23 +12,30 @@ namespace localize
   // Monte-Carlo Localization
   // Localization technique to approximate the possible distribution of poses
   // by a set of random samples drawn from its probability distribution.
+  //
+  // Note: MCL local frame is the sensor frame.
   class MCL
   {
   public:
     // Constructors
-    MCL(const unsigned int num_particles_min, // Minimum number of particles
-        const unsigned int num_particles_max, // Maximum number of particles
-        const double car_length,              // Car length
-        const float sensor_range_min,         // Sensor min range in meters
-        const float sensor_range_max,         // Sensor max range in meters
-        const float sensor_range_no_obj,      // Sensor range reported when nothing is detected
-        const unsigned int map_width,         // Map number of pixels along x axis
-        const unsigned int map_height,        // Map number of pixels along y axis
-        const float map_x_origin,             // Map x translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_y_origin,             // Map y translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_th,                   // Map angle relative to world frame (read)
-        const float map_scale,                // Map scale relative to world frame (meters per pixel)
-        const std::vector<int8_t> map_data    // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+    MCL(const unsigned int num_particles_min,     // Minimum number of particles
+        const unsigned int num_particles_max,     // Maximum number of particles
+        const double car_length,                  // Car length
+        const double car_sensor_to_base_frame_x,  // Car sensor to base frame x translation
+        const double car_sensor_to_base_frame_y,  // Car sensor to base frame y translation
+        const double car_sensor_to_base_frame_th, // Car sensor to base frame rotation
+        const double car_sensor_to_back_frame_x,  // Car sensor frame to back (midpoint between back wheels) x translation
+        const double car_sensor_to_back_frame_y,  // Car sensor frame to back (midpoint between back wheels) y translation
+        const float sensor_range_min,             // Sensor min range in meters
+        const float sensor_range_max,             // Sensor max range in meters
+        const float sensor_range_no_obj,          // Sensor range reported when nothing is detected
+        const unsigned int map_width,             // Map number of pixels along x axis
+        const unsigned int map_height,            // Map number of pixels along y axis
+        const float map_x_origin,                 // Map x translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_y_origin,                 // Map y translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_th,                       // Map angle relative to world frame (read)
+        const float map_scale,                    // Map scale relative to world frame (meters per pixel)
+        const std::vector<int8_t> map_data        // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
@@ -40,13 +47,13 @@ namespace localize
     // Apply the sensor model to update particle weights using p(obs[t] | pose[t], map)
     void update(const RayScan& obs);
 
-    // Return the top particle estimates - lower indexes are better estimates
+    // Return the top particle estimates in the sensor's frame - lower indexes are better estimates
     ParticleVector estimates();
 
-    // Return the best particle estimate
+    // Return the best particle estimate in the sensor's frame
     Particle estimate();
 
-    // Indicates if the robot velocity is within the stopped threshold based on the last saved value
+    // Indicates if the car velocity is within the stopped threshold based on the last saved value
     bool stopped();
 
     // Save particle distribution to file in CSV format
@@ -71,16 +78,21 @@ namespace localize
     bool stopped(const double vel);
 
   private:
-    std::recursive_mutex dist_mtx_; // Particle distribution mutex
-    std::recursive_mutex vel_mtx_;  // Velocity mutex
+    std::recursive_mutex dist_mtx_;     // Particle distribution mutex
+    std::recursive_mutex vel_lin_mtx_;  // Linear velocity mutex
 
-    const size_t num_particles_min_;  // Minimum number of particles
-    double vel_;                      // Robot linear velocity
-    const Map map_;                   // Map
-    VelModel motion_model_;           // Motion model
-    BeamModel sensor_model_;          // Sensor model
+    const size_t num_particles_min_;      // Minimum number of particles
+    double vel_lin_;                      // Linear velocity of the car
+    double car_sensor_to_base_frame_x_;   // Car sensor to base frame x translation
+    double car_sensor_to_base_frame_y_;   // Car sensor to base frame y translation
+    double car_sensor_to_base_frame_th_;  // Car sensor to base frame rotation
+    double car_sensor_to_back_frame_x_;   // Car sensor frame to back (midpoint between back wheels) x translation
+    double car_sensor_to_back_frame_y_;   // Car sensor frame to back (midpoint between back wheels) y translation
+    const Map map_;          // Map
+    VelModel motion_model_;  // Motion model
+    BeamModel sensor_model_; // Sensor model
 
-    ParticleDistribution dist_;           // Particle distribution
+    ParticleDistribution dist_;           // Particle distribution in the sensor frame
     ParticleVector samples_;              // Sampled particles (temporary storage)
     ParticleOccupancyHistogram hist_;     // Histogram for estimating probability distribution complexity
     ParticleRandomSampler random_sample_; // Random particle sampler, generates samples in free space based on the map

@@ -85,9 +85,14 @@ namespace localize
     void printMapParams();
 
   private:
+    typedef geometry_msgs::TransformStamped TransformStampedMsg;
+    typedef geometry_msgs::PoseStamped PoseStampedMsg;
+
     std::mutex servo_mtx_;  // Servo mutex
 
     // ROS interface
+    std::string base_frame_id_;
+    std::string wheel_bl_frame_id_;
     std::string sensor_frame_id_;
     std::string odom_frame_id_;
     std::string map_frame_id_;

@@ -19,18 +19,23 @@ namespace localize
   {
   public:
     // Constructor
-    VelModel(const double car_length); // Car length
+    VelModel(const double car_length,                   // Car length
+             const double car_particle_to_back_frame_x, // Car particle frame to back (midpoint between back wheels) x translation
+             const double car_particle_to_back_frame_y  // Car particle frame to back (midpoint between back wheels) x translation
+            );
 
     // Apply the motion model to generate new samples of particles from p(x[t] | u[t], x[t-1])
     // Algorithm 5.3 from Probabilistic Robotics (Thrun 2006, page 124)
     void apply(ParticleDistribution& dist,
-               const double lin_vel,
+               const double vel_lin,
                const double steering_angle,
                const double dt
               );
 
   private:
-    double car_length_; // Car length
+    double car_length_;                   // Car length
+    double car_particle_to_back_frame_x_; // Car particle frame to back (midpoint between back wheels) x translation
+    double car_particle_to_back_frame_y_; // Car particle frame to back (midpoint between back wheels) x translation
 
     NormalDistributionSampler<double> sampler_; // Normal distribution sampler
   };

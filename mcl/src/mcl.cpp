@@ -7,7 +7,6 @@ static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot
 static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2.0 / 9.0;            // Fraction 2/9
-static const size_t NUM_SENSOR_SCANS_TUNE = 200;  // Number of sensor scans to save for tuning the model
 
 using namespace localize;
 
@@ -15,6 +14,11 @@ using namespace localize;
 MCL::MCL(const unsigned int num_particles_min,
          const unsigned int num_particles_max,
          const double car_length,
+         const double car_sensor_to_base_frame_x,
+         const double car_sensor_to_base_frame_y,
+         const double car_sensor_to_base_frame_th,
+         const double car_sensor_to_back_frame_x,
+         const double car_sensor_to_back_frame_y,
          const float sensor_range_min,
          const float sensor_range_max,
          const float sensor_range_no_obj,
@@ -27,7 +31,7 @@ MCL::MCL(const unsigned int num_particles_min,
          const std::vector<int8_t> map_data
         ) :
   num_particles_min_(num_particles_min),
-  vel_(0.0),
+  vel_lin_(0.0),
   map_(map_width,
        map_height,
        map_x_origin,
@@ -36,7 +40,10 @@ MCL::MCL(const unsigned int num_particles_min,
        map_scale,
        map_data
       ),
-  motion_model_(car_length),
+  motion_model_(car_length,
+                car_sensor_to_back_frame_x,
+                car_sensor_to_back_frame_y
+               ),
   sensor_model_(sensor_range_min,
                 sensor_range_max,
                 sensor_range_no_obj,
@@ -56,15 +63,15 @@ MCL::MCL(const unsigned int num_particles_min,
   dist_.copy(samples_, samples_.size());
 }
 
-void MCL::update(const double vel,
+void MCL::update(const double vel_lin,
                  const double steering_angle,
                  const double dt
                 )
 {
-  if (!stopped(vel)) {
+  if (!stopped(vel_lin)) {
     RecursiveLock lock(dist_mtx_);
 
-    motion_model_.apply(dist_, vel, steering_angle, dt);
+    motion_model_.apply(dist_, vel_lin, steering_angle, dt);
   }
 }
 
@@ -83,21 +90,57 @@ void MCL::update(const RayScan& obs)
 
 ParticleVector MCL::estimates()
 {
-  RecursiveLock lock(dist_mtx_);
+  ParticleVector estimates;
+  {
+    RecursiveLock lock(dist_mtx_);
+    estimates = dist_.estimates();
+  }
+  // Transform from sensor frame (MCL local frame) to the car base frame
+  double x = 0.0;
+  double y = 0.0;
 
-  return dist_.estimates();
+  for (size_t i = 0; i < estimates.size(); ++i) {
+    x = (  car_sensor_to_base_frame_x_
+         + estimates[i].x_ * std::cos(car_sensor_to_base_frame_th_)
+         + estimates[i].y_ * std::sin(car_sensor_to_base_frame_th_)
+        );
+    y = (  car_sensor_to_base_frame_y_
+         - estimates[i].x_ * std::sin(car_sensor_to_base_frame_th_)
+         + estimates[i].y_ * std::cos(car_sensor_to_base_frame_th_)
+        );
+    estimates[i].th_ = wrapAngle(estimates[i].th_ + car_sensor_to_base_frame_th_);
+  }
+  return estimates;
 }
 
 Particle MCL::estimate()
 {
-  return estimates()[0];
+  Particle estimate;
+  {
+    RecursiveLock lock(dist_mtx_);
+    estimate = dist_.estimates()[0];
+  }
+  // Transform from sensor frame (MCL local frame) to the car base frame
+  double x = (  car_sensor_to_base_frame_x_
+              + estimate.x_ * std::cos(car_sensor_to_base_frame_th_)
+              + estimate.y_ * std::sin(car_sensor_to_base_frame_th_)
+             );
+  double y = (  car_sensor_to_base_frame_y_
+              - estimate.x_ * std::sin(car_sensor_to_base_frame_th_)
+              + estimate.y_ * std::cos(car_sensor_to_base_frame_th_)
+             );
+  estimate.x_ = x;
+  estimate.y_ = y;
+  estimate.th_ = wrapAngle(estimate.th_ + car_sensor_to_base_frame_th_);
+
+  return estimate;
 }
 
 bool MCL::stopped()
 {
-  RecursiveLock lock(vel_mtx_);
+  RecursiveLock lock(vel_lin_mtx_);
 
-  return std::abs(vel_) < SPEED_STOPPED;
+  return std::abs(vel_lin_) < SPEED_STOPPED;
 }
 
 void MCL::update()
@@ -192,11 +235,11 @@ void MCL::save(const std::string filename,
   localize::save(particles, filename, false);
 }
 
-bool MCL::stopped(const double vel)
+bool MCL::stopped(const double vel_lin)
 {
-  RecursiveLock lock(vel_mtx_);
+  RecursiveLock lock(vel_lin_mtx_);
 
-  vel_ = vel;
+  vel_lin_ = vel_lin;
 
   return stopped();
 }

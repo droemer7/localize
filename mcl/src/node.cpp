@@ -46,6 +46,8 @@ MCLNode::MCLNode(const std::string& pose_topic,
   ros::NodeHandle nh;
   if (   !getParam(nh, "localizer/num_particles_min", num_particles_min_)
       || !getParam(nh, "localizer/num_particles_max", num_particles_max_)
+      || !getParam(nh, "base_frame_id", base_frame_id_)
+      || !getParam(nh, "wheel_bl_frame_id", wheel_bl_frame_id_)
       || !getParam(nh, "vesc/frame_id", odom_frame_id_)
       || !getParam(nh, "vesc/chassis_length", car_length_)
       || !getParam(nh, "vesc/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
@@ -59,7 +61,6 @@ MCLNode::MCLNode(const std::string& pose_topic,
      ) {
     throw std::runtime_error("MCL: Missing required parameters");
   }
-
   // Map parameters
   nav_msgs::GetMap get_map_msg;
   if (   !ros::service::waitForService(map_topic, ros::Duration(5))
@@ -76,10 +77,34 @@ MCLNode::MCLNode(const std::string& pose_topic,
   map_scale_ = map_msg.info.resolution;
   map_data_ = map_msg.data;
 
+  TransformStampedMsg tf_sensor_to_base;
+  TransformStampedMsg tf_sensor_to_wheel_bl;
+
+  try {
+    tf_sensor_to_base = tf_buffer_.lookupTransform(base_frame_id_,
+                                                   sensor_frame_id_,
+                                                   ros::Time(0),
+                                                   ros::Duration(10.0)
+                                                  );
+    tf_sensor_to_wheel_bl = tf_buffer_.lookupTransform(wheel_bl_frame_id_,
+                                                       sensor_frame_id_,
+                                                       ros::Time(0),
+                                                       ros::Duration(10.0)
+                                                      );
+  }
+  catch (tf2::TransformException & except) {
+    throw std::runtime_error(except.what());
+  }
+
   // Construct the localizer with retrieved parameters before starting threads
   mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_min_,
                                           num_particles_max_,
                                           car_length_,
+                                          tf_sensor_to_base.transform.translation.x,
+                                          tf_sensor_to_base.transform.translation.y,
+                                          tf2::getYaw(tf_sensor_to_base.transform.rotation),
+                                          tf_sensor_to_wheel_bl.transform.translation.x,
+                                          tf_sensor_to_base.transform.translation.y,
                                           sensor_range_min_,
                                           sensor_range_max_,
                                           sensor_range_no_obj_,
@@ -92,7 +117,6 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                           map_data_
                                          )
                                  );
-
   // Assign ROS callback queues
   drive_vel_nh_.setCallbackQueue(&drive_vel_cb_queue_);
   drive_steer_nh.setCallbackQueue(&drive_steer_cb_queue_);
@@ -124,7 +148,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                          this
                                         );
   // Setup publisher for pose estimates
-  pose_pub_ = pose_nh_.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
+  pose_pub_ = pose_nh_.advertise<geometry_msgs::PoseStamped>(pose_topic, 1);
 
   // Start threads
   drive_vel_spinner_.start();
@@ -214,30 +238,50 @@ bool MCLNode::getParam(const ros::NodeHandle& nh,
 
 void MCLNode::publishTf()
 {
+  // MCL estimates the transform from the robot base frame to the map frame. In order to complete the transform tree,
+  // we need to publish this transform or its inverse.
+  //
+  // In ROS convention, the map frame is unfortunately an overloaded definition of a transform. It is comprised of two
+  // components:
+  //   1) A transformation from the (fixed) map frame to the (fixed) odom frame (the familiar transform). Note that the
+  //      odom frame is located at the robot's initial position, which may be anywhere on the map.
+  //   2) A _correction_ to the odom frame data which, when applied to the odom frame, adjusts the odometry-derived
+  //      pose to the 'true' (estimated) pose provided by MCL.
+  //
+  // Following ROS convention, the transformation from the odom to map frame is determined here by subtracting the
+  // robot base to odom transformation (provided by another module) from the robot base to map frame transform we have
+  // estimated here.
+  //
+  // See REP 105 at https://www.ros.org/reps/rep-0105.html
   try {
-    geometry_msgs::TransformStamped tf_laser_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
-                                                                                  sensor_frame_id_,
-                                                                                  ros::Time(0)
-                                                                                 );
-    geometry_msgs::TransformStamped tf_odom_to_map;
+    //
+    TransformStampedMsg tf_base_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
+                                                                     base_frame_id_,
+                                                                     ros::Time(0)
+                                                                    );
+    // Get the best state estimate
+    Particle tf_base_to_map = mcl_ptr_->estimate();
 
-    Particle tf_laser_to_map = mcl_ptr_->estimate();
-    double odom_to_map_x = tf_laser_to_map.x_ - tf_laser_to_odom.transform.translation.x;
-    double odom_to_map_y = tf_laser_to_map.y_ - tf_laser_to_odom.transform.translation.y;
-    tf2::Quaternion odom_to_map_orient;
-    odom_to_map_orient.setRPY(0.0, 0.0, tf_laser_to_map.th_ - tf2::getYaw(tf_laser_to_odom.transform.rotation));
+    // Calculate odom to map transformation as delta between known transforms
+    double tf_odom_to_map_x = tf_base_to_map.x_ - tf_base_to_odom.transform.translation.x;
+    double tf_odom_to_map_y = tf_base_to_map.y_ - tf_base_to_odom.transform.translation.y;
+    tf2::Quaternion tf_odom_to_map_orient;
+    tf_odom_to_map_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ - tf2::getYaw(tf_base_to_odom.transform.rotation));
 
+    // Create transform message
+    TransformStampedMsg tf_odom_to_map;
     tf_odom_to_map.header.stamp = ros::Time::now();
     tf_odom_to_map.header.frame_id = odom_frame_id_;
     tf_odom_to_map.child_frame_id = map_frame_id_;
-    tf_odom_to_map.transform.translation.x = odom_to_map_x;
-    tf_odom_to_map.transform.translation.y = odom_to_map_y;
+    tf_odom_to_map.transform.translation.x = tf_odom_to_map_x;
+    tf_odom_to_map.transform.translation.y = tf_odom_to_map_y;
     tf_odom_to_map.transform.translation.z = 0.0;
-    tf_odom_to_map.transform.rotation.x = odom_to_map_orient.x();
-    tf_odom_to_map.transform.rotation.y = odom_to_map_orient.y();
-    tf_odom_to_map.transform.rotation.z = odom_to_map_orient.z();
-    tf_odom_to_map.transform.rotation.w = odom_to_map_orient.w();
+    tf_odom_to_map.transform.rotation.x = tf_odom_to_map_orient.x();
+    tf_odom_to_map.transform.rotation.y = tf_odom_to_map_orient.y();
+    tf_odom_to_map.transform.rotation.z = tf_odom_to_map_orient.z();
+    tf_odom_to_map.transform.rotation.w = tf_odom_to_map_orient.w();
 
+    // Broadcast transform
     // tf_broadcaster_.sendTransform(tf_odom_to_map); // TBD restore
   }
   catch (tf2::TransformException & except) {
@@ -255,7 +299,7 @@ void MCLNode::publishPose()
   pose_orient.setRPY(0.0, 0.0, pose.th_);
 
   // Construct message
-  geometry_msgs::PoseStamped pose_msg;
+  PoseStampedMsg pose_msg;
   pose_msg.header.stamp = ros::Time::now();
   pose_msg.header.frame_id = map_frame_id_;
   pose_msg.pose.position.x = pose.x_;
