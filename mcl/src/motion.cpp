@@ -11,12 +11,12 @@ using namespace localize;
 
 // ========== VelModel ========== //
 VelModel::VelModel(const double car_length,
-                   const double car_particle_to_back_frame_x,
-                   const double car_particle_to_back_frame_y
+                   const double particle_to_back_frame_x,
+                   const double particle_to_back_frame_y
                   ) :
   car_length_(car_length),
-  car_particle_to_back_frame_x_(car_particle_to_back_frame_x),
-  car_particle_to_back_frame_y_(car_particle_to_back_frame_y)
+  particle_to_back_frame_x_(particle_to_back_frame_x),
+  particle_to_back_frame_y_(particle_to_back_frame_y)
 {}
 
 void VelModel::apply(ParticleDistribution& dist,
@@ -25,18 +25,16 @@ void VelModel::apply(ParticleDistribution& dist,
                      const double dt
                     )
 {
-  // Calculate angular velocity from steering angle and linear velocity, transforming from the car frame to the
-  // particle distribution's frame (sensor frame)
-  // The car frame is modeled as the lateral midpoint between the two back wheels
+  // Calculate angular velocity in the particle distribution's frame from steering angle and linear velocity
   double vel_ang;
   double tan_steering_angle = std::tan(steering_angle);
 
   if (   !std::isnan(tan_steering_angle)
       && tan_steering_angle > DBL_EPSILON
      ) {
-    double particle_icr_x = car_particle_to_back_frame_x_;
-    double particle_icr_y = (car_length_ / tan_steering_angle) - car_particle_to_back_frame_y_;
-    double particle_icr = std::sqrt(  car_particle_to_back_frame_x_ * car_particle_to_back_frame_x_
+    double particle_icr_x = particle_to_back_frame_x_;
+    double particle_icr_y = (car_length_ / tan_steering_angle) - particle_to_back_frame_y_;
+    double particle_icr = std::sqrt(  particle_to_back_frame_x_ * particle_to_back_frame_x_
                                     + particle_icr_y * particle_icr_y
                                    );
     vel_ang = vel_lin / particle_icr;
