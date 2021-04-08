@@ -15,10 +15,22 @@
 
 namespace localize
 {
+  class Pose;
+  class Particle;
+  class Ray;
+  class RaySample;
+  class RayScan;
+
   typedef std::mutex Mutex;
   typedef std::recursive_mutex RecursiveMutex;
   typedef std::lock_guard<std::mutex> Lock;
   typedef std::lock_guard<std::recursive_mutex> RecursiveLock;
+
+  typedef std::vector<Pose> PoseVector;
+  typedef std::vector<Particle> ParticleVector;
+  typedef std::vector<Ray> RayVector;
+  typedef std::vector<RaySample> RaySampleVector;
+  typedef std::vector<RayScan> RayScanVector;
 
   extern const unsigned int SENSOR_TH_SAMPLE_COUNT; // Number of samples per ray scan (count per revolution)
   extern const std::string DATA_PATH;               // Full path to directory for saving data
@@ -69,12 +81,10 @@ namespace localize
     bool operator>=(const Particle& rhs) const
     { return compare(*this, rhs) >= 0; }
 
-    double weight_;         // Importance weight (not normalized)
-    double weight_normed_;  // Normalized importance weight
-    std::vector<double> weights_; // Partial importance weights listed by sample angle index
+    double weight_;               // Importance weight (not normalized)
+    double weight_normed_;        // Importance weight (normalized)
+    std::vector<double> weights_; // Partial importance weights (not normalized) listed by sample angle index
   };
-
-  typedef std::vector<Particle> ParticleVector;
 
   // A range sensor ray with range and angle
   struct Ray
@@ -87,8 +97,6 @@ namespace localize
     float range_; // Range (meters)
     float th_;    // Angle (rad)
   };
-
-  typedef std::vector<Ray> RayVector;
 
   // A ray with cumulative probabilities for p(new object) and p(all)
   // This class is used in range scanner based models for outlier rejection of short range measurements
@@ -107,8 +115,6 @@ namespace localize
     double weight_sum_;         // Sum of weights across the distribution for this angle
   };
 
-  typedef std::vector<RaySample> RaySampleVector;
-
   // Rayscan data
   struct RayScan
   {
@@ -126,8 +132,6 @@ namespace localize
     float t_inc_;     // Time increment between ray elements (sec per index)
     float t_dur_;     // Scan duration (sec)
   };
-
-  typedef std::vector<RayScan> RayScanVector;
 
   // Map class constructed with ROS coordinate space conversion parameters
   // Used by RangeLib
@@ -166,7 +170,6 @@ namespace localize
     std::uniform_real_distribution<double> y_dist_;   // Distribution of map y locations relative to world frame
     std::uniform_real_distribution<double> th_dist_;  // Distribution of theta (-pi, +pi] relative to world frame
   };
-
 
   // Saves data to file in CSV format
   template <class T>

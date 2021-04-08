@@ -221,12 +221,8 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   return;
 }
 
-// TBD remove print statements
 void ParticleEstimateHistogram::calcEstimates()
 {
-  printf("\n===== Calculating estimates =====\n");
-  printf("Estimate histogram count = %lu\n", cells_.size());
-
   // Sort all populated histogram cells by weight, largest (best) first
   std::sort(cells_.begin(), cells_.end(), cellEstimateGreater);
 
@@ -314,14 +310,14 @@ size_t ParticleEstimateHistogram::count() const
   return count_;
 }
 
-void ParticleEstimateHistogram::printEstimate(const size_t e) const
+void ParticleEstimateHistogram::printEstimate(const size_t i) const
 {
   printf("Estimate %lu = %.3f, %.3f, %.3f (weight = %.2e)\n",
-         e + 1,
-         estimates_[e].x_,
-         estimates_[e].y_,
-         estimates_[e].th_ * 180.0 / L_PI,
-         estimates_[e].weight_normed_
+         i + 1,
+         estimates_[i].x_,
+         estimates_[i].y_,
+         estimates_[i].th_ * 180.0 / L_PI,
+         estimates_[i].weight_normed_
         );
 }
 // ========== ParticleEstimateHistogram ========== //

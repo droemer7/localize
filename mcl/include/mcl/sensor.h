@@ -34,13 +34,9 @@ namespace localize
     // Apply the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
     // This overload does not do outlier rejection - use apply(distribution) for this
     // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
-    void apply(Particle& particle,
-               const bool calc_enable = false
-              );
+    void apply(Particle& particle, const bool calc_enable = false);
 
-    void apply(ParticleDistribution& dist,
-               const bool calc_enable = false
-              );
+    void apply(ParticleDistribution& dist, const bool calc_enable = false);
 
     void apply(ParticleDistribution& dist,
                const RayScan& obs,
@@ -51,9 +47,7 @@ namespace localize
     void update(const RayScan& obs);
 
     // Tunes the internal model according to the observations provided
-    void tune(const RayScanVector& obs,
-              const Particle& particle
-             );
+    void tune(const RayScanVector& obs, const Particle& particle);
 
   private:
     // Generate a subset of ranges sampled from the full scan using the preset angle sample increment
@@ -65,64 +59,53 @@ namespace localize
 
     // Convert NaN, negative ranges and any range beyond the configured max to the range reported when nothing is
     // detected by the sensor
-    float repair(const float range);
+    float repair(const float range) const;
 
     // Converts the range value to a corresponding index in the table
-    size_t tableIndex(const float range);
+    size_t tableIndex(const float range) const;
 
     // Retrieve from the model lookup table the weighted probability of the observed range being the result of a new
     // (unexpected) object, given the 'true' range determined from the map
-    double lookupWeightedProbNewObj(const float range_obs,
-                                    const float range_map
-                                   );
+    double lookupWeightedProbNewObj(const float range_obs, const float range_map) const;
 
     // Retrieve from the model lookup table the weighted mixed probability of the observed range given the 'true' range
     // determined from the map
-    double lookupWeightedProb(const float range_obs,
-                              const float range_map
-                             );
+    double lookupWeightedProb(const float range_obs, const float range_map) const;
 
     // Calculate the weighted mixed probability of the observed range given the 'true' range determined from the map
-    double calcWeightedProb(const float range_obs,
-                            const float range_map
-                           );
+    double calcWeightedProb(const float range_obs, const float range_map) const;
 
     // Calculate the probability the observed range occurred due to the sensor failing to detect an object
-    double calcProbNoObj(const float range_obs);
+    double calcProbNoObj(const float range_obs) const;
 
     // Calculate the probability the observed range occured due to a new, unmapped object
-    double calcProbNewObj(const float range_obs,
-                          const float range_map
-                         );
+    double calcProbNewObj(const float range_obs, const float range_map) const;
 
     // Calculate the probability the observed range occurred due to detecting a mapped / expected object
-    double calcProbMapObj(const float range_obs,
-                          const float range_map
-                         );
+    double calcProbMapObj(const float range_obs, const float range_map) const;
 
     // Calculate the probability the observed range occurred due to random effects
-    double calcProbRandEffect(const float range_obs);
+    double calcProbRandEffect(const float range_obs) const;
 
     // Calculate the weighted probability the observed range occurred due to the sensor failing to detect an object
-    double calcWeightedProbNoObj(const float range_obs);
+    double calcWeightedProbNoObj(const float range_obs) const;
 
     // Calculate the weighted probability the observed range occured due to a new, unmapped object
-    double calcWeightedProbNewObj(const float range_obs,
-                                  const float range_map
-                                 );
+    double calcWeightedProbNewObj(const float range_obs, const float range_map) const;
 
     // Calculate the weighted probability the observed range occurred due to detecting a mapped / expected object
-    double calcWeightedProbMapObj(const float range_obs,
-                                  const float range_map
-                                 );
+    double calcWeightedProbMapObj(const float range_obs, const float range_map) const;
 
     // Calculate the weighted probability the observed range occurred due to random effects
-    double calcWeightedProbRandEffect(const float range_obs);
+    double calcWeightedProbRandEffect(const float range_obs) const;
 
     // Precalculate weighted probabilities a discrete set of ranges and load this into the model lookup table
     // First axis is incremented by ranges observed from the sensor
     // Second axis is incremented by ranges calculated from the map
     void precalcWeightedProbs();
+
+    // Prints info corresponding to the rejected range
+    void printRejectedRange(const Ray & ray, const double prob) const;
 
   private:
     // Model parameters

@@ -15,23 +15,19 @@ namespace localize
                         );
 
     // Copies new particles to the distribution and updates size, does not do anything else
-    void copy(const ParticleVector& particles,
-              const size_t count = 0
-             );
+    void copy(const ParticleVector& particles, const size_t count = 0);
 
     // Update statistics and reset sampler state
     void update();
 
     // Update particles and statistics and reset sampler state
-    void update(const ParticleVector& particles,
-                const size_t count = 0
-               );
+    void update(const ParticleVector& particles, const size_t count = 0);
 
     // Return the top particle estimates - lower indexes are better estimates
     const ParticleVector& estimates();
 
     // Reference to a particle in the distribution
-    Particle& particle(const size_t p);
+    Particle& particle(const size_t i);
 
     // Samples a particle (with replacement) from the distribution with probability proportional to its weight
     const Particle& sample();
@@ -55,13 +51,14 @@ namespace localize
     // Values decrease from 1.0 if recent confidence is worse than in the past
     double weightAvgRatio() const;
 
+  private:
+    // Print weight statistics
     void printWeightStats() const;
 
-  private:
-    // Recalculates distribution statistics
+    // Recalculate distribution statistics
     void calcWeightStats();
 
-    // Resets the particle sampler state to start from the beginning of the distribution
+    // Reset the particle sampler state to start from the beginning of the distribution
     void resetSampler();
 
   private:

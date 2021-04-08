@@ -26,23 +26,28 @@ void VelModel::apply(ParticleDistribution& dist,
                     )
 {
   // Calculate angular velocity in the particle distribution's frame from steering angle and linear velocity
-  double vel_ang;
+  // First find the radius of the particle frame's ICR (instantaneous center of rotation)
+  double vel_ang = 0.0;
   double tan_steering_angle = std::tan(steering_angle);
 
   if (   !std::isnan(tan_steering_angle)
-      && tan_steering_angle > DBL_EPSILON
+      && std::abs(tan_steering_angle) > DBL_EPSILON
      ) {
+    // Use similar triangles and basic trigonometry to calculate particle ICR by offsetting from the motion model
+    // reference point (midpoint between back wheels, x axis collinear with velocity direction)
     double particle_icr_x = particle_to_back_frame_x_;
     double particle_icr_y = (car_length_ / tan_steering_angle) - particle_to_back_frame_y_;
-    double particle_icr = std::sqrt(  particle_to_back_frame_x_ * particle_to_back_frame_x_
-                                    + particle_icr_y * particle_icr_y
-                                   );
-    vel_ang = vel_lin / particle_icr;
+    double particle_icr_radius = std::sqrt(particle_icr_x * particle_icr_x + particle_icr_y * particle_icr_y);
+
+    // Radius of ICR sign must match steering angle sign so the resulting angular velocity has the correct sign as well
+    particle_icr_radius = std::signbit(tan_steering_angle) ? -1.0 * particle_icr_radius : particle_icr_radius;
+
+    // Angular velocity = v / r
+    vel_ang = vel_lin / particle_icr_radius;
   }
   else {
     vel_ang = 0.0;
   }
-
   // Calculate standard deviation of noise
   double vel_lin_sq = vel_lin * vel_lin;
   double vel_ang_sq = vel_ang * vel_ang;

@@ -1,9 +1,8 @@
 #include "mcl/mcl.h"
 
-// TBD restore to 1e-8
 static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
 static const double WEIGHT_DEV_CONSISTENT = 1.0;  // Weight sigma below which the weights are considered consistent (required for resampling)
-static const double SPEED_STOPPED = 1e-10;        // Speed below which the robot is stopped (defers updates)
+static const double SPEED_STOPPED = 1e-6;         // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2.0 / 9.0;            // Fraction 2/9
@@ -32,6 +31,9 @@ MCL::MCL(const unsigned int num_particles_min,
         ) :
   num_particles_min_(num_particles_min),
   vel_lin_(0.0),
+  car_sensor_to_base_frame_x_(car_sensor_to_base_frame_x),
+  car_sensor_to_base_frame_y_(car_sensor_to_base_frame_y),
+  car_sensor_to_base_frame_th_(car_sensor_to_base_frame_th),
   map_(map_width,
        map_height,
        map_x_origin,
@@ -195,12 +197,8 @@ void MCL::update()
     // Update distribution with new sample set
     printf("\n===== Sample update =====\n");
     dist_.update(samples_, s);
-
-    printf("Prob(random) = %.2f\n", prob_sample_random);
-    printf("Samples used = %lu\n", s);
-    printf("Sample histogram count = %lu\n", hist_count);
+    printf("Sample size = %lu\n", s);
   }
-  dist_.estimates(); // TBD remove
   return;
 }
 

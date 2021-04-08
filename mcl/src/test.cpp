@@ -21,7 +21,6 @@ const size_t th_size = 500;
 void testParticleHistogramArray()
 {
   printf("\nTesting ParticleOccupancyHistogram (array) ... \n");
-  //typedef std::array<std::array<std::array<unsigned char, x_size>, y_size>, th_size> Histogram;
   typedef std::array<unsigned char, x_size * y_size * th_size> Histogram;
   std::unique_ptr<Histogram> hist_ptr = std::unique_ptr<Histogram>(new Histogram);
 

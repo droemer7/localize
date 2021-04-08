@@ -1,11 +1,11 @@
 #include "mcl/node.h"
 
-static const int NUM_UPDATES = 25; // TBD remove
+static const int NUM_UPDATES = 10000; // TBD remove
 
 using namespace localize;
 
 // ========== RayScanMsg ========== //
-RayScanMsg::RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg) :
+RayScanMsg::RayScanMsg(const SensorScanMsg::ConstPtr& msg) :
   RayScan(msg->ranges.size())
 {
   th_inc_ = msg->angle_increment;
@@ -68,7 +68,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
      ) {
     throw std::runtime_error(std::string("MCL: Failed to retrieve map from ") + map_topic);
   }
-  const nav_msgs::OccupancyGrid& map_msg = get_map_msg.response.map;
+  const OccupancyGridMsg& map_msg = get_map_msg.response.map;
   map_width_ = map_msg.info.width;
   map_height_ = map_msg.info.height;
   map_x_origin_ = map_msg.info.origin.position.x;
@@ -84,12 +84,12 @@ MCLNode::MCLNode(const std::string& pose_topic,
     tf_sensor_to_base = tf_buffer_.lookupTransform(base_frame_id_,
                                                    sensor_frame_id_,
                                                    ros::Time(0),
-                                                   ros::Duration(10.0)
+                                                   ros::Duration(15.0)
                                                   );
     tf_sensor_to_wheel_bl = tf_buffer_.lookupTransform(wheel_bl_frame_id_,
                                                        sensor_frame_id_,
                                                        ros::Time(0),
-                                                       ros::Duration(10.0)
+                                                       ros::Duration(15.0)
                                                       );
   }
   catch (tf2::TransformException & except) {
@@ -148,7 +148,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                          this
                                         );
   // Setup publisher for pose estimates
-  pose_pub_ = pose_nh_.advertise<geometry_msgs::PoseStamped>(pose_topic, 1);
+  pose_pub_ = pose_nh_.advertise<PoseStampedMsg>(pose_topic, 1);
 
   // Start threads
   drive_vel_spinner_.start();
@@ -157,7 +157,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   status_spinner_.start();
 }
 
-void MCLNode::driveVelCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
+void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& msg)
 {
   // Start timer
   ros::Time start = ros::Time::now();
@@ -166,7 +166,7 @@ void MCLNode::driveVelCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
   double vel = (msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
   double steer_angle = 0.0;
   {
-    std::lock_guard<std::mutex> lock(servo_mtx_);
+    Lock lock(drive_steer_servo_pos_mtx_);
     steer_angle = (  (drive_steer_servo_pos_ - drive_steer_angle_to_servo_offset_)
                    / drive_steer_angle_to_servo_gain_
                   );
@@ -184,20 +184,20 @@ void MCLNode::driveVelCb(const vesc_msgs::VescStateStamped::ConstPtr& msg)
                                    motion_update_time_msec_ : motion_update_time_worst_msec_;
 }
 
-void MCLNode::driveSteerCb(const std_msgs::Float64::ConstPtr& msg)
+void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& msg)
 {
   // Update servo position
-  std::lock_guard<std::mutex> lock(servo_mtx_);
+  Lock lock(drive_steer_servo_pos_mtx_);
   drive_steer_servo_pos_ = msg->data;
 }
 
-void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
+void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
 {
   // TBD remove
-  bool stopped = mcl_ptr_->stopped();
-  if (!stopped) {
-    printf("\n***** Update %lu *****\n", ++update_num_);
-  }
+  // bool stopped = mcl_ptr_->stopped();
+  // if (!stopped) {
+  //   printf("\n***** Update %lu *****\n", ++update_num_);
+  // }
   // Start timer
   ros::Time start = ros::Time::now();
 
@@ -214,11 +214,11 @@ void MCLNode::sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg)
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
 
   // TBD remove
-  if (   update_num_ >= NUM_UPDATES
-      && stopped
-     ) {
-    throw (std::runtime_error("Finished\n"));
-  }
+  // if (   update_num_ >= NUM_UPDATES
+  //     && stopped
+  //    ) {
+  //   throw (std::runtime_error("Finished\n"));
+  // }
 }
 
 template <class T>
@@ -241,12 +241,12 @@ void MCLNode::publishTf()
   // MCL estimates the transform from the robot base frame to the map frame. In order to complete the transform tree,
   // we need to publish this transform or its inverse.
   //
-  // In ROS convention, the map frame is unfortunately an overloaded definition of a transform. It is comprised of two
-  // components:
-  //   1) A transformation from the (fixed) map frame to the (fixed) odom frame (the familiar transform). Note that the
-  //      odom frame is located at the robot's initial position, which may be anywhere on the map.
-  //   2) A _correction_ to the odom frame data which, when applied to the odom frame, adjusts the odometry-derived
-  //      pose to the 'true' (estimated) pose provided by MCL.
+  // ROS convention unfortunately overloads the usual definition of a transform for the map to odom frame 'transform'.
+  // It is comprised of two components:
+  //   1) What you expect: A transformation from the (fixed) map frame to the (fixed) odom frame. Note that the odom
+  //      frame is located at the robot's initial position, which may be anywhere on the map.
+  //   2) What you don't expect: A _correction_ to the odom frame data which, when applied to the odom frame, adjusts
+  //      the odometry-derived pose to the 'true' (estimated) pose provided by MCL.
   //
   // Following ROS convention, the transformation from the odom to map frame is determined here by subtracting the
   // robot base to odom transformation (provided by another module) from the robot base to map frame transform we have
@@ -282,7 +282,7 @@ void MCLNode::publishTf()
     tf_odom_to_map.transform.rotation.w = tf_odom_to_map_orient.w();
 
     // Broadcast transform
-    // tf_broadcaster_.sendTransform(tf_odom_to_map); // TBD restore
+    // tf_broadcaster_.sendTransform(tf_odom_to_map); // TBD add sim/real parameter to launch and use here
   }
   catch (tf2::TransformException & except) {
     ROS_WARN("MCL: %s", except.what());

@@ -123,7 +123,7 @@ namespace localize
     size_t count() const;
 
   private:
-    void printEstimate(const size_t e) const;
+    void printEstimate(const size_t i) const;
 
     // Reference a cell by index
     ParticleEstimateHistogramCell& cell(const size_t x_i,

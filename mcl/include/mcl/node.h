@@ -26,11 +26,18 @@
 
 namespace localize
 {
+  typedef vesc_msgs::VescStateStamped DriveStateStampedMsg;
+  typedef std_msgs::Float64 DriveSteerMsg;
+  typedef sensor_msgs::LaserScan SensorScanMsg;
+  typedef nav_msgs::OccupancyGrid OccupancyGridMsg;
+  typedef geometry_msgs::PoseStamped PoseStampedMsg;
+  typedef geometry_msgs::TransformStamped TransformStampedMsg;
+
   class RayScanMsg : public RayScan
   {
   public:
     // Constructors
-    RayScanMsg(const sensor_msgs::LaserScan::ConstPtr& msg);
+    RayScanMsg(const SensorScanMsg::ConstPtr& msg);
   };
 
   class MCLNode
@@ -44,13 +51,13 @@ namespace localize
            );
 
     // Drive velocity state callback
-    void driveVelCb(const vesc_msgs::VescStateStamped::ConstPtr& msg);
+    void driveVelCb(const DriveStateStampedMsg::ConstPtr& msg);
 
     // Drive steering state callback
-    void driveSteerCb(const std_msgs::Float64::ConstPtr& msg);
+    void driveSteerCb(const DriveSteerMsg::ConstPtr& msg);
 
     // Sensor scan callback
-    void sensorCb(const sensor_msgs::LaserScan::ConstPtr& msg);
+    void sensorCb(const SensorScanMsg::ConstPtr& msg);
 
     // Status info callback
     void statusCb(const ros::TimerEvent& event);
@@ -85,10 +92,7 @@ namespace localize
     void printMapParams();
 
   private:
-    typedef geometry_msgs::TransformStamped TransformStampedMsg;
-    typedef geometry_msgs::PoseStamped PoseStampedMsg;
-
-    std::mutex servo_mtx_;  // Servo mutex
+    Mutex drive_steer_servo_pos_mtx_;  // Servo mutex
 
     // ROS interface
     std::string base_frame_id_;

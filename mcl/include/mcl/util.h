@@ -8,6 +8,7 @@
 #include <limits>
 #include <math.h>
 #include <random>
+#include <sys/resource.h>
 #include <type_traits>
 
 #define L_PI 3.14159265358979323846
@@ -15,10 +16,18 @@
 
 namespace localize
 {
+  template <class T> struct IndexedValue;
+  template <class T> struct SmoothedValue;
+
+  typedef IndexedValue<double> IndexedWeight;
+  typedef std::vector<IndexedWeight> IndexedWeightVector;
+  typedef SmoothedValue<double> SmoothedWeight;
+
   struct Greater
   {
-    template<class T>
-    bool operator()(const T& lhs, const T& rhs) const { return lhs > rhs; }
+    template <class T>
+    bool operator()(const T& lhs, const T& rhs) const
+    { return lhs > rhs; }
   };
 
   // RNG wrapper
@@ -52,9 +61,7 @@ namespace localize
   {
   public:
     // Generates a random sample from a normal distribution specified by the mean and standard deviation
-    T gen(const T mean,
-          const T std_dev
-         )
+    T gen(const T mean, const T std_dev)
     {
       typename std::normal_distribution<T>::param_type params(mean, std_dev);
       return distribution_(rng_.engine(), params);
@@ -81,9 +88,7 @@ namespace localize
       IndexedValue()
     { val_ = val; }
 
-    IndexedValue(const T val,
-                 const size_t index
-                ) :
+    IndexedValue(const T val, const size_t index) :
       IndexedValue()
     {
       val_ = val;
@@ -131,9 +136,6 @@ namespace localize
     size_t index_;
   };
 
-  typedef IndexedValue<double> IndexedWeight;
-  typedef std::vector<IndexedWeight> IndexedWeightVector;
-
   // Applies exponential smoothing to a changing value
   template <class T>
   class SmoothedValue
@@ -148,9 +150,7 @@ namespace localize
       initialized_(false)
     {}
 
-    SmoothedValue(const double rate,
-                  const T val
-                 ):
+    SmoothedValue(const double rate, const T val):
       SmoothedValue(rate)
     {
       update(val);
@@ -219,21 +219,13 @@ namespace localize
     bool initialized_;
   };
 
-  typedef SmoothedValue<double> SmoothedWeight;
-
   // Approximate equality check for floating point values
   // The Art of Comptuer Programming, Volume 2, Seminumeric Algorithms (Knuth 1997)
   // Section 4.2.2. Equation 22
-  inline bool approxEqual(const float a,
-                          const float b,
-                          const float epsilon
-                         )
+  inline bool approxEqual(const float a, const float b, const float epsilon)
   { return std::abs(a - b) <= epsilon * std::max(std::abs(a), std::abs(b)); }
 
-  inline bool approxEqual(const double a,
-                          const double b,
-                          const double epsilon
-                         )
+  inline bool approxEqual(const double a, const double b, const double epsilon)
   { return std::abs(a - b) <= epsilon * std::max(std::abs(a), std::abs(b)); }
 
   // Wrap an angle to (-pi, pi] (angle of -pi should convert to +pi)
@@ -269,11 +261,12 @@ namespace localize
   }
 
   // Calculates the delta from angle 1 to angle 2 (rad), in the direction that is shortest
-  // For example: +175, +150 => -25
-  // (in degrees) -160, -150 => +10
-  //               170, -150 => +40
-  //               230, -10  => +120
-  //              -179,  175 => -6
+  // For example (in degrees):
+  //   +175, +150 => -25
+  //   -160, -150 => +10
+  //    170, -150 => +40
+  //    230, -10  => +120
+  //   -179,  175 => -6
   inline double angleDelta(double angle_1, double angle_2)
   {
     // Make sure angles are in a common coordinate space
@@ -299,6 +292,13 @@ namespace localize
       delta_1_to_2 -= L_2PI;
     }
     return delta_1_to_2;
+  }
+
+  inline void printMemoryUsage()
+  {
+    rusage stackusage;
+    getrusage(RUSAGE_SELF, &stackusage);
+    printf("MCL: Memory usage = %ld MB", stackusage.ru_maxrss / 1024);
   }
 
 } // namespace localize

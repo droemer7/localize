@@ -53,9 +53,7 @@ BeamModel::BeamModel(const float range_min,
   precalcWeightedProbs();
 }
 
-void BeamModel::apply(Particle& particle,
-                      const bool calc_enable
-                     )
+void BeamModel::apply(Particle& particle, const bool calc_enable)
 {
   // Calculate weight if particle is in bounds
   if (   map_x_min_ <= particle.x_ && particle.x_ <= map_x_max_
@@ -99,12 +97,8 @@ void BeamModel::apply(Particle& particle,
   return;
 }
 
-void BeamModel::apply(ParticleDistribution& dist,
-                      const bool calc_enable
-                     )
+void BeamModel::apply(ParticleDistribution& dist, const bool calc_enable)
 {
-  printf("\n===== Sensor model update =====\n");
-
   // Calculate particle weights
   for (size_t i = 0; i < dist.count(); ++i) {
     apply(dist.particle(i));
@@ -137,9 +131,7 @@ void BeamModel::update(const RayScan& obs)
   rays_obs_sample_ = sample(obs);
 }
 
-void BeamModel::tune(const RayScanVector& obs,
-                     const Particle& particle
-                    )
+void BeamModel::tune(const RayScanVector& obs, const Particle& particle)
 {
   printf("===== Sensor tuning =====\n");
   std::vector<double> ranges_obs;
@@ -288,11 +280,6 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
         ) {
     if (outlier_weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
       ++reject_count;
-      printf("Rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
-             rays_obs_sample_[outlier_weight_ratios[i].index_].range_,
-             rays_obs_sample_[outlier_weight_ratios[i].index_].th_ * 180.0 / L_PI,
-             outlier_weight_ratios[i].val_
-            );
     }
     else {
       break;  // Once one is accepted, remaining ones will also be acceptable from sorting
@@ -317,7 +304,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   }
 }
 
-float BeamModel::repair(float range)
+float BeamModel::repair(float range) const
 {
   return (   range > range_max_
           || std::signbit(range)
@@ -326,33 +313,27 @@ float BeamModel::repair(float range)
          range_no_obj_ : range;
 }
 
-size_t BeamModel::tableIndex(const float range)
+size_t BeamModel::tableIndex(const float range) const
 {
   return range / weight_table_res_;
 }
 
-double BeamModel::lookupWeightedProbNewObj(const float range_obs,
-                                           const float range_map
-                                          )
+double BeamModel::lookupWeightedProbNewObj(const float range_obs, const float range_map) const
 {
   return weight_table_new_obj_[tableIndex(range_obs)][tableIndex(range_map)];
 }
 
-double BeamModel::lookupWeightedProb(const float range_obs,
-                                     const float range_map
-                                    )
+double BeamModel::lookupWeightedProb(const float range_obs, const float range_map) const
 {
   return weight_table_[tableIndex(range_obs)][tableIndex(range_map)];
 }
 
-double BeamModel::calcProbNoObj(const float range_obs)
+double BeamModel::calcProbNoObj(const float range_obs) const
 {
   return approxEqual(range_obs, range_no_obj_, RANGE_EPSILON);
 }
 
-double BeamModel::calcProbNewObj(const float range_obs,
-                                 const float range_map
-                                )
+double BeamModel::calcProbNewObj(const float range_obs, const float range_map) const
 {
   if (   !approxEqual(range_obs, range_no_obj_, RANGE_EPSILON)
       && range_obs <= range_map
@@ -366,9 +347,7 @@ double BeamModel::calcProbNewObj(const float range_obs,
   }
 }
 
-double BeamModel::calcProbMapObj(const float range_obs,
-                                 const float range_map
-                                )
+double BeamModel::calcProbMapObj(const float range_obs, const float range_map) const
 {
   if (!approxEqual(range_obs, range_no_obj_, RANGE_EPSILON)) {
     return std::exp(  -(range_obs - range_map) * (range_obs - range_map)
@@ -380,7 +359,7 @@ double BeamModel::calcProbMapObj(const float range_obs,
   }
 }
 
-double BeamModel::calcProbRandEffect(const float range_obs)
+double BeamModel::calcProbRandEffect(const float range_obs) const
 {
   if (!approxEqual(range_obs, range_no_obj_, RANGE_EPSILON)) {
     return 1.0 / range_max_;
@@ -390,33 +369,27 @@ double BeamModel::calcProbRandEffect(const float range_obs)
   }
 }
 
-double BeamModel::calcWeightedProbNoObj(const float range_obs)
+double BeamModel::calcWeightedProbNoObj(const float range_obs) const
 {
   return weight_no_obj_ * calcProbNoObj(range_obs);
 }
 
-double BeamModel::calcWeightedProbNewObj(const float range_obs,
-                                         const float range_map
-                                        )
+double BeamModel::calcWeightedProbNewObj(const float range_obs, const float range_map) const
 {
   return weight_new_obj_ * calcProbNewObj(range_obs, range_map);
 }
 
-double BeamModel::calcWeightedProbMapObj(const float range_obs,
-                                         const float range_map
-                                        )
+double BeamModel::calcWeightedProbMapObj(const float range_obs, const float range_map) const
 {
   return weight_map_obj_ * calcProbMapObj(range_obs, range_map);
 }
 
-double BeamModel::calcWeightedProbRandEffect(const float range_obs)
+double BeamModel::calcWeightedProbRandEffect(const float range_obs) const
 {
   return weight_rand_effect_ * calcProbRandEffect(range_obs);
 }
 
-double BeamModel::calcWeightedProb(const float range_obs,
-                                   const float range_map
-                                  )
+double BeamModel::calcWeightedProb(const float range_obs, const float range_map) const
 {
   return (  calcWeightedProbNoObj(range_obs)
           + calcWeightedProbNewObj(range_obs, range_map)
@@ -439,4 +412,13 @@ void BeamModel::precalcWeightedProbs()
       weight_table_[i][j] = calcWeightedProb(range_obs, range_map);
     }
   }
+}
+
+void BeamModel::printRejectedRange(const Ray & ray, const double prob) const
+{
+  printf("Rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
+         ray.range_,
+         ray.th_ * 180.0 / L_PI,
+         prob
+        );
 }

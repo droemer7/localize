@@ -78,16 +78,14 @@ namespace localize
     bool stopped(const double vel);
 
   private:
-    std::recursive_mutex dist_mtx_;     // Particle distribution mutex
-    std::recursive_mutex vel_lin_mtx_;  // Linear velocity mutex
+    RecursiveMutex dist_mtx_;     // Particle distribution mutex
+    RecursiveMutex vel_lin_mtx_;  // Linear velocity mutex
 
     const size_t num_particles_min_;      // Minimum number of particles
     double vel_lin_;                      // Linear velocity of the car
     double car_sensor_to_base_frame_x_;   // Car sensor to base frame x translation
     double car_sensor_to_base_frame_y_;   // Car sensor to base frame y translation
     double car_sensor_to_base_frame_th_;  // Car sensor to base frame rotation
-    double car_sensor_to_back_frame_x_;   // Car sensor frame to back (midpoint between back wheels) x translation
-    double car_sensor_to_back_frame_y_;   // Car sensor frame to back (midpoint between back wheels) y translation
     const Map map_;          // Map
     VelModel motion_model_;  // Motion model
     BeamModel sensor_model_; // Sensor model

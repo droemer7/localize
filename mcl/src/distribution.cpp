@@ -31,9 +31,7 @@ ParticleDistribution::ParticleDistribution(const size_t max_count,
   }
 }
 
-void ParticleDistribution::copy(const ParticleVector& particles,
-                                const size_t count
-                               )
+void ParticleDistribution::copy(const ParticleVector& particles, const size_t count)
 {
   // If count is 0 (specified or not), use particles input as is
   if (count == 0) {
@@ -61,9 +59,7 @@ void ParticleDistribution::update()
   resetSampler();
 }
 
-void ParticleDistribution::update(const ParticleVector& particles,
-                                  const size_t count
-                                 )
+void ParticleDistribution::update(const ParticleVector& particles, const size_t count)
 {
   copy(particles, count);
   update();
@@ -74,9 +70,9 @@ const ParticleVector& ParticleDistribution::estimates()
   return hist_.estimates();
 }
 
-Particle& ParticleDistribution::particle(const size_t p)
+Particle& ParticleDistribution::particle(const size_t i)
 {
-  return particles_[p];
+  return particles_[i];
 }
 
 const Particle& ParticleDistribution::sample()
