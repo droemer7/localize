@@ -1,7 +1,7 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
-static const double WEIGHT_DEV_CONSISTENT = 1.0;  // Weight sigma below which the weights are considered consistent (required for resampling)
+static const double WEIGHT_AVG_LOST = 1e-6;       // Average weight below which we assume we are lost (required for random sampling)
+static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Weight sigma below which the weights are considered consistent (required for resampling)
 static const double SPEED_STOPPED = 1e-6;         // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;               // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
@@ -86,6 +86,7 @@ void MCL::update(const RayScan& obs)
     RecursiveLock lock(dist_mtx_);
 
     sensor_model_.apply(dist_);
+    printStats("\n===== Sensor update =====\n");
     update();
   }
 }
@@ -195,9 +196,9 @@ void MCL::update()
       ++s;
     }
     // Update distribution with new sample set
-    printf("\n===== Sample update =====\n");
     dist_.update(samples_, s);
-    printf("Sample size = %lu\n", s);
+    printStats("\n===== Sample update =====\n");
+    printf("Prob random = %.2f\n", prob_sample_random);
   }
   return;
 }
@@ -240,4 +241,12 @@ bool MCL::stopped(const double vel_lin)
   vel_lin_ = vel_lin;
 
   return stopped();
+}
+
+void MCL::printStats(const std::string& header) const
+{
+  printf("%s", header.c_str());
+  printf("Sample size = %lu\n", dist_.count());
+  printf("Weight average = %.2e\n", dist_.weightAvg());
+  printf("Weight average ratio = %.2f\n", dist_.weightAvgRatio());
 }

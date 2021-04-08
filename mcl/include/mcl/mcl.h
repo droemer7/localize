@@ -77,6 +77,9 @@ namespace localize
     // Updates the robot velocity with the input value and returns true if it is within the stopped threshold
     bool stopped(const double vel);
 
+    // Print statistics about the distribution for debugging
+    void printStats(const std::string& header) const;
+
   private:
     RecursiveMutex dist_mtx_;     // Particle distribution mutex
     RecursiveMutex vel_lin_mtx_;  // Linear velocity mutex

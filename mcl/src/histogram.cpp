@@ -274,7 +274,6 @@ void ParticleEstimateHistogram::calcEstimates()
       estimates_.resize(i);
       break;
     }
-    printEstimate(i);
   }
   update_estimates_ = false;
 }
