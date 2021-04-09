@@ -46,8 +46,8 @@ MCLNode::MCLNode(const std::string& pose_topic,
   ros::NodeHandle nh;
   if (   !getParam(nh, "localizer/num_particles_min", num_particles_min_)
       || !getParam(nh, "localizer/num_particles_max", num_particles_max_)
-      || !getParam(nh, "base_frame_id", base_frame_id_)
-      || !getParam(nh, "wheel_bl_frame_id", wheel_bl_frame_id_)
+      || !getParam(nh, "localizer/base_frame_id", base_frame_id_)
+      || !getParam(nh, "localizer/wheel_bl_frame_id", wheel_bl_frame_id_)
       || !getParam(nh, "vesc/frame_id", odom_frame_id_)
       || !getParam(nh, "vesc/chassis_length", car_length_)
       || !getParam(nh, "vesc/speed_to_erpm_gain", drive_vel_to_erpm_gain_)

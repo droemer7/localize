@@ -6,11 +6,10 @@
 help()
 {
   echo "
-Options: [-p package] [-b build] [-x execute] [-c]
+Options: [-p package] [-b build] [-m mode] [-c]
 -p package    Package to build: all, <package name> (default: all)
 -b build      Build setting: last, debug, release (default: last)
 -m mode       Run mode: build, sim, real, test (default: build)
--c            Enable teleop control
 -h            Help
   "
   exit 1
@@ -24,13 +23,12 @@ build="last"
 mode="build"
 control="false"
 
-while getopts "p:b:m:ch" opt
+while getopts "p:b:m:h" opt
 do
   case "$opt" in
     p ) pkg="$OPTARG" ;;
     b ) build="$OPTARG" ;;
     m ) mode="$OPTARG" ;;
-    c ) control="true" ;;
     h ) help ;;
   esac
 done
@@ -74,10 +72,10 @@ catkin_make $pkg -j4 $cmake_flags
 # ------------------------
 if [ $mode == "real" ]
 then
-  roslaunch mcl mcl.launch real:=true control:=$control
+  roslaunch mcl mcl.launch real:=true
 elif [ $mode == "sim" ]
 then
-  roslaunch mcl mcl.launch real:=false control:=$control
+  roslaunch mcl mcl.launch real:=false
 elif [ $mode == "test" ]
 then
   ./devel/lib/mcl/mcl_test

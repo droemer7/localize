@@ -2,65 +2,32 @@
   <!-- Launch arguments -->
   <arg name="car_name" default="car"/>
   <arg name="real"     default="false"/>
-  <arg name="control"  default="false"/>
 
   <!-- MCL arguments -->
   <arg name="num_particles_min" default="1000"/>
   <arg name="num_particles_max" default="100000"/>
 
-  <!-- Control enabled -->
-  <group if="$(arg control)">
-    <!-- Real control -->
-    <group if="$(arg real)">
-      <include file="$(find mushr_base)/launch/teleop.launch">
-        <arg name="car_name" value="$(arg car_name)"/>
-      </include>
-    </group>
-    <!-- Sim control -->
-    <group unless="$(arg real)">
-      <include file="$(find mushr_sim)/launch/teleop.launch">
-        <arg name="car_name" value="$(arg car_name)"/>
-      </include>
-    </group>
+  <!-- Teleop Real -->
+  <group if="$(arg real)">
+    <include file="$(find mushr_base)/launch/teleop.launch">
+      <arg name="car_name" value="$(arg car_name)"/>
+    </include>
   </group>
 
-  <!-- Control disabled -->
-  <group unless="$(arg control)">
-    <!-- Map -->
-    <include file="$(find mushr_base)/launch/map_server.launch"/>
-
-    <group ns="$(arg car_name)">
-      <!-- Real laser -->
-      <group if="$(arg real)">
-        <include file="$(find ydlidar)/launch/lidar.launch">
-          <arg name="car_name" value="$(arg car_name)"/>
-        </include>
-      </group>
-      <!-- Sim laser -->
-      <group unless="$(arg real)">
-        <include file="$(find mushr_sim)/launch/sensors.launch">
-          <arg name="car_name"   value="$(arg car_name)"/>
-          <arg name="standalone" value="true"/>
-        </include>
-      </group>
-      <!-- Motor (parameters) -->
-      <group ns="vesc">
-        <rosparam file="$(find vesc_main)/config/racecar-uw-nano/vesc.yaml" command="load"/>
-        <param name="frame_id" value="$(arg car_name)/odom"/>
-      </group>
-    </group>
+  <!-- Teleop Sim -->
+  <group unless="$(arg real)">
+    <include file="$(find mushr_sim)/launch/teleop.launch">
+      <arg name="car_name" value="$(arg car_name)"/>
+    </include>
   </group>
 
   <!-- MCL -->
   <group ns="$(arg car_name)">
-    <param name="base_frame_id"     type="string" value="$(arg car_name)/base_link"/>
-    <param name="wheel_bl_frame_id" type="string" value="$(arg car_name)/back_left/wheel_link"/>
-  </group>
-
-  <group ns="$(arg car_name)">
     <node pkg="mcl" type="mcl" name="localizer" output="screen">
       <param name="num_particles_min" type="int"    value="$(arg num_particles_min)"/>
       <param name="num_particles_max" type="int"    value="$(arg num_particles_max)"/>
+      <param name="base_frame_id"     type="string" value="$(arg car_name)/base_link"/>
+      <param name="wheel_bl_frame_id" type="string" value="$(arg car_name)/back_left/wheel_link"/>
     </node>
   </group>
 </launch>
