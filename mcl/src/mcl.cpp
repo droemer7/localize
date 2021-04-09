@@ -111,6 +111,8 @@ ParticleVector MCL::estimates()
          - estimates[i].x_ * std::sin(car_sensor_to_base_frame_th_)
          + estimates[i].y_ * std::cos(car_sensor_to_base_frame_th_)
         );
+    estimates[i].x_ = x;
+    estimates[i].y_ = y;
     estimates[i].th_ = wrapAngle(estimates[i].th_ + car_sensor_to_base_frame_th_);
   }
   return estimates;

@@ -33,8 +33,8 @@ void VelModel::apply(ParticleDistribution& dist,
   if (   !std::isnan(tan_steering_angle)
       && std::abs(tan_steering_angle) > DBL_EPSILON
      ) {
-    // Use similar triangles and basic trigonometry to calculate particle ICR by offsetting from the motion model
-    // reference point (midpoint between back wheels, x axis collinear with velocity direction)
+    // Calculate particle ICR by offsetting from the motion model reference point
+    // Reference point is the midpoint between back wheels, with x axis collinear with velocity
     double particle_icr_x = particle_to_back_frame_x_;
     double particle_icr_y = (car_length_ / tan_steering_angle) - particle_to_back_frame_y_;
     double particle_icr_radius = std::sqrt(particle_icr_x * particle_icr_x + particle_icr_y * particle_icr_y);

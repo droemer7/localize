@@ -31,7 +31,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  timer_cb_dur_(0.5),
+  timer_cb_dur_(5.0),
   drive_t_prev_(ros::Time::now()),
   tf_buffer_(ros::Duration(1)),
   tf_listener_(tf_buffer_, true, ros::TransportHints().tcpNoDelay()),
@@ -39,8 +39,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   motion_update_time_msec_(0.0),
   motion_update_time_worst_msec_(0.0),
   sensor_update_time_msec_(0.0),
-  sensor_update_time_worst_msec_(0.0),
-  update_num_(0)
+  sensor_update_time_worst_msec_(0.0)
 {
   // Localizer parameters
   ros::NodeHandle nh;
@@ -193,11 +192,6 @@ void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& msg)
 
 void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
 {
-  // TBD remove
-  // bool stopped = mcl_ptr_->stopped();
-  // if (!stopped) {
-  //   printf("\n***** Update %lu *****\n", ++update_num_);
-  // }
   // Start timer
   ros::Time start = ros::Time::now();
 
@@ -212,13 +206,6 @@ void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
   sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
   sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
-
-  // TBD remove
-  // if (   update_num_ >= NUM_UPDATES
-  //     && stopped
-  //    ) {
-  //   throw (std::runtime_error("Finished\n"));
-  // }
 }
 
 template <class T>
@@ -254,12 +241,10 @@ void MCLNode::publishTf()
   //
   // See REP 105 at https://www.ros.org/reps/rep-0105.html
   try {
-    //
     TransformStampedMsg tf_base_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
                                                                      base_frame_id_,
                                                                      ros::Time(0)
                                                                     );
-    // Get the best state estimate
     Particle tf_base_to_map = mcl_ptr_->estimate();
 
     // Calculate odom to map transformation as delta between known transforms

@@ -259,7 +259,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
     outlier_weight_ratios[i].index_ = i;
 
-    if (rays_obs_sample_[i].weight_sum_ > 0) {
+    if (rays_obs_sample_[i].weight_sum_ > 0.0) {
       outlier_weight_ratios[i].val_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
     }
     else {
@@ -295,9 +295,8 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
         double& weight_partial = dist.particle(i).weights_[outlier_weight_ratios[j].index_];
         weight_partial = std::pow(weight_partial, WEIGHT_UNCERTAINTY_FACTOR);
 
-        // Partial weight should never be zero here because we should have selected only non-zero weights earlier
-        assert(weight_partial > 0.0);
-        dist.particle(i).weight_ /= weight_partial;
+        dist.particle(i).weight_ = weight_partial > 0.0 ? dist.particle(i).weight_ / weight_partial
+                                                        : dist.particle(i).weight_ ;
         weight_partial = 0.0;
       }
     }
