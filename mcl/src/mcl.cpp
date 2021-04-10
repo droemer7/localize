@@ -85,7 +85,6 @@ void MCL::update(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
 
-    printf("\n===== Sensor update =====\n");
     sensor_model_.apply(dist_);
     // printStats("\n===== Sensor update =====\n");
     update();
@@ -118,24 +117,10 @@ ParticleVector MCL::estimates()
 Particle MCL::estimate()
 {
   Particle estimate;
-  ParticleVector estimates;
-  {
-    RecursiveLock lock(dist_mtx_);
-    estimates = dist_.estimates();
-  }
-  if (estimates.size() > 0) {
-    // First estimate is best
-    estimate = estimates[0];
+  ParticleVector estimate_list = estimates();
 
-    // Transform from sensor frame (MCL local frame) to the car base frame
-    double th_base_to_map = wrapAngle(estimate.th_ + car_base_to_sensor_frame_th_);
-    estimate.x_ += (  car_base_to_sensor_frame_x_ * std::cos(th_base_to_map)
-                    - car_base_to_sensor_frame_y_ * std::sin(th_base_to_map)
-                   );
-    estimate.y_ += (  car_base_to_sensor_frame_x_ * std::sin(th_base_to_map)
-                    + car_base_to_sensor_frame_y_ * std::cos(th_base_to_map)
-                   );
-    estimate.th_ = th_base_to_map;
+  if (estimate_list.size() > 0) {
+    estimate = estimate_list[0];  // Estimates are sorted best to worst
   }
   return estimate;
 }
@@ -160,9 +145,6 @@ void MCL::update()
   // improves
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
-
-  // TBD remove
-  // prob_sample_random = resample ? 0.0 : prob_sample_random;
 
   hist_.reset();
 
@@ -200,7 +182,6 @@ void MCL::update()
       ++s;
     }
     // Update distribution with new sample set
-    printf("\n===== Sample update =====\n");
     dist_.update(samples_, s);
     // printStats("\n===== Sample update =====\n");
     // printf("Prob random = %.2e\n", prob_sample_random);

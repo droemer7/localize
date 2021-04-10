@@ -171,7 +171,6 @@ void ParticleDistribution::calcWeightStats()
     // Calculate standard deviation
     weight_std_dev_ = weight_var_ > 0.0 ? std::sqrt(weight_var_) : 0.0;
     weight_relative_std_dev_ = weight_avg > 0.0 ? weight_std_dev_ / weight_avg : 0.0;
-    printWeightStats();
   }
   else {
     // No particles, reinitialize
