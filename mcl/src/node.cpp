@@ -305,23 +305,25 @@ void MCLNode::publishPose()
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
 {
-  printMotionUpdateTime(0.01);
-  printSensorUpdateTime(0.01);
+  printMotionUpdateTime(0.5);
+  printSensorUpdateTime(0.5);
 }
 
-void MCLNode::printMotionUpdateTime(bool min_msec)
+void MCLNode::printMotionUpdateTime(const double min_msec)
 {
   if (motion_update_time_msec_ > min_msec) {
-    ROS_INFO("MCL: Motion update time (last) = %.2f ms", motion_update_time_msec_);
-    ROS_INFO("MCL: Motion update time (worst) = %.2f ms", motion_update_time_worst_msec_);
+    ROS_INFO("MCL: Motion update times: last = %.2f ms, worst = %.2f",
+             motion_update_time_msec_, motion_update_time_worst_msec_
+            );
   }
 }
 
-void MCLNode::printSensorUpdateTime(bool min_msec)
+void MCLNode::printSensorUpdateTime(const double min_msec)
 {
   if (sensor_update_time_msec_ > min_msec) {
-    ROS_INFO("MCL: Sensor update time (last) = %.2f ms", sensor_update_time_msec_);
-    ROS_INFO("MCL: Sensor update time (worst) = %.2f ms", sensor_update_time_worst_msec_);
+    ROS_INFO("MCL: Sensor update times: last = %.2f ms, worst = %.2f",
+             sensor_update_time_msec_, sensor_update_time_worst_msec_
+            );
   }
 }
 

@@ -77,10 +77,10 @@ namespace localize
     void publishPose();
 
     // Print Motion update times (last and worst)
-    void printMotionUpdateTime(bool min_msec = 0.0);
+    void printMotionUpdateTime(const double min_msec = 0.0);
 
     // Print Sensor update times (last and worst)
-    void printSensorUpdateTime(bool min_msec = 0.0);
+    void printSensorUpdateTime(const double min_msec = 0.0);
 
     // Print Motion parameters
     void printMotionParams();
