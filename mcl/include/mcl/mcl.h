@@ -21,11 +21,11 @@ namespace localize
     MCL(const unsigned int num_particles_min,     // Minimum number of particles
         const unsigned int num_particles_max,     // Maximum number of particles
         const double car_length,                  // Car length
-        const double car_sensor_to_base_frame_x,  // Car sensor to base frame x translation
-        const double car_sensor_to_base_frame_y,  // Car sensor to base frame y translation
-        const double car_sensor_to_base_frame_th, // Car sensor to base frame rotation
-        const double car_sensor_to_back_frame_x,  // Car sensor frame to back (midpoint between back wheels) x translation
-        const double car_sensor_to_back_frame_y,  // Car sensor frame to back (midpoint between back wheels) y translation
+        const double car_base_to_sensor_frame_x,  // Car base to sensor frame x translation
+        const double car_base_to_sensor_frame_y,  // Car base to sensor frame y translation
+        const double car_base_to_sensor_frame_th, // Car base to sensor frame rotation
+        const double car_back_to_sensor_frame_x,  // Car back (midpoint between back wheels) to sensor frame x translation
+        const double car_back_to_sensor_frame_y,  // Car back (midpoint between back wheels) to sensor frame y translation
         const float sensor_range_min,             // Sensor min range in meters
         const float sensor_range_max,             // Sensor max range in meters
         const float sensor_range_no_obj,          // Sensor range reported when nothing is detected
@@ -86,9 +86,9 @@ namespace localize
 
     const size_t num_particles_min_;      // Minimum number of particles
     double vel_lin_;                      // Linear velocity of the car
-    double car_sensor_to_base_frame_x_;   // Car sensor to base frame x translation
-    double car_sensor_to_base_frame_y_;   // Car sensor to base frame y translation
-    double car_sensor_to_base_frame_th_;  // Car sensor to base frame rotation
+    double car_base_to_sensor_frame_x_;   // Car base to sensor frame x translation
+    double car_base_to_sensor_frame_y_;   // Car base to sensor frame y translation
+    double car_base_to_sensor_frame_th_;  // Car base to sensor frame rotation
     const Map map_;          // Map
     VelModel motion_model_;  // Motion model
     BeamModel sensor_model_; // Sensor model

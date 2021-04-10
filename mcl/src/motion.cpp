@@ -11,12 +11,12 @@ using namespace localize;
 
 // ========== VelModel ========== //
 VelModel::VelModel(const double car_length,
-                   const double particle_to_back_frame_x,
-                   const double particle_to_back_frame_y
+                   const double car_back_to_motion_frame_x,
+                   const double car_back_to_motion_frame_y
                   ) :
   car_length_(car_length),
-  particle_to_back_frame_x_(particle_to_back_frame_x),
-  particle_to_back_frame_y_(particle_to_back_frame_y)
+  car_back_to_motion_frame_x_(car_back_to_motion_frame_x),
+  car_back_to_motion_frame_y_(car_back_to_motion_frame_y)
 {}
 
 void VelModel::apply(ParticleDistribution& dist,
@@ -35,8 +35,8 @@ void VelModel::apply(ParticleDistribution& dist,
      ) {
     // Calculate particle ICR by offsetting from the motion model reference point
     // Reference point is the midpoint between back wheels, with x axis collinear with velocity
-    double particle_icr_x = particle_to_back_frame_x_;
-    double particle_icr_y = (car_length_ / tan_steering_angle) - particle_to_back_frame_y_;
+    double particle_icr_x = car_back_to_motion_frame_x_;
+    double particle_icr_y = (car_length_ / tan_steering_angle) + car_back_to_motion_frame_y_;
     double particle_icr_radius = std::sqrt(particle_icr_x * particle_icr_x + particle_icr_y * particle_icr_y);
 
     // Radius of ICR sign must match steering angle sign so the resulting angular velocity has the correct sign as well

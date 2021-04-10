@@ -1,6 +1,6 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_LOST = 1e-6;       // Average weight below which we assume we are lost (required for random sampling)
+static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
 static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Weight sigma below which the weights are considered consistent (required for resampling)
 static const double SPEED_STOPPED = 1e-6;         // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;               // KL distance epsilon
@@ -13,11 +13,11 @@ using namespace localize;
 MCL::MCL(const unsigned int num_particles_min,
          const unsigned int num_particles_max,
          const double car_length,
-         const double car_sensor_to_base_frame_x,
-         const double car_sensor_to_base_frame_y,
-         const double car_sensor_to_base_frame_th,
-         const double car_sensor_to_back_frame_x,
-         const double car_sensor_to_back_frame_y,
+         const double car_base_to_sensor_frame_x,
+         const double car_base_to_sensor_frame_y,
+         const double car_base_to_sensor_frame_th,
+         const double car_back_to_sensor_frame_x,
+         const double car_back_to_sensor_frame_y,
          const float sensor_range_min,
          const float sensor_range_max,
          const float sensor_range_no_obj,
@@ -31,9 +31,9 @@ MCL::MCL(const unsigned int num_particles_min,
         ) :
   num_particles_min_(num_particles_min),
   vel_lin_(0.0),
-  car_sensor_to_base_frame_x_(car_sensor_to_base_frame_x),
-  car_sensor_to_base_frame_y_(car_sensor_to_base_frame_y),
-  car_sensor_to_base_frame_th_(car_sensor_to_base_frame_th),
+  car_base_to_sensor_frame_x_(car_base_to_sensor_frame_x),
+  car_base_to_sensor_frame_y_(car_base_to_sensor_frame_y),
+  car_base_to_sensor_frame_th_(car_base_to_sensor_frame_th),
   map_(map_width,
        map_height,
        map_x_origin,
@@ -43,8 +43,8 @@ MCL::MCL(const unsigned int num_particles_min,
        map_data
       ),
   motion_model_(car_length,
-                car_sensor_to_back_frame_x,
-                car_sensor_to_back_frame_y
+                car_back_to_sensor_frame_x,
+                car_back_to_sensor_frame_y
                ),
   sensor_model_(sensor_range_min,
                 sensor_range_max,
@@ -85,8 +85,9 @@ void MCL::update(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
 
+    printf("\n===== Sensor update =====\n");
     sensor_model_.apply(dist_);
-    printStats("\n===== Sensor update =====\n");
+    // printStats("\n===== Sensor update =====\n");
     update();
   }
 }
@@ -99,21 +100,17 @@ ParticleVector MCL::estimates()
     estimates = dist_.estimates();
   }
   // Transform from sensor frame (MCL local frame) to the car base frame
-  double x = 0.0;
-  double y = 0.0;
+  double th_base_to_map = 0.0;
 
   for (size_t i = 0; i < estimates.size(); ++i) {
-    x = (  car_sensor_to_base_frame_x_
-         + estimates[i].x_ * std::cos(car_sensor_to_base_frame_th_)
-         + estimates[i].y_ * std::sin(car_sensor_to_base_frame_th_)
-        );
-    y = (  car_sensor_to_base_frame_y_
-         - estimates[i].x_ * std::sin(car_sensor_to_base_frame_th_)
-         + estimates[i].y_ * std::cos(car_sensor_to_base_frame_th_)
-        );
-    estimates[i].x_ = x;
-    estimates[i].y_ = y;
-    estimates[i].th_ = wrapAngle(estimates[i].th_ + car_sensor_to_base_frame_th_);
+    th_base_to_map = wrapAngle(estimates[i].th_ + car_base_to_sensor_frame_th_);
+    estimates[i].x_ += (  car_base_to_sensor_frame_x_ * std::cos(th_base_to_map)
+                        - car_base_to_sensor_frame_y_ * std::sin(th_base_to_map)
+                       );
+    estimates[i].y_ += (  car_base_to_sensor_frame_x_ * std::sin(th_base_to_map)
+                        + car_base_to_sensor_frame_y_ * std::cos(th_base_to_map)
+                       );
+    estimates[i].th_ = th_base_to_map;
   }
   return estimates;
 }
@@ -121,23 +118,25 @@ ParticleVector MCL::estimates()
 Particle MCL::estimate()
 {
   Particle estimate;
+  ParticleVector estimates;
   {
     RecursiveLock lock(dist_mtx_);
-    estimate = dist_.estimates()[0];
+    estimates = dist_.estimates();
   }
-  // Transform from sensor frame (MCL local frame) to the car base frame
-  double x = (  car_sensor_to_base_frame_x_
-              + estimate.x_ * std::cos(car_sensor_to_base_frame_th_)
-              + estimate.y_ * std::sin(car_sensor_to_base_frame_th_)
-             );
-  double y = (  car_sensor_to_base_frame_y_
-              - estimate.x_ * std::sin(car_sensor_to_base_frame_th_)
-              + estimate.y_ * std::cos(car_sensor_to_base_frame_th_)
-             );
-  estimate.x_ = x;
-  estimate.y_ = y;
-  estimate.th_ = wrapAngle(estimate.th_ + car_sensor_to_base_frame_th_);
+  if (estimates.size() > 0) {
+    // First estimate is best
+    estimate = estimates[0];
 
+    // Transform from sensor frame (MCL local frame) to the car base frame
+    double th_base_to_map = wrapAngle(estimate.th_ + car_base_to_sensor_frame_th_);
+    estimate.x_ += (  car_base_to_sensor_frame_x_ * std::cos(th_base_to_map)
+                    - car_base_to_sensor_frame_y_ * std::sin(th_base_to_map)
+                   );
+    estimate.y_ += (  car_base_to_sensor_frame_x_ * std::sin(th_base_to_map)
+                    + car_base_to_sensor_frame_y_ * std::cos(th_base_to_map)
+                   );
+    estimate.th_ = th_base_to_map;
+  }
   return estimate;
 }
 
@@ -161,6 +160,9 @@ void MCL::update()
   // improves
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
+
+  // TBD remove
+  // prob_sample_random = resample ? 0.0 : prob_sample_random;
 
   hist_.reset();
 
@@ -198,9 +200,10 @@ void MCL::update()
       ++s;
     }
     // Update distribution with new sample set
+    printf("\n===== Sample update =====\n");
     dist_.update(samples_, s);
-    printStats("\n===== Sample update =====\n");
-    printf("Prob random = %.2f\n", prob_sample_random);
+    // printStats("\n===== Sample update =====\n");
+    // printf("Prob random = %.2e\n", prob_sample_random);
   }
   return;
 }

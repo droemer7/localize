@@ -76,17 +76,17 @@ MCLNode::MCLNode(const std::string& pose_topic,
   map_scale_ = map_msg.info.resolution;
   map_data_ = map_msg.data;
 
-  TransformStampedMsg tf_sensor_to_base;
-  TransformStampedMsg tf_sensor_to_wheel_bl;
+  TransformStampedMsg tf_base_to_sensor;
+  TransformStampedMsg tf_wheel_bl_to_sensor;
 
   try {
-    tf_sensor_to_base = tf_buffer_.lookupTransform(base_frame_id_,
-                                                   sensor_frame_id_,
+    tf_base_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
+                                                   base_frame_id_,
                                                    ros::Time(0),
                                                    ros::Duration(15.0)
                                                   );
-    tf_sensor_to_wheel_bl = tf_buffer_.lookupTransform(wheel_bl_frame_id_,
-                                                       sensor_frame_id_,
+    tf_wheel_bl_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
+                                                       wheel_bl_frame_id_,
                                                        ros::Time(0),
                                                        ros::Duration(15.0)
                                                       );
@@ -99,11 +99,11 @@ MCLNode::MCLNode(const std::string& pose_topic,
   mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_min_,
                                           num_particles_max_,
                                           car_length_,
-                                          tf_sensor_to_base.transform.translation.x,
-                                          tf_sensor_to_base.transform.translation.y,
-                                          tf2::getYaw(tf_sensor_to_base.transform.rotation),
-                                          tf_sensor_to_wheel_bl.transform.translation.x,
-                                          tf_sensor_to_base.transform.translation.y,
+                                          tf_base_to_sensor.transform.translation.x,
+                                          tf_base_to_sensor.transform.translation.y,
+                                          tf2::getYaw(tf_base_to_sensor.transform.rotation),
+                                          tf_wheel_bl_to_sensor.transform.translation.x,
+                                          tf_base_to_sensor.transform.translation.y,
                                           sensor_range_min_,
                                           sensor_range_max_,
                                           sensor_range_no_obj_,
@@ -247,27 +247,29 @@ void MCLNode::publishTf()
                                                                     );
     Particle tf_base_to_map = mcl_ptr_->estimate();
 
-    // Calculate odom to map transformation as delta between known transforms
-    double tf_odom_to_map_x = tf_base_to_map.x_ - tf_base_to_odom.transform.translation.x;
-    double tf_odom_to_map_y = tf_base_to_map.y_ - tf_base_to_odom.transform.translation.y;
-    tf2::Quaternion tf_odom_to_map_orient;
-    tf_odom_to_map_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ - tf2::getYaw(tf_base_to_odom.transform.rotation));
+    if (tf_base_to_map.weight_normed_ > 0.0) {
+      // Calculate odom to map transformation as delta between known transforms
+      double tf_odom_to_map_x = tf_base_to_map.x_ - tf_base_to_odom.transform.translation.x;
+      double tf_odom_to_map_y = tf_base_to_map.y_ - tf_base_to_odom.transform.translation.y;
+      tf2::Quaternion tf_odom_to_map_orient;
+      tf_odom_to_map_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ - tf2::getYaw(tf_base_to_odom.transform.rotation));
 
-    // Create transform message
-    TransformStampedMsg tf_odom_to_map;
-    tf_odom_to_map.header.stamp = ros::Time::now();
-    tf_odom_to_map.header.frame_id = odom_frame_id_;
-    tf_odom_to_map.child_frame_id = map_frame_id_;
-    tf_odom_to_map.transform.translation.x = tf_odom_to_map_x;
-    tf_odom_to_map.transform.translation.y = tf_odom_to_map_y;
-    tf_odom_to_map.transform.translation.z = 0.0;
-    tf_odom_to_map.transform.rotation.x = tf_odom_to_map_orient.x();
-    tf_odom_to_map.transform.rotation.y = tf_odom_to_map_orient.y();
-    tf_odom_to_map.transform.rotation.z = tf_odom_to_map_orient.z();
-    tf_odom_to_map.transform.rotation.w = tf_odom_to_map_orient.w();
+      // Create transform message
+      TransformStampedMsg tf_odom_to_map;
+      tf_odom_to_map.header.stamp = ros::Time::now();
+      tf_odom_to_map.header.frame_id = odom_frame_id_;
+      tf_odom_to_map.child_frame_id = map_frame_id_;
+      tf_odom_to_map.transform.translation.x = tf_odom_to_map_x;
+      tf_odom_to_map.transform.translation.y = tf_odom_to_map_y;
+      tf_odom_to_map.transform.translation.z = 0.0;
+      tf_odom_to_map.transform.rotation.x = tf_odom_to_map_orient.x();
+      tf_odom_to_map.transform.rotation.y = tf_odom_to_map_orient.y();
+      tf_odom_to_map.transform.rotation.z = tf_odom_to_map_orient.z();
+      tf_odom_to_map.transform.rotation.w = tf_odom_to_map_orient.w();
 
-    // Broadcast transform
-    // tf_broadcaster_.sendTransform(tf_odom_to_map); // TBD add sim/real parameter to launch and use here
+      // Broadcast transform
+      // tf_broadcaster_.sendTransform(tf_odom_to_map); // TBD add sim/real parameter to launch and use here
+    }
   }
   catch (tf2::TransformException & except) {
     ROS_WARN("MCL: %s", except.what());
@@ -276,27 +278,29 @@ void MCLNode::publishTf()
 
 void MCLNode::publishPose()
 {
-  // Get pose estimate
-  Particle pose = mcl_ptr_->estimate();
+  // Get estimate
+  Particle particle = mcl_ptr_->estimate();
 
-  // Convert heading angle to quaternion
-  tf2::Quaternion pose_orient;
-  pose_orient.setRPY(0.0, 0.0, pose.th_);
+  if (particle.weight_normed_ > 0.0) {
+    // Convert heading angle to quaternion
+    tf2::Quaternion particle_orient;
+    particle_orient.setRPY(0.0, 0.0, particle.th_);
 
-  // Construct message
-  PoseStampedMsg pose_msg;
-  pose_msg.header.stamp = ros::Time::now();
-  pose_msg.header.frame_id = map_frame_id_;
-  pose_msg.pose.position.x = pose.x_;
-  pose_msg.pose.position.y = pose.y_;
-  pose_msg.pose.position.z = 0.0;
-  pose_msg.pose.orientation.x = pose_orient.x();
-  pose_msg.pose.orientation.y = pose_orient.y();
-  pose_msg.pose.orientation.z = pose_orient.z();
-  pose_msg.pose.orientation.w = pose_orient.w();
+    // Construct message
+    PoseStampedMsg pose_msg;
+    pose_msg.header.stamp = ros::Time::now();
+    pose_msg.header.frame_id = map_frame_id_;
+    pose_msg.pose.position.x = particle.x_;
+    pose_msg.pose.position.y = particle.y_;
+    pose_msg.pose.position.z = 0.0;
+    pose_msg.pose.orientation.x = particle_orient.x();
+    pose_msg.pose.orientation.y = particle_orient.y();
+    pose_msg.pose.orientation.z = particle_orient.z();
+    pose_msg.pose.orientation.w = particle_orient.w();
 
-  // Publish pose
-  pose_pub_.publish(pose_msg);
+    // Publish pose
+    pose_pub_.publish(pose_msg);
+  }
 }
 
 void MCLNode::statusCb(const ros::TimerEvent& event)

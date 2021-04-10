@@ -266,11 +266,9 @@ void ParticleEstimateHistogram::calcEstimates()
   // Ensure proper ordering with best estimates first in case it changed during reaveraging
   std::sort(estimates_.begin(), estimates_.end(), Greater());
 
-  // Ignore zero weight estimates, but always generate at least one estimate
+  // Ignore zero weight estimates
   for (size_t i = 0; i < estimates_.size(); ++i) {
-    if (   estimates_[i].weight_normed_ <= 0.0
-        && i > 0
-       ) {
+    if (estimates_[i].weight_normed_ <= 0.0) {
       estimates_.resize(i);
       break;
     }

@@ -1,8 +1,8 @@
 #include "mcl/distribution.h"
 
-static const double WEIGHT_AVG_CREEP_RATE = 0.005;  // Weight average smoothing rate, very slow
-static const double WEIGHT_AVG_SLOW_RATE = 0.10;    // Weight average smoothing rate, slow
-static const double WEIGHT_AVG_FAST_RATE = 0.75;    // Weight average smoothing rate, fast
+static const double WEIGHT_AVG_CREEP_RATE = 0.01;  // Weight average smoothing rate, very slow
+static const double WEIGHT_AVG_SLOW_RATE = 0.30;   // Weight average smoothing rate, slow
+static const double WEIGHT_AVG_FAST_RATE = 0.75;   // Weight average smoothing rate, fast
 
 using namespace localize;
 
@@ -120,7 +120,6 @@ double ParticleDistribution::weightAvgRatio() const
 {
   double ratio = 0.0;
   if (weight_avg_creep_ > 0.0) {
-    // Using slow / creep instead of fast / slow reduces the number of random samples
     ratio = std::min(1.0, weight_avg_slow_ / weight_avg_creep_);
   }
   return ratio;
@@ -129,6 +128,8 @@ double ParticleDistribution::weightAvgRatio() const
 void ParticleDistribution::printWeightStats() const
 {
   printf("Weight average = %.2e\n", weightAvg());
+  printf("Weight average fast = %.2e\n", static_cast<double>(weight_avg_slow_));
+  printf("Weight average slow = %.2e\n", static_cast<double>(weight_avg_creep_));
   printf("Weight ratio = %.2f\n", weightAvgRatio());
   printf("Weight relative std dev = %.2e\n", weightRelativeStdDev());
 }
@@ -170,6 +171,7 @@ void ParticleDistribution::calcWeightStats()
     // Calculate standard deviation
     weight_std_dev_ = weight_var_ > 0.0 ? std::sqrt(weight_var_) : 0.0;
     weight_relative_std_dev_ = weight_avg > 0.0 ? weight_std_dev_ / weight_avg : 0.0;
+    printWeightStats();
   }
   else {
     // No particles, reinitialize
