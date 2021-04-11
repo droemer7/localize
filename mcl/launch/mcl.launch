@@ -17,7 +17,8 @@
   <!-- Teleop Sim -->
   <group unless="$(arg real)">
     <include file="$(find mushr_sim)/launch/teleop.launch">
-      <arg name="car_name" value="$(arg car_name)"/>
+      <arg name="car_name"        value="$(arg car_name)"/>
+      <arg name="force_in_bounds" value="true"/>
     </include>
   </group>
 
