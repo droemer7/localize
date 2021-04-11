@@ -11,6 +11,7 @@ int main(int argc, char** argv)
   try {
     // Start MCL node
     MCLNode mcl_node("pose",
+                     "pose_array",
                      "vesc/sensors/core",
                      "vesc/sensors/servo_position_command",
                      "laser/scan",

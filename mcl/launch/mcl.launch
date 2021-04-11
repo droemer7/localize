@@ -29,6 +29,7 @@
       <param name="num_particles_max" type="int"    value="$(arg num_particles_max)"/>
       <param name="base_frame_id"     type="string" value="$(arg car_name)/base_link"/>
       <param name="wheel_bl_frame_id" type="string" value="$(arg car_name)/back_left/wheel_link"/>
+      <param name="publish_tf"        type="bool"   value="$(arg real)"/>
     </node>
   </group>
 </launch>

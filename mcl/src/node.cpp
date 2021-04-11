@@ -2,6 +2,27 @@
 
 using namespace localize;
 
+// ========== PoseMsg ========== //
+PoseMsg localize::poseMsg(const Particle& particle)
+{
+  PoseMsg pose_msg;
+
+  // Convert heading angle to quaternion orientation
+  tf2::Quaternion particle_orient;
+  particle_orient.setRPY(0.0, 0.0, particle.th_);
+
+  // Populate message
+  pose_msg.position.x = particle.x_;
+  pose_msg.position.y = particle.y_;
+  pose_msg.position.z = 0.0;
+  pose_msg.orientation.x = particle_orient.x();
+  pose_msg.orientation.y = particle_orient.y();
+  pose_msg.orientation.z = particle_orient.z();
+  pose_msg.orientation.w = particle_orient.w();
+
+  return pose_msg;
+}
+
 // ========== RayScanMsg ========== //
 RayScanMsg::RayScanMsg(const SensorScanMsg::ConstPtr& msg) :
   RayScan(msg->ranges.size())
@@ -19,6 +40,7 @@ RayScanMsg::RayScanMsg(const SensorScanMsg::ConstPtr& msg) :
 
 // ========== MCLNode ========== //
 MCLNode::MCLNode(const std::string& pose_topic,
+                 const std::string& pose_array_topic,
                  const std::string& drive_vel_topic,
                  const std::string& drive_steer_topic,
                  const std::string& sensor_topic,
@@ -37,7 +59,9 @@ MCLNode::MCLNode(const std::string& pose_topic,
   motion_update_time_msec_(0.0),
   motion_update_time_worst_msec_(0.0),
   sensor_update_time_msec_(0.0),
-  sensor_update_time_worst_msec_(0.0)
+  sensor_update_time_worst_msec_(0.0),
+  pause_counter_(0),
+  pause_(false)
 {
   // Localizer parameters
   ros::NodeHandle nh;
@@ -45,6 +69,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
       || !getParam(nh, "localizer/num_particles_max", num_particles_max_)
       || !getParam(nh, "localizer/base_frame_id", base_frame_id_)
       || !getParam(nh, "localizer/wheel_bl_frame_id", wheel_bl_frame_id_)
+      || !getParam(nh, "localizer/publish_tf", publish_tf_)
       || !getParam(nh, "vesc/frame_id", odom_frame_id_)
       || !getParam(nh, "vesc/chassis_length", car_length_)
       || !getParam(nh, "vesc/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
@@ -144,8 +169,9 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                          &MCLNode::statusCb,
                                          this
                                         );
-  // Setup publisher for pose estimates
+  // Setup publishers for pose estimates
   pose_pub_ = pose_nh_.advertise<PoseStampedMsg>(pose_topic, 1);
+  pose_array_pub_ = pose_array_nh_.advertise<PoseArrayMsg>(pose_array_topic, 1);
 
   // Start threads
   drive_vel_spinner_.start();
@@ -156,29 +182,31 @@ MCLNode::MCLNode(const std::string& pose_topic,
 
 void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& msg)
 {
-  // Start timer
-  ros::Time start = ros::Time::now();
+  if (!pause_) {
+    // Start timer
+    ros::Time start = ros::Time::now();
 
-  // Calculate velocity and steering angle
-  double vel = (msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
-  double steer_angle = 0.0;
-  {
-    Lock lock(drive_steer_servo_pos_mtx_);
-    steer_angle = (  (drive_steer_servo_pos_ - drive_steer_angle_to_servo_offset_)
-                   / drive_steer_angle_to_servo_gain_
-                  );
+    // Calculate velocity and steering angle
+    double vel = (msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
+    double steer_angle = 0.0;
+    {
+      Lock lock(drive_steer_servo_pos_mtx_);
+      steer_angle = (  (drive_steer_servo_pos_ - drive_steer_angle_to_servo_offset_)
+                     / drive_steer_angle_to_servo_gain_
+                    );
+    }
+    // Calculate motor time delta
+    double dt = (msg->header.stamp - drive_t_prev_).toSec();
+    drive_t_prev_ = msg->header.stamp;
+
+    // Update localizer with motion data
+    mcl_ptr_->update(vel, steer_angle, dt);
+
+    // Save duration
+    motion_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+    motion_update_time_worst_msec_ = motion_update_time_msec_ > motion_update_time_worst_msec_?
+                                     motion_update_time_msec_ : motion_update_time_worst_msec_;
   }
-  // Calculate motor time delta
-  double dt = (msg->header.stamp - drive_t_prev_).toSec();
-  drive_t_prev_ = msg->header.stamp;
-
-  // Update localizer with motion data
-  mcl_ptr_->update(vel, steer_angle, dt);
-
-  // Save duration
-  motion_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  motion_update_time_worst_msec_ = motion_update_time_msec_ > motion_update_time_worst_msec_?
-                                   motion_update_time_msec_ : motion_update_time_worst_msec_;
 }
 
 void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& msg)
@@ -190,20 +218,25 @@ void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& msg)
 
 void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
 {
-  // Start timer
-  ros::Time start = ros::Time::now();
+  if (!pause_) {
+    // Start timer
+    ros::Time start = ros::Time::now();
 
-  // Update localizer with sensor data
-  mcl_ptr_->update(RayScanMsg(msg));
+    // Update localizer with sensor data
+    mcl_ptr_->update(RayScanMsg(msg));
 
-  // Publish transform and pose
-  publishTf();
-  publishPose();
+    // Publish transform and pose
+    if (publish_tf_) {
+      publishTf();
+    }
+    publishPose();
+    publishPoseArray();
 
-  // Save duration
-  sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
-                                   sensor_update_time_msec_ : sensor_update_time_worst_msec_;
+    // Save duration
+    sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+    sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
+                                     sensor_update_time_msec_ : sensor_update_time_worst_msec_;
+  }
 }
 
 template <class T>
@@ -266,7 +299,7 @@ void MCLNode::publishTf()
       tf_odom_to_map.transform.rotation.w = tf_odom_to_map_orient.w();
 
       // Broadcast transform
-      // tf_broadcaster_.sendTransform(tf_odom_to_map); // TBD add sim/real parameter to launch and use here
+      tf_broadcaster_.sendTransform(tf_odom_to_map);
     }
   }
   catch (tf2::TransformException & except) {
@@ -277,27 +310,37 @@ void MCLNode::publishTf()
 void MCLNode::publishPose()
 {
   // Get estimate
-  Particle particle = mcl_ptr_->estimate();
+  Particle estimate = mcl_ptr_->estimate();
 
-  if (particle.weight_normed_ > 0.0) {
-    // Convert heading angle to quaternion
-    tf2::Quaternion particle_orient;
-    particle_orient.setRPY(0.0, 0.0, particle.th_);
-
-    // Construct message
+  // Estimates with a zero weight are considered null
+  if (estimate.weight_normed_ > 0.0) {
     PoseStampedMsg pose_msg;
     pose_msg.header.stamp = ros::Time::now();
     pose_msg.header.frame_id = map_frame_id_;
-    pose_msg.pose.position.x = particle.x_;
-    pose_msg.pose.position.y = particle.y_;
-    pose_msg.pose.position.z = 0.0;
-    pose_msg.pose.orientation.x = particle_orient.x();
-    pose_msg.pose.orientation.y = particle_orient.y();
-    pose_msg.pose.orientation.z = particle_orient.z();
-    pose_msg.pose.orientation.w = particle_orient.w();
+    pose_msg.pose = poseMsg(estimate);
 
-    // Publish pose
     pose_pub_.publish(pose_msg);
+  }
+}
+
+void MCLNode::publishPoseArray()
+{
+  // Get estimates
+  ParticleVector estimates = mcl_ptr_->estimates();
+
+  // Check if we have anything to publish
+  if (estimates.size() > 0) {
+    PoseArrayMsg pose_array_msg;
+    pose_array_msg.header.stamp = ros::Time::now();
+    pose_array_msg.header.frame_id = map_frame_id_;
+
+    for (size_t i = 0; i < estimates.size(); ++i) {
+      // Estimates with a zero weight are considered null
+      if (estimates[i].weight_normed_ > 0.0) {
+        pose_array_msg.poses.push_back(poseMsg(estimates[i]));
+      }
+    }
+    pose_array_pub_.publish(pose_array_msg);
   }
 }
 
@@ -305,6 +348,12 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 {
   printMotionUpdateTime(0.01);
   printSensorUpdateTime(0.5);
+
+  // TBD remove
+  // This isn't thread safe but it's just for some quick testing and the algorithm should be robust to any temporary
+  // disruption
+  pause_counter_++;
+  // pause_ = std::fmod(pause_counter_, 7) < 2 && pause_counter_ >= 7;
 }
 
 void MCLNode::printMotionUpdateTime(const double min_msec)

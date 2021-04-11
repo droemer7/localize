@@ -16,6 +16,7 @@
 #include <tf2/exceptions.h>
 #include <tf2/utils.h>
 
+#include <geometry_msgs/PoseArray.h>
 #include <nav_msgs/GetMap.h>
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Float64.h>
@@ -30,8 +31,12 @@ namespace localize
   typedef std_msgs::Float64 DriveSteerMsg;
   typedef sensor_msgs::LaserScan SensorScanMsg;
   typedef nav_msgs::OccupancyGrid OccupancyGridMsg;
+  typedef geometry_msgs::Pose PoseMsg;
   typedef geometry_msgs::PoseStamped PoseStampedMsg;
+  typedef geometry_msgs::PoseArray PoseArrayMsg;
   typedef geometry_msgs::TransformStamped TransformStampedMsg;
+
+  PoseMsg poseMsg(const Particle& particle);
 
   class RayScanMsg : public RayScan
   {
@@ -44,6 +49,7 @@ namespace localize
   {
   public:
     MCLNode(const std::string& pose_topic,        // Pose topic name
+            const std::string& pose_array_topic,  // Pose array topic name
             const std::string& drive_vel_topic,   // Drive velocity topic name
             const std::string& drive_steer_topic, // Drive steering topic name
             const std::string& sensor_topic,      // Sensor topic name
@@ -73,8 +79,11 @@ namespace localize
     // Publish the transform estimated by the localizer
     void publishTf();
 
-    // Publish the pose estimated by the localizer
+    // Publish the best pose estimate from the localizer
     void publishPose();
+
+    // Publish all pose estimates from the localizer
+    void publishPoseArray();
 
     // Print Motion update times (last and worst)
     void printMotionUpdateTime(const double min_msec = 0.0);
@@ -101,6 +110,7 @@ namespace localize
     std::string odom_frame_id_;
     std::string map_frame_id_;
     ros::NodeHandle pose_nh_;
+    ros::NodeHandle pose_array_nh_;
     ros::NodeHandle drive_vel_nh_;
     ros::NodeHandle drive_steer_nh;
     ros::NodeHandle sensor_nh_;
@@ -110,6 +120,7 @@ namespace localize
     ros::CallbackQueue sensor_cb_queue_;
     ros::CallbackQueue status_cb_queue_;
     ros::Publisher pose_pub_;
+    ros::Publisher pose_array_pub_;
     ros::Subscriber drive_vel_sub_;
     ros::Subscriber drive_steer_sub_;
     ros::Subscriber sensor_sub_;
@@ -121,6 +132,7 @@ namespace localize
     ros::Time drive_t_prev_;
     ros::Timer status_timer_;
 
+    bool publish_tf_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
@@ -155,6 +167,10 @@ namespace localize
     float map_th_;                  // Map angle relative to world frame (rad)
     float map_scale_;               // Map scale relative to world frame (meters per pixel)
     std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+
+    // TBD remove
+    int pause_counter_;
+    bool pause_;
   };
 
 } // namespace localize
