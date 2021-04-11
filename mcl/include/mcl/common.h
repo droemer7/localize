@@ -139,8 +139,8 @@ namespace localize
   {
   public:
     // Constructor
-    Map(const unsigned int width,       // Number of pixels along x axis
-        const unsigned int height,      // Number of pixels along y axis
+    Map(const unsigned int pxl_width,   // Number of pixels along x axis
+        const unsigned int pxl_height,  // Number of pixels along y axis
         const float x_origin,           // X translation of origin (cell 0,0) relative to world frame (meters)
         const float y_origin,           // Y translation of origin (cell 0,0) relative to world frame (meters)
         const float th_origin,          // Angle relative to world frame (rad)
@@ -148,6 +148,7 @@ namespace localize
         const std::vector<int8_t> data  // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
+    // Return true if the point (x, y) (meters) is in an occupied space (out of bounds is considered occupied)
     bool occupied(float x, float y) const;
   };
 

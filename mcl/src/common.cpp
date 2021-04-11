@@ -91,19 +91,19 @@ RayScan::RayScan(size_t num_rays) :
 
 // ========== Map ========== //
 // Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
-Map::Map(const unsigned int width,
-         const unsigned int height,
+Map::Map(const unsigned int pxl_width,
+         const unsigned int pxl_height,
          const float x_origin,
          const float y_origin,
          const float th_origin,
          const float scale,
          const std::vector<int8_t> data
         ) :
-  ranges::OMap(height, width)
+  ranges::OMap(pxl_height, pxl_width) // Note: flip height and width for OMap's different definition
 {
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      if (data[i * width + j] > 10) {
+  for (int i = 0; i < pxl_height; ++i) {
+    for (int j = 0; j < pxl_width; ++j) {
+      if (data[i * pxl_width + j] > 10) {
         grid[i][j] = true;
       }
     }
@@ -118,9 +118,9 @@ Map::Map(const unsigned int width,
 
 bool Map::occupied(float x, float y) const
 {
-  rosWorldToGrid(x, y);
+  rosWorldToGrid(x, y); // Convert x and y to RangeLib's grid space
 
-  return isOccupiedNT(x, y);
+  return isOccupiedNT(x, y); // Check RangeLib's grid for occupancy
 }
 
 // ========== ParticleRandomSampler ========== //

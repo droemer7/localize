@@ -12,11 +12,13 @@ using namespace localize;
 // ========== VelModel ========== //
 VelModel::VelModel(const double car_length,
                    const double car_back_to_motion_frame_x,
-                   const double car_back_to_motion_frame_y
+                   const double car_back_to_motion_frame_y,
+                   const Map& map
                   ) :
   car_length_(car_length),
   car_back_to_motion_frame_x_(car_back_to_motion_frame_x),
-  car_back_to_motion_frame_y_(car_back_to_motion_frame_y)
+  car_back_to_motion_frame_y_(car_back_to_motion_frame_y),
+  map_(map)
 {}
 
 void VelModel::apply(ParticleDistribution& dist,
@@ -56,11 +58,15 @@ void VelModel::apply(ParticleDistribution& dist,
   double vel_ang_std_dev = std::sqrt(VEL_ANG_N1 * vel_lin_sq + VEL_ANG_N2 * vel_ang_sq);
   double th_std_dev = std::sqrt(TH_N1 * vel_lin_sq + TH_N2 * vel_ang_sq);
 
+  // Per particle quantities
   double vel_lin_noise = 0.0;
   double vel_ang_noise = 0.0;
   double th_noise = 0.0;
   double vel_lin_adj = 0.0;
   double vel_ang_adj = 0.0;
+
+  double particle_new_x = 0.0;
+  double particle_new_y = 0.0;
 
   // Apply to each particle in the distribution
   for (size_t i = 0; i < dist.count(); ++i) {
@@ -74,17 +80,28 @@ void VelModel::apply(ParticleDistribution& dist,
     vel_ang_adj = vel_ang + vel_ang_noise;
 
     // Calculate new x and y using noisy velocities
-    dist.particle(i).x_ += (  (vel_lin_adj / vel_ang_adj)
-                            * (-std::sin(dist.particle(i).th_) + std::sin(dist.particle(i).th_ + vel_ang_adj * dt))
-                           );
-    dist.particle(i).y_ += (  (vel_lin_adj / vel_ang_adj)
-                            * ( std::cos(dist.particle(i).th_) - std::cos(dist.particle(i).th_ + vel_ang_adj * dt))
-                           );
-    // Calculate new orientation, adding additional noise
-    dist.particle(i).th_ += (vel_ang_adj + th_noise) * dt;
+    particle_new_x = dist.particle(i).x_ + (  (vel_lin_adj / vel_ang_adj)
+                                            * (- std::sin(dist.particle(i).th_)
+                                               + std::sin(dist.particle(i).th_ + vel_ang_adj * dt)
+                                              )
+                                           );
+    particle_new_y = dist.particle(i).y_ + (  (vel_lin_adj / vel_ang_adj)
+                                            * (  std::cos(dist.particle(i).th_)
+                                               - std::cos(dist.particle(i).th_ + vel_ang_adj * dt)
+                                              )
+                                           );
+    // Position validity check: only move particle if landed in free space
+    if (!map_.occupied(particle_new_x, particle_new_y)) {
+      // New position is valid
+      dist.particle(i).x_ = particle_new_x;
+      dist.particle(i).y_ = particle_new_y;
 
-    // Wrap orientation to (-pi, pi]
-    dist.particle(i).th_ = wrapAngle(dist.particle(i).th_);
+      // Calculate new orientation, adding additional noise
+      dist.particle(i).th_ += (vel_ang_adj + th_noise) * dt;
+
+      // Wrap orientation to (-pi, pi]
+      dist.particle(i).th_ = wrapAngle(dist.particle(i).th_);
+    }
   }
   return;
 }

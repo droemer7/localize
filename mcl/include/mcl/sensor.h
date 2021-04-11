@@ -131,11 +131,6 @@ namespace localize
     RaySampleVector rays_obs_sample_; // Downsampled observations
     ranges::CDDTCast raycaster_;      // Range calculator
 
-    double map_x_min_;  // Minimum x position possible on the map
-    double map_y_min_;  // Minimum y position possible on the map
-    double map_x_max_;  // Maximum x position possible on the map
-    double map_y_max_;  // Maximum y position possible on the map
-
     RNG rng_;  // Random number engine
     std::uniform_real_distribution<double> th_sample_dist_;  // Distribution of initial sample angle offsets
   };

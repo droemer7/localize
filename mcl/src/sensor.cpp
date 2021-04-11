@@ -43,10 +43,6 @@ BeamModel::BeamModel(const float range_min,
              range_max / map.scale,
              TH_RAYCAST_COUNT
             ),
-  map_x_min_(map.x_origin),
-  map_y_min_(map.y_origin),
-  map_x_max_(map.width * map.scale + map.x_origin),
-  map_y_max_(map.height * map.scale + map.y_origin),
   th_sample_dist_(0.0, L_2PI / SENSOR_TH_SAMPLE_COUNT)
 {
   // Precalculate the sensor model and create tables
@@ -55,45 +51,35 @@ BeamModel::BeamModel(const float range_min,
 
 void BeamModel::apply(Particle& particle, const bool calc_enable)
 {
-  // Calculate weight if particle is in bounds
-  if (   map_x_min_ <= particle.x_ && particle.x_ <= map_x_max_
-      && map_y_min_ <= particle.y_ && particle.y_ <= map_y_max_
-     ) {
-    double weight_partial_new_obj = 0.0;
-    double weight_partial = 0.0;
-    double weight = 1.0;
-    float range_map = 0.0;
+  double weight_partial_new_obj = 0.0;
+  double weight_partial = 0.0;
+  double weight = 1.0;
+  float range_map = 0.0;
 
-    for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
-      // Calculate range from the map
-      range_map = raycaster_.calc_range(particle.x_,
-                                        particle.y_,
-                                        particle.th_ + rays_obs_sample_[i].th_
-                                       );
-      range_map = repair(range_map);
+  for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
+    // Calculate range from the map
+    range_map = raycaster_.calc_range(particle.x_,
+                                      particle.y_,
+                                      particle.th_ + rays_obs_sample_[i].th_
+                                     );
+    range_map = repair(range_map);
 
-      // Calculate observed range probabilities for this particle
-      weight_partial_new_obj = calc_enable ? calcWeightedProbNewObj(rays_obs_sample_[i].range_, range_map) :
-                                             lookupWeightedProbNewObj(rays_obs_sample_[i].range_, range_map);
-      weight_partial = calc_enable ? calcWeightedProb(rays_obs_sample_[i].range_, range_map) :
-                                     lookupWeightedProb(rays_obs_sample_[i].range_, range_map);
+    // Calculate observed range probabilities for this particle
+    weight_partial_new_obj = calc_enable ? calcWeightedProbNewObj(rays_obs_sample_[i].range_, range_map) :
+                                           lookupWeightedProbNewObj(rays_obs_sample_[i].range_, range_map);
+    weight_partial = calc_enable ? calcWeightedProb(rays_obs_sample_[i].range_, range_map) :
+                                   lookupWeightedProb(rays_obs_sample_[i].range_, range_map);
 
-      // Update weight sums for this sampled ray
-      rays_obs_sample_[i].weight_new_obj_sum_ += weight_partial_new_obj;
-      rays_obs_sample_[i].weight_sum_ += weight_partial;
+    // Update weight sums for this sampled ray
+    rays_obs_sample_[i].weight_new_obj_sum_ += weight_partial_new_obj;
+    rays_obs_sample_[i].weight_sum_ += weight_partial;
 
-      // Save partial weight to particle in case we determine later its an outlier and need to remove its effect
-      particle.weights_[i] = weight_partial;
-      weight *= weight_partial;
-    }
-    // Update full weight, applying overall model uncertainty
-    particle.weight_ = std::pow(weight, WEIGHT_UNCERTAINTY_FACTOR);
+    // Save partial weight to particle in case we determine later its an outlier and need to remove its effect
+    particle.weights_[i] = weight_partial;
+    weight *= weight_partial;
   }
-  // Zero weight if particle is not in bounds
-  else {
-    std::fill(particle.weights_.begin(), particle.weights_.end(), 0.0);
-    particle.weight_ = 0.0;
-  }
+  // Update full weight, applying overall model uncertainty
+  particle.weight_ = std::pow(weight, WEIGHT_UNCERTAINTY_FACTOR);
   return;
 }
 

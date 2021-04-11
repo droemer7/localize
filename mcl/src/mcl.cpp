@@ -44,7 +44,8 @@ MCL::MCL(const unsigned int num_particles_min,
       ),
   motion_model_(car_length,
                 car_back_to_sensor_frame_x,
-                car_back_to_sensor_frame_y
+                car_back_to_sensor_frame_y,
+                map_
                ),
   sensor_model_(sensor_range_min,
                 sensor_range_max,

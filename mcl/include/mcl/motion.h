@@ -21,7 +21,8 @@ namespace localize
     // Constructor
     VelModel(const double car_length,                 // Car length
              const double car_back_to_motion_frame_x, // Car back (midpoint between back wheels) to motion frame x translation
-             const double car_back_to_motion_frame_y  // Car back (midpoint between back wheels) to motion frame y translation
+             const double car_back_to_motion_frame_y, // Car back (midpoint between back wheels) to motion frame y translation
+             const Map& map                           // Map
             );
 
     // Apply the motion model to generate new samples of particles from p(x[t] | u[t], x[t-1])
@@ -35,6 +36,7 @@ namespace localize
     double car_length_;                 // Car length
     double car_back_to_motion_frame_x_; // Car back (midpoint between back wheels) to motion frame x translation
     double car_back_to_motion_frame_y_; // Car back (midpoint between back wheels) to motion frame y translation
+    const Map& map_;                    // Map
 
     NormalDistributionSampler<double> sampler_; // Normal distribution sampler
   };
