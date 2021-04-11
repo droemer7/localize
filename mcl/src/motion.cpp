@@ -40,7 +40,7 @@ void VelModel::apply(ParticleDistribution& dist,
     double particle_icr_radius = std::sqrt(particle_icr_x * particle_icr_x + particle_icr_y * particle_icr_y);
 
     // Radius of ICR sign must match steering angle sign so the resulting angular velocity has the correct sign as well
-    particle_icr_radius = std::signbit(tan_steering_angle) ? -1.0 * particle_icr_radius : particle_icr_radius;
+    particle_icr_radius = std::signbit(tan_steering_angle) ? -particle_icr_radius : particle_icr_radius;
 
     // Angular velocity = v / r
     vel_ang = vel_lin / particle_icr_radius;
@@ -62,9 +62,8 @@ void VelModel::apply(ParticleDistribution& dist,
   double vel_lin_adj = 0.0;
   double vel_ang_adj = 0.0;
 
-  // Update each particle
+  // Apply to each particle in the distribution
   for (size_t i = 0; i < dist.count(); ++i) {
-
     // Calculate noise for velocities and rotation
     vel_lin_noise = vel_lin_std_dev > DBL_MIN ? sampler_.gen(0.0, vel_lin_std_dev) : 0.0;
     vel_ang_noise = vel_ang_std_dev > DBL_MIN ? sampler_.gen(0.0, vel_ang_std_dev) : 0.0;

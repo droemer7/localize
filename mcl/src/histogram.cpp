@@ -306,15 +306,4 @@ size_t ParticleEstimateHistogram::count() const
 {
   return count_;
 }
-
-void ParticleEstimateHistogram::printEstimate(const size_t i) const
-{
-  printf("Estimate %lu = %.3f, %.3f, %.3f (weight = %.2e)\n",
-         i + 1,
-         estimates_[i].x_,
-         estimates_[i].y_,
-         estimates_[i].th_ * 180.0 / L_PI,
-         estimates_[i].weight_normed_
-        );
-}
 // ========== ParticleEstimateHistogram ========== //

@@ -32,8 +32,6 @@ namespace localize
              );
 
     // Apply the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
-    // This overload does not do outlier rejection - use apply(distribution) for this
-    // Algorithm 6.1 from Probabilistic Robotics (Thrun 2006, page 158)
     void apply(Particle& particle, const bool calc_enable = false);
 
     void apply(ParticleDistribution& dist, const bool calc_enable = false);

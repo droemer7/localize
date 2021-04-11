@@ -298,7 +298,7 @@ namespace localize
   {
     rusage stackusage;
     getrusage(RUSAGE_SELF, &stackusage);
-    printf("MCL: Memory usage = %ld MB", stackusage.ru_maxrss / 1024);
+    printf("MCL: Memory usage = %ld MB\n", stackusage.ru_maxrss / 1024);
   }
 
 } // namespace localize

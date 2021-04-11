@@ -86,7 +86,7 @@ void MCL::update(const RayScan& obs)
     RecursiveLock lock(dist_mtx_);
 
     sensor_model_.apply(dist_);
-    // printStats("\n===== Sensor update =====\n");
+    // printStats("\n===== Sensor update =====\n"); // TBD remove
     update();
   }
 }
@@ -183,8 +183,8 @@ void MCL::update()
     }
     // Update distribution with new sample set
     dist_.update(samples_, s);
-    // printStats("\n===== Sample update =====\n");
-    // printf("Prob random = %.2e\n", prob_sample_random);
+    // printStats("\n===== Sample update =====\n");         // TBD remove
+    // printf("Prob random = %.2e\n", prob_sample_random);  // TBD remove
   }
   return;
 }
@@ -234,5 +234,5 @@ void MCL::printStats(const std::string& header) const
   printf("%s", header.c_str());
   printf("Sample size = %lu\n", dist_.count());
   printf("Weight average = %.2e\n", dist_.weightAvg());
-  printf("Weight average ratio = %.2f\n", dist_.weightAvgRatio());
+  printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());
 }

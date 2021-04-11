@@ -203,5 +203,7 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
+  printParticle(Particle(1.0, 2.5, 3.3, 0.11, 0.44));
+
   return 0;
 }

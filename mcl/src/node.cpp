@@ -1,7 +1,5 @@
 #include "mcl/node.h"
 
-static const int NUM_UPDATES = 10000; // TBD remove
-
 using namespace localize;
 
 // ========== RayScanMsg ========== //
@@ -31,7 +29,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  timer_cb_dur_(5.0),
+  timer_cb_dur_(0.5),
   drive_t_prev_(ros::Time::now()),
   tf_buffer_(ros::Duration(1)),
   tf_listener_(tf_buffer_, true, ros::TransportHints().tcpNoDelay()),
@@ -65,7 +63,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   if (   !ros::service::waitForService(map_topic, ros::Duration(5))
       || !ros::service::call(map_topic, get_map_msg)
      ) {
-    throw std::runtime_error(std::string("MCL: Failed to retrieve map from ") + map_topic);
+    throw std::runtime_error(std::string("MCL: Failed to retrieve map from topic '") + map_topic + "'");
   }
   const OccupancyGridMsg& map_msg = get_map_msg.response.map;
   map_width_ = map_msg.info.width;
@@ -230,10 +228,10 @@ void MCLNode::publishTf()
   //
   // ROS convention unfortunately overloads the usual definition of a transform for the map to odom frame 'transform'.
   // It is comprised of two components:
-  //   1) What you expect: A transformation from the (fixed) map frame to the (fixed) odom frame. Note that the odom
-  //      frame is located at the robot's initial position, which may be anywhere on the map.
-  //   2) What you don't expect: A _correction_ to the odom frame data which, when applied to the odom frame, adjusts
-  //      the odometry-derived pose to the 'true' (estimated) pose provided by MCL.
+  //   1) A transformation from the (fixed) map frame to the (fixed) odom frame. Note that the odom frame is located at
+  //      the robot's initial position, which may be anywhere on the map.
+  //   2) A _correction_ to the odom frame data which, when applied to the odom frame, adjusts the odometry-derived
+  //      pose to the 'true' (estimated) pose provided by MCL.
   //
   // Following ROS convention, the transformation from the odom to map frame is determined here by subtracting the
   // robot base to odom transformation (provided by another module) from the robot base to map frame transform we have
@@ -305,7 +303,7 @@ void MCLNode::publishPose()
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
 {
-  printMotionUpdateTime(0.5);
+  printMotionUpdateTime(0.01);
   printSensorUpdateTime(0.5);
 }
 

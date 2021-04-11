@@ -171,6 +171,24 @@ namespace localize
     std::uniform_real_distribution<double> th_dist_;  // Distribution of theta (-pi, +pi] relative to world frame
   };
 
+  // Print particle state
+  inline void printParticle(const Particle& particle, const std::string& name = "")
+  {
+    if (name != "") {
+      printf("%s: ", name.c_str());
+    }
+    else {
+      printf("Particle: ");
+    }
+    printf("%.2f, %.2f, %.2f (weight = %.3e, normed weight = %.3e)\n",
+           particle.x_,
+           particle.y_,
+           particle.th_ * 180.0 / L_PI,
+           particle.weight_,
+           particle.weight_normed_
+          );
+  }
+
   // Saves data to file in CSV format
   template <class T>
   void save(const std::vector<std::vector<T>>& data_matrix,

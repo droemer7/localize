@@ -415,7 +415,7 @@ void BeamModel::precalcWeightedProbs()
 
 void BeamModel::printRejectedRange(const Ray & ray, const double prob) const
 {
-  printf("Rejected range = %.2f, angle = %.2f (ratio = %.3f)\n",
+  printf("Rejected range = %.2f, angle = %.2f (prob = %.3f)\n",
          ray.range_,
          ray.th_ * 180.0 / L_PI,
          prob
