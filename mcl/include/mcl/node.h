@@ -167,10 +167,6 @@ namespace localize
     float map_th_;                  // Map angle relative to world frame (rad)
     float map_scale_;               // Map scale relative to world frame (meters per pixel)
     std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
-
-    // TBD remove
-    int pause_counter_;
-    bool pause_;
   };
 
 } // namespace localize

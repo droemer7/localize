@@ -59,9 +59,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   motion_update_time_msec_(0.0),
   motion_update_time_worst_msec_(0.0),
   sensor_update_time_msec_(0.0),
-  sensor_update_time_worst_msec_(0.0),
-  pause_counter_(0),
-  pause_(false)
+  sensor_update_time_worst_msec_(0.0)
 {
   // Localizer parameters
   ros::NodeHandle nh;
@@ -182,31 +180,29 @@ MCLNode::MCLNode(const std::string& pose_topic,
 
 void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& msg)
 {
-  if (!pause_) {
-    // Start timer
-    ros::Time start = ros::Time::now();
+  // Start timer
+  ros::Time start = ros::Time::now();
 
-    // Calculate velocity and steering angle
-    double vel = (msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
-    double steer_angle = 0.0;
-    {
-      Lock lock(drive_steer_servo_pos_mtx_);
-      steer_angle = (  (drive_steer_servo_pos_ - drive_steer_angle_to_servo_offset_)
-                     / drive_steer_angle_to_servo_gain_
-                    );
-    }
-    // Calculate motor time delta
-    double dt = (msg->header.stamp - drive_t_prev_).toSec();
-    drive_t_prev_ = msg->header.stamp;
-
-    // Update localizer with motion data
-    mcl_ptr_->update(vel, steer_angle, dt);
-
-    // Save duration
-    motion_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-    motion_update_time_worst_msec_ = motion_update_time_msec_ > motion_update_time_worst_msec_?
-                                     motion_update_time_msec_ : motion_update_time_worst_msec_;
+  // Calculate velocity and steering angle
+  double vel = (msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
+  double steer_angle = 0.0;
+  {
+    Lock lock(drive_steer_servo_pos_mtx_);
+    steer_angle = (  (drive_steer_servo_pos_ - drive_steer_angle_to_servo_offset_)
+                   / drive_steer_angle_to_servo_gain_
+                  );
   }
+  // Calculate motor time delta
+  double dt = (msg->header.stamp - drive_t_prev_).toSec();
+  drive_t_prev_ = msg->header.stamp;
+
+  // Update localizer with motion data
+  mcl_ptr_->update(vel, steer_angle, dt);
+
+  // Save duration
+  motion_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  motion_update_time_worst_msec_ = motion_update_time_msec_ > motion_update_time_worst_msec_?
+                                   motion_update_time_msec_ : motion_update_time_worst_msec_;
 }
 
 void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& msg)
@@ -218,25 +214,23 @@ void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& msg)
 
 void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
 {
-  if (!pause_) {
-    // Start timer
-    ros::Time start = ros::Time::now();
+  // Start timer
+  ros::Time start = ros::Time::now();
 
-    // Update localizer with sensor data
-    mcl_ptr_->update(RayScanMsg(msg));
+  // Update localizer with sensor data
+  mcl_ptr_->update(RayScanMsg(msg));
 
-    // Publish transform and pose
-    if (publish_tf_) {
-      publishTf();
-    }
-    publishPose();
-    publishPoseArray();
-
-    // Save duration
-    sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-    sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
-                                     sensor_update_time_msec_ : sensor_update_time_worst_msec_;
+  // Publish transform and pose
+  if (publish_tf_) {
+    publishTf();
   }
+  publishPose();
+  publishPoseArray();
+
+  // Save duration
+  sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
+                                   sensor_update_time_msec_ : sensor_update_time_worst_msec_;
 }
 
 template <class T>
@@ -348,12 +342,6 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 {
   printMotionUpdateTime(0.01);
   printSensorUpdateTime(0.5);
-
-  // TBD remove
-  // This isn't thread safe but it's just for some quick testing and the algorithm should be robust to any temporary
-  // disruption
-  pause_counter_++;
-  // pause_ = std::fmod(pause_counter_, 7) < 2 && pause_counter_ >= 7;
 }
 
 void MCLNode::printMotionUpdateTime(const double min_msec)
