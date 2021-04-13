@@ -112,17 +112,17 @@ namespace localize
     explicit RaySample(const Ray& ray);
 
     double weight_new_obj_sum_; // Sum of weights across the distribution for this angle representing a new / unexpected object
-    double weight_sum_;         // Sum of weights across the distribution for this angle
+    double weight_sum_;         // Sum of weights across the distribution for this angle representing the full sensor model pdf
   };
 
   // Rayscan data
   struct RayScan
   {
     // Constructors
-    explicit RayScan(RayVector rays = RayVector(),  // Vector of rays data
-                     float th_inc = 0.0,            // Angle increment between ray elements (rad per index)
-                     float t_inc = 0.0,             // Time increment between ray elements (sec per index)
-                     float t_dur = 0.0              // Scan duration (sec)
+    explicit RayScan(const RayVector& rays = RayVector(), // Vector of rays data
+                     float th_inc = 0.0,                  // Angle increment between ray elements (rad per index)
+                     float t_inc = 0.0,                   // Time increment between ray elements (sec per index)
+                     float t_dur = 0.0                    // Scan duration (sec)
                     );
 
     explicit RayScan(size_t num_rays);

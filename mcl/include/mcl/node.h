@@ -38,12 +38,7 @@ namespace localize
 
   PoseMsg poseMsg(const Particle& particle);
 
-  class RayScanMsg : public RayScan
-  {
-  public:
-    // Constructors
-    RayScanMsg(const SensorScanMsg::ConstPtr& msg);
-  };
+  RayScan rayScan(const SensorScanMsg::ConstPtr& msg);
 
   class MCLNode
   {

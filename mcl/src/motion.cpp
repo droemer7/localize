@@ -1,11 +1,11 @@
 #include "mcl/motion.h"
 
 static const double VEL_LIN_N1 = 0.01;  // Linear velocity noise coefficient 1
-static const double VEL_LIN_N2 = 0.01;  // Linear velocity noise coefficient 2
+static const double VEL_LIN_N2 = 0.05;  // Linear velocity noise coefficient 2
 static const double VEL_ANG_N1 = 0.01;  // Angular velocity noise coefficient 1
 static const double VEL_ANG_N2 = 0.01;  // Angular velocity noise coefficient 2
-static const double TH_N1 = 0.01;       // Final rotation noise coefficient 1
-static const double TH_N2 = 0.01;       // Final rotation noise coefficient 2
+static const double TH_N1 = 0.005;      // Final rotation noise coefficient 1
+static const double TH_N2 = 0.005;      // Final rotation noise coefficient 2
 
 using namespace localize;
 

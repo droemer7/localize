@@ -72,7 +72,7 @@ RaySample::RaySample(const Ray& ray) :
 {}
 
 // ========== RayScan ========== //
-RayScan::RayScan(RayVector rays,
+RayScan::RayScan(const RayVector& rays,
                  float th_inc,
                  float t_inc,
                  float t_dur
@@ -84,10 +84,8 @@ RayScan::RayScan(RayVector rays,
 {}
 
 RayScan::RayScan(size_t num_rays) :
-  RayScan()
-{
-  rays_.resize(num_rays);
-}
+  RayScan(RayVector(num_rays))
+{}
 
 // ========== Map ========== //
 // Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx

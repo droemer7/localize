@@ -2,7 +2,6 @@
 
 using namespace localize;
 
-// ========== PoseMsg ========== //
 PoseMsg localize::poseMsg(const Particle& particle)
 {
   PoseMsg pose_msg;
@@ -23,19 +22,18 @@ PoseMsg localize::poseMsg(const Particle& particle)
   return pose_msg;
 }
 
-// ========== RayScanMsg ========== //
-RayScanMsg::RayScanMsg(const SensorScanMsg::ConstPtr& msg) :
-  RayScan(msg->ranges.size())
+RayScan localize::rayScan(const SensorScanMsg::ConstPtr& msg)
 {
-  th_inc_ = msg->angle_increment;
-  t_inc_ = msg->time_increment;
-  t_dur_ = msg->scan_time;
+  RayScan ray_scan(msg->ranges.size());
+  ray_scan.th_inc_ = msg->angle_increment;
+  ray_scan.t_inc_ = msg->time_increment;
+  ray_scan.t_dur_ = msg->scan_time;
 
-  for (size_t i = 0; i < rays_.size(); ++i) {
-    rays_[i].range_ = msg->ranges[i];
-    rays_[i].th_ = msg->angle_min + th_inc_ * i;
+  for (size_t i = 0; i < ray_scan.rays_.size(); ++i) {
+    ray_scan.rays_[i].range_ = msg->ranges[i];
+    ray_scan.rays_[i].th_ = msg->angle_min + ray_scan.th_inc_ * i;
   }
-  rays_ = rays_;
+  return ray_scan;
 }
 
 // ========== MCLNode ========== //
@@ -218,7 +216,7 @@ void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
   ros::Time start = ros::Time::now();
 
   // Update localizer with sensor data
-  mcl_ptr_->update(RayScanMsg(msg));
+  mcl_ptr_->update(rayScan(msg));
 
   // Publish transform and pose
   if (publish_tf_) {

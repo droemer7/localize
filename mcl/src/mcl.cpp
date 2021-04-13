@@ -1,6 +1,6 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_LOST = 1e-8;       // Average weight below which we assume we are lost (required for random sampling)
+static const double WEIGHT_AVG_LOST = 1e-9;       // Average weight below which we assume we are lost (required for random sampling)
 static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Weight sigma below which the weights are considered consistent (required for resampling)
 static const double SPEED_STOPPED = 1e-6;         // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;               // KL distance epsilon

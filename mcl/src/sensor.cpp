@@ -1,6 +1,6 @@
 #include "mcl/sensor.h"
 
-static const float RANGE_STD_DEV = 0.5;                       // Standard deviation in range measurements
+static const float RANGE_STD_DEV = 0.3;                       // Standard deviation in range measurements
 static const float NEW_OBJ_DECAY_RATE = 0.5;                  // Decay rate for new / unexpected object probability
 static const double WEIGHT_NO_OBJ = 15.0;                     // Weight for no object detected probability
 static const double WEIGHT_NEW_OBJ = 5.0;                     // Weight for new / unexpected object probability
@@ -9,7 +9,7 @@ static const double WEIGHT_RAND_EFFECT = 5.0;                 // Weight for rand
 static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;          // Weight uncertainty factor (extra noise added)
 static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.50;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
 static const double WEIGHT_TABLE_RES = 0.01;                  // Lookup table resolution (meters per cell)
-static const unsigned int TH_RAYCAST_COUNT = 656;             // Number of angles for raycast approximation (count per revolution)
+static const unsigned int TH_RAYCAST_COUNT = 314;             // Number of angles for raycast approximation (count per revolution)
 static const float RANGE_EPSILON = 1e-5;                      // Maximum delta between two ranges such that they are still considered 'equal'
 
 using namespace localize;
@@ -62,7 +62,7 @@ void BeamModel::apply(Particle& particle, const bool calc_enable)
                                       particle.y_,
                                       particle.th_ + rays_obs_sample_[i].th_
                                      );
-    range_map = repair(range_map);
+    range_map = repairRange(range_map);
 
     // Calculate observed range probabilities for this particle
     weight_partial_new_obj = calc_enable ? calcWeightedProbNewObj(rays_obs_sample_[i].range_, range_map) :
@@ -130,8 +130,8 @@ void BeamModel::tune(const RayScanVector& obs, const Particle& particle)
                                                particle.y_,
                                                particle.th_ + obs[i].rays_[j].th_
                                               );
-      ranges_obs.push_back(repair(range_obs));
-      ranges_map.push_back(repair(range_map));
+      ranges_obs.push_back(repairRange(range_obs));
+      ranges_map.push_back(repairRange(range_map));
     }
   }
   size_t n = 0;
@@ -219,7 +219,7 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
            && s < rays_obs_sample.size()
           ) {
       rays_obs_sample[s] = RaySample(obs.rays_[o]);
-      rays_obs_sample[s].range_ = repair(rays_obs_sample[s].range_);
+      rays_obs_sample[s].range_ = repairRange(rays_obs_sample[s].range_);
       o += o_step_size;
       ++s;
     }
@@ -230,7 +230,7 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
            && rays_obs_sample.size() > 0
           ) {
     rays_obs_sample[0] = RaySample(obs.rays_[0]);
-    rays_obs_sample[0].range_ = repair(rays_obs_sample[0].range_);
+    rays_obs_sample[0].range_ = repairRange(rays_obs_sample[0].range_);
     rays_obs_sample.resize(1);
   }
   return rays_obs_sample;
@@ -289,7 +289,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   }
 }
 
-float BeamModel::repair(float range) const
+float BeamModel::repairRange(float range) const
 {
   return (   range > range_max_
           || std::signbit(range)

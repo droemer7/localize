@@ -57,7 +57,7 @@ namespace localize
 
     // Convert NaN, negative ranges and any range beyond the configured max to the range reported when nothing is
     // detected by the sensor
-    float repair(const float range) const;
+    float repairRange(const float range) const;
 
     // Converts the range value to a corresponding index in the table
     size_t tableIndex(const float range) const;
