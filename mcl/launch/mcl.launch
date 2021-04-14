@@ -5,7 +5,7 @@
 
   <!-- MCL arguments -->
   <arg name="num_particles_min" default="1000"/>
-  <arg name="num_particles_max" default="25000"/>
+  <arg name="num_particles_max" default="10000"/>
 
   <!-- Teleop Real -->
   <group if="$(arg real)">

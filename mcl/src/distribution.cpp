@@ -1,7 +1,7 @@
 #include "mcl/distribution.h"
 
 static const double WEIGHT_AVG_CREEP_RATE = 0.01;  // Weight average smoothing rate, very slow
-static const double WEIGHT_AVG_SLOW_RATE = 0.30;   // Weight average smoothing rate, slow
+static const double WEIGHT_AVG_SLOW_RATE = 0.40;   // 0.3 // Weight average smoothing rate, slow
 static const double WEIGHT_AVG_FAST_RATE = 0.75;   // Weight average smoothing rate, fast
 
 using namespace localize;
