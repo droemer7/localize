@@ -60,6 +60,9 @@ namespace localize
     // Sensor scan callback
     void sensorCb(const SensorScanMsg::ConstPtr& msg);
 
+    // State estimate callback
+    void estimateCb(const ros::TimerEvent& event);
+
     // Status info callback
     void statusCb(const ros::TimerEvent& event);
 
@@ -109,10 +112,12 @@ namespace localize
     ros::NodeHandle drive_vel_nh_;
     ros::NodeHandle drive_steer_nh;
     ros::NodeHandle sensor_nh_;
+    ros::NodeHandle estimate_nh_;
     ros::NodeHandle status_nh_;
     ros::CallbackQueue drive_vel_cb_queue_;
     ros::CallbackQueue drive_steer_cb_queue_;
     ros::CallbackQueue sensor_cb_queue_;
+    ros::CallbackQueue estimate_cb_queue_;
     ros::CallbackQueue status_cb_queue_;
     ros::Publisher pose_pub_;
     ros::Publisher pose_array_pub_;
@@ -122,9 +127,10 @@ namespace localize
     ros::AsyncSpinner drive_vel_spinner_;
     ros::AsyncSpinner drive_steer_spinner_;
     ros::AsyncSpinner sensor_spinner_;
+    ros::AsyncSpinner estimate_spinner_;
     ros::AsyncSpinner status_spinner_;
-    ros::Duration timer_cb_dur_;
     ros::Time drive_t_prev_;
+    ros::Timer estimate_timer_;
     ros::Timer status_timer_;
 
     bool publish_tf_;

@@ -214,10 +214,9 @@ void ParticleEstimateHistogram::add(const Particle& particle)
       cells_.push_back(&cell_curr);
       ++count_;
     }
+    // Flag as modified since this impacts local averaging used to determine estimates
+    update_estimates_ = count_ > 0;
   }
-  // Flag as modified since this impacts local averaging used to determine estimates
-  update_estimates_ = count_ > 0;
-
   return;
 }
 

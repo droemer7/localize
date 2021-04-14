@@ -67,6 +67,11 @@ void ParticleDistribution::update()
 
 const ParticleVector& ParticleDistribution::estimates()
 {
+  hist_.reset();
+
+  for (size_t i = 0; i < count_; ++i) {
+    hist_.add(particles_[i]);
+  }
   return hist_.estimates();
 }
 
@@ -130,7 +135,6 @@ void ParticleDistribution::calcWeightStats()
     weight_var_ = 0.0;
     double weight_normalizer = weight_sum_ > 0.0 ? 1.0 / weight_sum_ : 0.0;
     double weight_diff = 0.0;
-    hist_.reset();
 
     for (size_t i = 0; i < count_; ++i) {
       // Normalize weight
@@ -139,9 +143,6 @@ void ParticleDistribution::calcWeightStats()
       // Calculate weight variance sum
       weight_diff = particles_[i].weight_ - weight_avg_curr_;
       weight_var_ += weight_diff * weight_diff;
-
-      // Update histogram now that weight has been normalized
-      hist_.add(particles_[i]);
     }
     weight_var_ /= count_;
 
@@ -151,7 +152,6 @@ void ParticleDistribution::calcWeightStats()
   }
   else {
     // No particles, reinitialize
-    hist_.reset();
     weight_avg_curr_ = 0.0;
     weight_avg_creep_.reset(0.0);
     weight_avg_slow_.reset(0.0);

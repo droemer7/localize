@@ -48,8 +48,8 @@ MCLNode::MCLNode(const std::string& pose_topic,
   drive_vel_spinner_(1, &drive_vel_cb_queue_),
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
+  estimate_spinner_(1, &estimate_cb_queue_),
   status_spinner_(1, &status_cb_queue_),
-  timer_cb_dur_(5.0),
   drive_t_prev_(ros::Time::now()),
   tf_buffer_(ros::Duration(1)),
   tf_listener_(tf_buffer_, true, ros::TransportHints().tcpNoDelay()),
@@ -102,12 +102,12 @@ MCLNode::MCLNode(const std::string& pose_topic,
     tf_base_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
                                                    base_frame_id_,
                                                    ros::Time(0),
-                                                   ros::Duration(15.0)
+                                                   ros::Duration(30.0)
                                                   );
     tf_wheel_bl_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
                                                        wheel_bl_frame_id_,
                                                        ros::Time(0),
-                                                       ros::Duration(15.0)
+                                                       ros::Duration(30.0)
                                                       );
   }
   catch (tf2::TransformException & except) {
@@ -139,6 +139,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   drive_vel_nh_.setCallbackQueue(&drive_vel_cb_queue_);
   drive_steer_nh.setCallbackQueue(&drive_steer_cb_queue_);
   sensor_nh_.setCallbackQueue(&sensor_cb_queue_);
+  estimate_nh_.setCallbackQueue(&estimate_cb_queue_);
   status_nh_.setCallbackQueue(&status_cb_queue_);
 
   // Subscribe to topics for motor, steering servo and sensor data
@@ -160,8 +161,12 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                      this,
                                      ros::TransportHints().tcpNoDelay()
                                     );
-  // Create timer to handle printing status info
-  status_timer_ = status_nh_.createTimer(timer_cb_dur_,
+  // Create timers for estimate and status updates
+  estimate_timer_ = status_nh_.createTimer(ros::Duration(0.01),
+                                           &MCLNode::estimateCb,
+                                           this
+                                          );
+  status_timer_ = status_nh_.createTimer(ros::Duration(5.0),
                                          &MCLNode::statusCb,
                                          this
                                         );
@@ -173,6 +178,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   drive_vel_spinner_.start();
   drive_steer_spinner_.start();
   sensor_spinner_.start();
+  estimate_spinner_.start();
   status_spinner_.start();
 }
 
@@ -218,17 +224,26 @@ void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
   // Update localizer with sensor data
   mcl_ptr_->update(rayScan(msg));
 
+  // Save duration
+  sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
+                                   sensor_update_time_msec_ : sensor_update_time_worst_msec_;
+}
+
+void MCLNode::estimateCb(const ros::TimerEvent& event)
+{
   // Publish transform and pose
   if (publish_tf_) {
     publishTf();
   }
   publishPose();
   publishPoseArray();
+}
 
-  // Save duration
-  sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
-  sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
-                                   sensor_update_time_msec_ : sensor_update_time_worst_msec_;
+void MCLNode::statusCb(const ros::TimerEvent& event)
+{
+  printMotionUpdateTime(0.01);
+  printSensorUpdateTime(0.5);
 }
 
 template <class T>
@@ -334,12 +349,6 @@ void MCLNode::publishPoseArray()
     }
     pose_array_pub_.publish(pose_array_msg);
   }
-}
-
-void MCLNode::statusCb(const ros::TimerEvent& event)
-{
-  printMotionUpdateTime(0.01);
-  printSensorUpdateTime(0.5);
 }
 
 void MCLNode::printMotionUpdateTime(const double min_msec)
