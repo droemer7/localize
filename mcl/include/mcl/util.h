@@ -147,7 +147,7 @@ namespace localize
     explicit SmoothedValue(const double rate) :
       rate_(rate),
       val_(0.0),
-      initialized_(false)
+      started_(false)
     {}
 
     SmoothedValue(const double rate, const T val):
@@ -193,30 +193,31 @@ namespace localize
     operator T() const
     { return val_; }
 
-    // Update the value
+    // Update the value by applying smoothing at the configured rate
     void update(const T val)
     {
-      val_ = initialized_ ? val_ + rate_ * (val - val_) :
-                            val;
-      initialized_ = true;
+      val_ = started_ ? val_ + rate_ * (val - val_)
+                      : val;
+      started_ = true;
+
       return;
     }
 
-    // Resets the internal state so the next update will set the initial value
-    void reset()
-    { initialized_ = false; }
+    // Reset the internal value directly without smoothing
+    void set(const T val)
+    { val_ = val; }
 
-    // Resets the value to the one specified
+    // Restart smoothing and reset the internal value
     void reset(const T val)
     {
-      reset();
-      update(val);
+      started_ = false;
+      val_ = val;
     }
 
   private:
     double rate_;
     T val_;
-    bool initialized_;
+    bool started_;
   };
 
   // Approximate equality check for floating point values

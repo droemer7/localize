@@ -14,14 +14,14 @@ namespace localize
                          const Map& map          // Map
                         );
 
-    // Copies new particles to the distribution and updates size, does not do anything else
-    void copy(const ParticleVector& particles, const size_t count = 0);
+    // Populate distribution with new particle set
+    void populate(const ParticleVector& particles, const size_t count = 0);
 
-    // Update statistics and reset sampler state
-    void update();
-
-    // Update particles and statistics and reset sampler state
+    // Populate distribution with new particle set and update statistics and reset sampler
     void update(const ParticleVector& particles, const size_t count = 0);
+
+    // Update statistics and reset sampler
+    void update();
 
     // Return the top particle estimates - lower indexes are better estimates
     const ParticleVector& estimates();
@@ -29,14 +29,38 @@ namespace localize
     // Reference to a particle in the distribution
     Particle& particle(const size_t i);
 
-    // Samples a particle (with replacement) from the distribution with probability proportional to its weight
-    const Particle& sample();
-
     // Number of particles in use - in general less than particle vector size
     size_t count() const;
 
-    // Average particle weight (smoothed over several updates)
-    double weightAvg() const;
+    // Samples a particle (with replacement) from the distribution with probability proportional to its weight
+    const Particle& sample();
+
+    // Reset the particle sampler state to start from the beginning of the distribution
+    void resetSampler();
+
+    // Recalculate distribution statistics
+    void calcWeightStats();
+
+    // Reset distribution weight average history by setting all time-smoothed averages to the current actual value
+    // This does not impact any estimates
+    void resetWeightAvgHistory();
+
+    // Average particle weight, current
+    double weightAvgCurr() const;
+
+    // Average particle weight, fast rate
+    double weightAvgFast() const;
+
+    // Average particle weight, slow rate
+    double weightAvgSlow() const;
+
+    // Average particle weight, creep rate
+    double weightAvgCreep() const;
+
+    // Outputs a value [0.0, 1.0] reflecting the ratio of <weight average slow> / <weight average creep>
+    // Values less than 1.0 indicate recent confidence is worse than the past
+    // A value of 1.0 indicates recent confidence is at least as good as the past
+    double weightAvgRatio() const;
 
     // Particle weight variance
     double weightVar() const;
@@ -47,25 +71,15 @@ namespace localize
     // Particle weight relative standard deviation (i.e., standard deviation / average)
     double weightRelativeStdDev() const;
 
-    // Outputs a value [0.0, 1.0] indicating how the distribution's overall confidence is changing
-    // Values decrease from 1.0 if recent confidence is worse than in the past
-    double weightAvgRatio() const;
-
-  private:
     // Print weight statistics
     void printWeightStats() const;
-
-    // Recalculate distribution statistics
-    void calcWeightStats();
-
-    // Reset the particle sampler state to start from the beginning of the distribution
-    void resetSampler();
 
   private:
     ParticleVector particles_;  // Particles in distribution
     size_t count_;              // Number of particles in use - in general less than particle vector size
 
     double weight_sum_;               // Sum of particle weights
+    double weight_avg_curr_;          // Current weight average, no smoothing
     SmoothedWeight weight_avg_creep_; // Smoothed average particle weight, creep rate
     SmoothedWeight weight_avg_slow_;  // Smoothed average particle weight, slow rate
     SmoothedWeight weight_avg_fast_;  // Smoothed average particle weight, fast rate

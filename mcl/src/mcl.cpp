@@ -1,11 +1,11 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_LOST = 1e-9;       // Average weight below which we assume we are lost (required for random sampling)
-static const double WEIGHT_DEV_CONSISTENT = 0.5;  // Weight sigma below which the weights are considered consistent (required for resampling)
-static const double SPEED_STOPPED = 1e-6;         // Speed below which the robot is stopped (defers updates)
-static const double KLD_EPS = 0.02;               // KL distance epsilon
-static const double Z_P_01 = 2.3263478740;        // Z score for P(0.01) of Normal(0,1) distribution
-static const double F_2_9 = 2.0 / 9.0;            // Fraction 2/9
+static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-8;  // Average weight below which random sampling is performed
+static const double WEIGHT_DEV_RESAMPLE = 0.5;        // Weight standard deviation above which resampling is performed
+static const double SPEED_STOPPED = 1e-6;             // Speed below which the robot is stopped (defers updates)
+static const double KLD_EPS = 0.02;                   // KL distance epsilon
+static const double Z_P_01 = 2.3263478740;            // Z score for P(0.01) of Normal(0,1) distribution
+static const double F_2_9 = 2.0 / 9.0;                // Fraction 2/9
 
 using namespace localize;
 
@@ -56,14 +56,15 @@ MCL::MCL(const unsigned int num_particles_min,
   samples_(num_particles_max),
   hist_(map_),
   random_sample_(map_),
+  localization_reset_(false),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
   // Initialize distribution with random samples in the map's free space
   for (size_t i = 0; i < samples_.size(); ++i) {
     samples_[i] = random_sample_();
   }
-  // Copy the new samples to the distribution
-  dist_.copy(samples_, samples_.size());
+  // Populate the distribution with the sample set
+  dist_.populate(samples_, samples_.size());
 }
 
 void MCL::update(const double vel_lin,
@@ -142,11 +143,20 @@ void MCL::update()
   size_t hist_count = 0;
   size_t s = 0;
 
-  // The probability of random samples is based on the change in average confidence and decreases as the confidence
-  // improves
+  // If random sampling was performed on the last update, we relocalized the robot and can no longer compare the new
+  // distribution with any time-smoothed weight average 'history' from the old distribution.
+  // To handle this, reset the distribution's weight average history.
+  if (localization_reset_) {
+    dist_.resetWeightAvgHistory();
+    localization_reset_ = false;
+    // printStats("\n========== Sample update ==========\n");  // TBD remove
+  }
+  // Random sample probability is based on the short term vs. long term weight average: the worse the short term
+  // is compared to the long term, the more random samples are added
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
   bool resample = resampleRequired();
 
+  // Reset histogram
   hist_.reset();
 
   if (   prob_sample_random
@@ -162,6 +172,7 @@ void MCL::update()
          ) {
         samples_[s] = random_sample_();
         sensor_model_.apply(samples_[s]);
+        localization_reset_ = true;
       }
       // Draw a particle from the current distribution with probability proportional to its weight
       else {
@@ -184,8 +195,6 @@ void MCL::update()
     }
     // Update distribution with new sample set
     dist_.update(samples_, s);
-    // printStats("\n===== Sample update =====\n");         // TBD remove
-    // printf("Prob random = %.2e\n", prob_sample_random);  // TBD remove
   }
   return;
 }
@@ -193,13 +202,13 @@ void MCL::update()
 bool MCL::resampleRequired()
 {
   RecursiveLock lock(dist_mtx_);
-  return dist_.weightRelativeStdDev() > WEIGHT_DEV_CONSISTENT;
+  return dist_.weightRelativeStdDev() > WEIGHT_DEV_RESAMPLE;
 }
 
 bool MCL::randomSampleRequired()
 {
   RecursiveLock lock(dist_mtx_);
-  return dist_.weightAvg() < WEIGHT_AVG_LOST;
+  return dist_.weightAvgFast() < WEIGHT_AVG_RANDOM_SAMPLE;
 }
 
 void MCL::save(const std::string filename,
@@ -234,6 +243,6 @@ void MCL::printStats(const std::string& header) const
 {
   printf("%s", header.c_str());
   printf("Sample size = %lu\n", dist_.count());
-  printf("Weight average = %.2e\n", dist_.weightAvg());
+  printf("Weight average fast = %.2e\n", dist_.weightAvgFast());
   printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());
 }

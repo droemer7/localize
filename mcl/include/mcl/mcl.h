@@ -89,14 +89,16 @@ namespace localize
     double car_base_to_sensor_frame_x_;   // Car base to sensor frame x translation
     double car_base_to_sensor_frame_y_;   // Car base to sensor frame y translation
     double car_base_to_sensor_frame_th_;  // Car base to sensor frame rotation
-    const Map map_;          // Map
-    VelModel motion_model_;  // Motion model
-    BeamModel sensor_model_; // Sensor model
+
+    const Map map_;                       // Map
+    VelModel motion_model_;               // Motion model
+    BeamModel sensor_model_;              // Sensor model
 
     ParticleDistribution dist_;           // Particle distribution in the sensor frame
     ParticleVector samples_;              // Sampled particles (temporary storage)
     ParticleOccupancyHistogram hist_;     // Histogram for estimating probability distribution complexity
     ParticleRandomSampler random_sample_; // Random particle sampler, generates samples in free space based on the map
+    bool localization_reset_;             // Indicates localization was reset by random sampling in the last update
 
     RNG rng_; // Random number generator
     std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])
