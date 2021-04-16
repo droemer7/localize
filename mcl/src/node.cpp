@@ -162,7 +162,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                      ros::TransportHints().tcpNoDelay()
                                     );
   // Create timers for estimate and status updates
-  estimate_timer_ = status_nh_.createTimer(ros::Duration(0.01),
+  estimate_timer_ = status_nh_.createTimer(ros::Duration(0.02),
                                            &MCLNode::estimateCb,
                                            this
                                           );

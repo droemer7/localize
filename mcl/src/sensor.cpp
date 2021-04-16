@@ -1,6 +1,6 @@
 #include "mcl/sensor.h"
 
-static const float RANGE_STD_DEV = 0.25;                      // Standard deviation in range measurements
+static const float RANGE_STD_DEV = 0.3;                       // Standard deviation in range measurements
 static const float NEW_OBJ_DECAY_RATE = 0.5;                  // Decay rate for new / unexpected object probability
 static const double WEIGHT_NO_OBJ = 15.0;                     // Weight for no object detected probability
 static const double WEIGHT_NEW_OBJ = 5.0;                     // Weight for new / unexpected object probability
