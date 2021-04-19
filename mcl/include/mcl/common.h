@@ -15,6 +15,7 @@
 
 namespace localize
 {
+  class Point;
   class Pose;
   class Particle;
   class Ray;
@@ -26,6 +27,7 @@ namespace localize
   typedef std::lock_guard<std::mutex> Lock;
   typedef std::lock_guard<std::recursive_mutex> RecursiveLock;
 
+  typedef std::vector<Point> PointVector;
   typedef std::vector<Pose> PoseVector;
   typedef std::vector<Particle> ParticleVector;
   typedef std::vector<Ray> RayVector;
@@ -35,26 +37,44 @@ namespace localize
   extern const unsigned int SENSOR_TH_SAMPLE_COUNT; // Number of samples per ray scan (count per revolution)
   extern const std::string DATA_PATH;               // Full path to directory for saving data
 
-  // Robot location (x, y) and orientation (heading angle theta)
-  struct Pose
+  // 2D point (x, y)
+  struct Point
   {
-    explicit Pose(const double x = 0.0, // X position (meters)
-                  const double y = 0.0, // Y position (meters)
-                  const double th = 0.0 // Heading angle (rad)
+    explicit Point(const double x = 0.0, // X position
+                   const double y = 0.0  // Y position
+                  );
+
+    double x_;  // X position
+    double y_;  // Y position
+  };
+
+  // 2D point (x, y) and angle of orientation
+  struct Pose : public Point
+  {
+    explicit Pose(const Point& point,   // Point (x, y)
+                  const double th = 0.0 // Angle
                  );
 
-    double x_;  // X position (meters)
-    double y_;  // Y position (meters)
-    double th_; // Heading angle (rad)
+    explicit Pose(const double x = 0.0, // X position
+                  const double y = 0.0, // Y position
+                  const double th = 0.0 // Angle
+                 );
+
+    double th_; // Angle
   };
 
   // Weighted pose estimate
-  struct Particle : Pose
+  struct Particle : public Pose
   {
     // Constructors
-    explicit Particle(const double x = 0.0,             // X position (meters)
-                      const double y = 0.0,             // Y position (meters)
-                      const double th = 0.0,            // Heading angle (rad)
+    explicit Particle(const Pose& pose,                 // Pose (x, y, angle)
+                      const double weight = 0.0,        // Importance weight
+                      const double weight_normed = 0.0  // Normalized importance weight
+                     );
+
+    explicit Particle(const double x = 0.0,             // X position
+                      const double y = 0.0,             // Y position
+                      const double th = 0.0,            // Angle
                       const double weight = 0.0,        // Importance weight
                       const double weight_normed = 0.0  // Normalized importance weight
                      );
@@ -90,12 +110,12 @@ namespace localize
   struct Ray
   {
     // Constructors
-    explicit Ray(const float range = 0.0, // Range (meters)
-                 const float th = 0.0     // Angle (rad)
+    explicit Ray(const float range = 0.0, // Range
+                 const float th = 0.0     // Angle
                 );
 
-    float range_; // Range (meters)
-    float th_;    // Angle (rad)
+    float range_; // Range
+    float th_;    // Angle
   };
 
   // A ray with cumulative probabilities for p(new object) and p(all)
@@ -103,8 +123,8 @@ namespace localize
   struct RaySample : Ray
   {
     // Constructors
-    explicit RaySample(const float range = 0.0,               // Range (meters)
-                       const float th = 0.0,                  // Angle (rad)
+    explicit RaySample(const float range = 0.0,               // Range
+                       const float th = 0.0,                  // Angle
                        const double weight_new_obj_sum = 0.0, // Sum of weights across the distribution for this angle representing a new / unexpected object
                        const double weight_sum = 0.0          // Sum of weights across the distribution for this angle
                       );
@@ -128,48 +148,84 @@ namespace localize
     explicit RayScan(size_t num_rays);
 
     RayVector rays_;  // Vector of rays data
-    float th_inc_;    // Angle increment between ray elements (rad per index)
+    float th_inc_;    // Angle increment between ray elements (angle per index)
     float t_inc_;     // Time increment between ray elements (sec per index)
     float t_dur_;     // Scan duration (sec)
   };
 
-  // Map class constructed with ROS coordinate space conversion parameters
-  // Used by RangeLib
-  class Map : public ranges::OMap
+  // Occupancy grid map
+  class Map : private ranges::OMap
   {
   public:
     // Constructor
-    Map(const unsigned int pxl_width,   // Number of pixels along x axis
-        const unsigned int pxl_height,  // Number of pixels along y axis
-        const float x_origin,           // X translation of origin (cell 0,0) relative to world frame (meters)
-        const float y_origin,           // Y translation of origin (cell 0,0) relative to world frame (meters)
-        const float th_origin,          // Angle relative to world frame (rad)
-        const float scale,              // Scale relative to world frame (meters per pixel)
-        const std::vector<int8_t> data  // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+    Map(const unsigned int width,           // Length of x axis (pixels)
+        const unsigned int height,          // Length of y axis (pixels)
+        const double x_origin_world,        // X translation of origin (cell 0,0) relative to world frame (meters)
+        const double y_origin_world,        // Y translation of origin (cell 0,0) relative to world frame (meters)
+        const double th_world,              // Angle relative to world frame (rad)
+        const double scale_world,           // Scale relative to world frame (meters per pixel)
+        const std::vector<int8_t>& occ_data // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
-    // Return true if the point (x, y) (meters) is in an occupied space (out of bounds is considered occupied)
-    bool occupied(float x, float y) const;
+    // Return true if a point (in the map frame) is in an occupied space (out of bounds is considered occupied)
+    bool occupied(const Point& point) const;
+
+    // Length of x axis (pixels)
+    unsigned int width() const;
+
+    // Length of y axis (pixels)
+    unsigned int height() const;
+
+    // X translation of origin (cell 0,0) relative to world frame (meters)
+    double xOriginWorld() const;
+
+    // Y translation of origin (cell 0,0) relative to world frame (meters)
+    double yOriginWorld() const;
+
+    // Angle relative to world frame
+    double thWorld() const;
+
+    // Sin of angle relative to world frame
+    double sinThWorld() const;
+
+    // Cos of angle relative to world frame
+    double cosThWorld() const;
+
+    // Scale relative to world frame (meters per pixel)
+    double scaleWorld() const;
+
   };
 
-  // A sampler which chooses a random particle in free space
-  class ParticleRandomSampler
+  // Transform a point in the world frame to the map frame
+  Point worldToMap(const Map& map, const Point& point_world);
+
+  // Transform a pose in the world frame to the map frame
+  Pose worldToMap(const Map& map, const Pose& pose_world);
+
+  // Transform a point in the map frame to the world frame
+  Point mapToWorld(const Map& map, const Point& point_map);
+
+  // Transform a pose in the map frame to the world frame
+  Pose mapToWorld(const Map& map, const Pose& pose_map);
+
+  // A sampler which chooses a random pose in free space
+  class PoseRandomSampler
   {
   public:
     // Constructors
-    explicit ParticleRandomSampler(const Map& map);
+    explicit PoseRandomSampler(const Map& map);
 
-    // Generates a random particle in free space
-    Particle operator()();
+    // Generate a random pose in free space
+    Pose operator()();
 
   private:
-    const Map& map_;  // Occupancy map
+    const Map& map_; // Occupancy map
 
     RNG rng_; // Random number generator
 
-    std::uniform_real_distribution<double> x_dist_;   // Distribution of map x locations relative to world frame
-    std::uniform_real_distribution<double> y_dist_;   // Distribution of map y locations relative to world frame
-    std::uniform_real_distribution<double> th_dist_;  // Distribution of theta (-pi, +pi] relative to world frame
+    std::uniform_real_distribution<double> x_dist_;   // Distribution of x locations in map frame [0, width)
+    std::uniform_real_distribution<double> y_dist_;   // Distribution of y locations in map frame [0, height)
+    std::uniform_real_distribution<double> th_dist_;  // Distribution of theta in map frame (-pi, pi]
   };
 
   // Print particle state

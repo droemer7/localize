@@ -3,42 +3,46 @@
 static const size_t NUM_ESTIMATES = 5;                    // Number of pose estimates to provide
 static const double ESTIMATE_MERGE_DXY_MAX = 0.10;        // Maximum x or y delta for two estimates to be combined
 static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 72.0; // Maximum angular delta for two estimates to be combined
-static const double HIST_OCCUPANCY_POS_RES = 0.10;        // Occupancy histogram resolution for x and y position (meters per cell)
+static const double HIST_OCCUPANCY_XY_RES = 0.10;         // Occupancy histogram resolution for x and y position (meters per cell)
 static const double HIST_OCCUPANCY_TH_RES = L_PI / 18.0;  // Occupancy histogram resolution for heading angle (rad per cell)
-static const double HIST_ESTIMATE_POS_RES = 0.25;         // Estimate histogram resolution for x and y position (meters per cell)
+static const double HIST_ESTIMATE_XY_RES = 0.25;          // Estimate histogram resolution for x and y position (meters per cell)
 static const double HIST_ESTIMATE_TH_RES = L_PI / 4.0;    // Estimate histogram resolution for heading angle (rad per cell)
 
 using namespace localize;
 
-// ========== ParticleOccupancyHistogram ========== //
-ParticleOccupancyHistogram::ParticleOccupancyHistogram(const Map& map) :
-  x_size_(std::round(map.width * map.scale / HIST_OCCUPANCY_POS_RES)),
-  y_size_(std::round(map.height * map.scale / HIST_OCCUPANCY_POS_RES)),
-  th_size_(std::round(L_2PI / HIST_OCCUPANCY_TH_RES)),
-  x_origin_(map.x_origin),
-  y_origin_(map.y_origin),
-  th_origin_(map.th_origin),
+// ========== PoseOccupancyHistogram ========== //
+PoseOccupancyHistogram::PoseOccupancyHistogram(const Map& map) :
+  map_(map),
+  xy_scale_(map.scaleWorld() / HIST_OCCUPANCY_XY_RES),
+  th_scale_(1.0 / HIST_OCCUPANCY_TH_RES),
+  x_size_(std::round(map.width() * xy_scale_)),
+  y_size_(std::round(map.height() * xy_scale_)),
+  th_size_(std::round(L_2PI * th_scale_)),
   hist_(x_size_ * y_size_ * th_size_, false),
   count_(0)
 {}
 
-bool ParticleOccupancyHistogram::add(const Particle& particle)
+bool PoseOccupancyHistogram::add(const Pose& pose)
 {
   bool count_increased = false;
 
   // Calculate index
-  long x_i = (particle.x_ - x_origin_) / HIST_OCCUPANCY_POS_RES;
-  long y_i = (particle.y_ - y_origin_) / HIST_OCCUPANCY_POS_RES;
-  long th_i = particle.th_ >= th_origin_ ? (particle.th_ - th_origin_) / HIST_OCCUPANCY_TH_RES
-                                         : (particle.th_ - th_origin_ + L_2PI) / HIST_OCCUPANCY_TH_RES;
+  // Convert pose from world to map frame
+  Pose pose_map = worldToMap(map_, pose);
 
-  // Ignore particles out of bounds
+  // Rescale into histogram resolution
+  // Since x and y scale must be equal for an occupancy grid, order of rotating and scaling doesn't matter
+  long x_i = pose_map.x_ * xy_scale_;
+  long y_i = pose_map.y_ * xy_scale_;
+  long th_i = pose_map.th_ * th_scale_ + L_PI;
+
+  // Ignore poses out of bounds
   if(   0 <= x_i  && x_i  < x_size_
      && 0 <= y_i  && y_i  < y_size_
      && 0 <= th_i && th_i < th_size_
      && !cell(x_i, y_i, th_i)
     ) {
-    // Add particle to histogram in the corresponding cell
+    // Add pose to histogram in the corresponding cell
     cell(x_i, y_i, th_i) = true;
     count_increased = true;
     ++count_;
@@ -46,12 +50,7 @@ bool ParticleOccupancyHistogram::add(const Particle& particle)
   return count_increased;
 }
 
-size_t ParticleOccupancyHistogram::count() const
-{
-  return count_;
-}
-
-void ParticleOccupancyHistogram::reset()
+void PoseOccupancyHistogram::reset()
 {
   if (count_ > 0) {
     std::fill(hist_.begin(), hist_.end(), false);
@@ -59,7 +58,12 @@ void ParticleOccupancyHistogram::reset()
   }
 }
 
-std::vector<bool>::reference ParticleOccupancyHistogram::cell(const size_t x_i,
+size_t PoseOccupancyHistogram::count() const
+{
+  return count_;
+}
+
+std::vector<bool>::reference PoseOccupancyHistogram::cell(const size_t x_i,
                                                               const size_t y_i,
                                                               const size_t th_i
                                                              )
@@ -180,12 +184,12 @@ bool localize::cellEstimateGreater(const ParticleEstimateHistogramCell* lhs,
 
 // ========== ParticleEstimateHistogram ========== //
 ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
-  x_size_(std::round(map.width * map.scale / HIST_ESTIMATE_POS_RES)),
-  y_size_(std::round(map.height * map.scale / HIST_ESTIMATE_POS_RES)),
-  th_size_(std::round(L_2PI / HIST_ESTIMATE_TH_RES)),
-  x_origin_(map.x_origin),
-  y_origin_(map.y_origin),
-  th_origin_(map.th_origin),
+  map_(map),
+  xy_scale_(map.scaleWorld() / HIST_ESTIMATE_XY_RES),
+  th_scale_(1.0 / HIST_ESTIMATE_TH_RES),
+  x_size_(std::round(map.width() * xy_scale_)),
+  y_size_(std::round(map.height() * xy_scale_)),
+  th_size_(std::round(L_2PI * th_scale_)),
   hist_(x_size_ * y_size_ * th_size_),
   estimates_(NUM_ESTIMATES),
   update_estimates_(false),
@@ -195,10 +199,14 @@ ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
 void ParticleEstimateHistogram::add(const Particle& particle)
 {
   // Calculate index
-  long x_i = (particle.x_ - x_origin_) / HIST_ESTIMATE_POS_RES;
-  long y_i = (particle.y_ - y_origin_) / HIST_ESTIMATE_POS_RES;
-  long th_i = particle.th_ >= th_origin_ ? (particle.th_ - th_origin_) / HIST_ESTIMATE_TH_RES
-                                         : (particle.th_ - th_origin_ + L_2PI) / HIST_ESTIMATE_TH_RES;
+  // Convert pose from world to map frame
+  Pose pose_map = worldToMap(map_, particle);
+
+  // Rescale into histogram resolution
+  // Since x and y scale must be equal for an occupancy grid, order of rotating and scaling doesn't matter
+  long x_i = pose_map.x_ * xy_scale_;
+  long y_i = pose_map.y_ * xy_scale_;
+  long th_i = pose_map.th_ * th_scale_ + L_PI;
 
   // Ignore particles out of bounds
   if(   0 <= x_i  && x_i  < x_size_

@@ -18,7 +18,13 @@ using namespace localize;
 BeamModel::BeamModel(const float range_min,
                      const float range_max,
                      const float range_no_obj,
-                     const Map& map
+                     const unsigned int map_width,
+                     const unsigned int map_height,
+                     const float map_x_origin_world,
+                     const float map_y_origin_world,
+                     const float map_th_world,
+                     const float map_scale_world,
+                     const std::vector<int8_t>& map_data
                     ) :
   range_min_(range_min),
   range_max_(range_max),
@@ -39,8 +45,15 @@ BeamModel::BeamModel(const float range_min,
   weight_table_new_obj_(weight_table_size_, std::vector<double>(weight_table_size_)),
   weight_table_(weight_table_size_, std::vector<double>(weight_table_size_)),
   rays_obs_sample_(SENSOR_TH_SAMPLE_COUNT),
-  raycaster_(map,
-             range_max / map.scale,
+  raycaster_(ranges::OMap(map_width,
+                          map_height,
+                          map_x_origin_world,
+                          map_y_origin_world,
+                          map_th_world,
+                          map_scale_world,
+                          map_data
+                         ),
+             range_max / map_scale_world,
              TH_RAYCAST_COUNT
             ),
   th_sample_dist_(0.0, L_2PI / SENSOR_TH_SAMPLE_COUNT)

@@ -10,27 +10,52 @@ using namespace localize;
 const unsigned int localize::SENSOR_TH_SAMPLE_COUNT = 8;
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/mcl/data/";
 
+// ========== Point ========== //
+Point::Point(const double x,
+             const double y
+            ):
+  x_(x),
+  y_(y)
+{}
+
 // ========== Pose ========== //
+Pose::Pose(const Point& point,
+           const double th
+          ):
+  Point(point),
+  th_(th)
+{}
+
 Pose::Pose(const double x,
            const double y,
            const double th
           ):
-  x_(x),
-  y_(y),
-  th_(th)
+  Pose(Point(x, y),
+       th
+      )
 {}
 
 // ========== Particle ========== //
+Particle::Particle(const Pose& pose,
+                   const double weight,
+                   const double weight_normed
+                  ):
+  Pose(pose),
+  weight_(weight),
+  weight_normed_(weight_normed),
+  weights_(SENSOR_TH_SAMPLE_COUNT, 0.0)
+{}
+
 Particle::Particle(const double x,
                    const double y,
                    const double th,
                    const double weight,
                    const double weight_normed
                   ):
-  Pose(x, y, th),
-  weight_(weight),
-  weight_normed_(weight_normed),
-  weights_(SENSOR_TH_SAMPLE_COUNT, 0.0)
+  Particle(Pose(x, y, th),
+           weight,
+           weight_normed
+          )
 {}
 
 int Particle::compare(const Particle& lhs, const Particle& rhs) const
@@ -88,63 +113,135 @@ RayScan::RayScan(size_t num_rays) :
 {}
 
 // ========== Map ========== //
-// Note: This was derived from RangeLib author's definition of PyOMap in RangLibc.pyx
-Map::Map(const unsigned int pxl_width,
-         const unsigned int pxl_height,
-         const float x_origin,
-         const float y_origin,
-         const float th_origin,
-         const float scale,
-         const std::vector<int8_t> data
+Map::Map(const unsigned int width,
+         const unsigned int height,
+         const double x_origin_world,
+         const double y_origin_world,
+         const double th_world,
+         const double scale_world,
+         const std::vector<int8_t>& occ_data
         ) :
-  ranges::OMap(pxl_height, pxl_width) // Note: flip height and width for OMap's different definition
+  OMap(width,
+       height,
+       x_origin_world,
+       y_origin_world,
+       th_world,
+       scale_world,
+       occ_data
+      )
+{}
+
+bool Map::occupied(const Point& point) const
 {
-  for (int i = 0; i < pxl_height; ++i) {
-    for (int j = 0; j < pxl_width; ++j) {
-      if (data[i * pxl_width + j] > 10) {
-        grid[i][j] = true;
-      }
-    }
-  }
-  this->x_origin = x_origin;
-  this->y_origin = y_origin;
-  this->th_origin = -th_origin;
-  this->sin_th = std::sin(-th_origin);
-  this->cos_th = std::cos(-th_origin);
-  this->scale = scale;
+  return isOccupiedNT(point.y_, point.x_);
 }
 
-bool Map::occupied(float x, float y) const
+unsigned int Map::width() const
 {
-  rosWorldToGrid(x, y); // Convert x and y to RangeLib's grid space
-
-  return isOccupiedNT(x, y); // Check RangeLib's grid for occupancy
+  return OMap::width;
 }
 
-// ========== ParticleRandomSampler ========== //
-ParticleRandomSampler::ParticleRandomSampler(const Map& map) :
+unsigned int Map::height() const
+{
+  return OMap::height;
+}
+
+double Map::xOriginWorld() const
+{
+  return OMap::x_origin_world;
+}
+
+double Map::yOriginWorld() const
+{
+  return OMap::y_origin_world;
+}
+
+double Map::thWorld() const
+{
+  return OMap::th_world;
+}
+
+double Map::sinThWorld() const
+{
+  return OMap::sin_th_world;
+}
+
+double Map::cosThWorld() const
+{
+  return OMap::cos_th_world;
+}
+
+double Map::scaleWorld() const
+{
+  return OMap::scale_world;
+}
+
+Point localize::worldToMap(const Map& map, const Point& point_world)
+{
+  Point point_map;
+
+  // Translate and rescale
+  point_map.x_ = (point_world.x_ - map.xOriginWorld()) / map.scaleWorld();
+  point_map.y_ = (point_world.y_ - map.yOriginWorld()) / map.scaleWorld();
+
+  // Rotate
+  double temp_map_x = point_map.x_;
+  point_map.x_ =   map.cosThWorld() * point_map.x_ + map.sinThWorld() * point_map.y_;
+  point_map.y_ = - map.sinThWorld() * temp_map_x   + map.cosThWorld() * point_map.y_;
+
+  return point_map;
+}
+
+Pose localize::worldToMap(const Map& map, const Pose& pose_world)
+{
+  return Pose(worldToMap(map, Point(pose_world.x_, pose_world.y_)), // Transform point
+              wrapAngle(pose_world.th_ - map.thWorld())             // Transform angle
+             );
+}
+
+Point localize::mapToWorld(const Map& map, const Point& point_map)
+{
+  Point point_world;
+
+  // Rotate
+  point_world.x_ = map.cosThWorld() * point_map.x_ - map.sinThWorld() * point_map.y_;
+  point_world.y_ = map.sinThWorld() * point_map.x_ + map.cosThWorld() * point_map.y_;
+
+  // Rescale and translate
+  point_world.x_ = point_world.x_ * map.scaleWorld() + map.xOriginWorld();
+  point_world.y_ = point_world.y_ * map.scaleWorld() + map.yOriginWorld();
+
+  return point_world;
+}
+
+Pose localize::mapToWorld(const Map& map, const Pose& pose_map)
+{
+  return Pose(mapToWorld(map, Point(pose_map.x_, pose_map.y_)), // Transform point (x, y)
+              wrapAngle(pose_map.th_ + map.thWorld())           // Transform angle
+             );
+}
+
+// ========== PoseRandomSampler ========== //
+PoseRandomSampler::PoseRandomSampler(const Map& map) :
   map_(map),
-  x_dist_(map_.x_origin, map_.width * map_.scale + map_.x_origin),
-  y_dist_(map_.y_origin, map_.height * map_.scale + map_.y_origin),
+  x_dist_(0.0, map_.width()),
+  y_dist_(0.0, map_.height()),
   th_dist_(std::nextafter(-L_PI, std::numeric_limits<double>::max()),
            std::nextafter(L_PI, std::numeric_limits<double>::max())
           )
 {}
 
-Particle ParticleRandomSampler::operator()()
+Pose PoseRandomSampler::operator()()
 {
-  Particle particle;
+  Pose pose(0.0, 0.0, th_dist_(rng_.engine()));
   bool occupied = true;
 
-  // Regenerate x & y until free space is found
+  // Generate x & y in map frame until free space is found
   while (occupied) {
-    particle.x_ = x_dist_(rng_.engine());
-    particle.y_ = y_dist_(rng_.engine());
-    occupied = map_.occupied(particle.x_, particle.y_);
+    pose.x_ = x_dist_(rng_.engine());
+    pose.y_ = y_dist_(rng_.engine());
+    occupied = map_.occupied(pose);
   }
-  // Any theta is allowed
-  particle.th_ = th_dist_(rng_.engine());
-
-  // Particle weight is 0.0 until determined by the sensor model
-  return particle;
+  // Convert pose from map to world frame
+  return mapToWorld(map_, pose);
 }

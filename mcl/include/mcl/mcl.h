@@ -31,11 +31,11 @@ namespace localize
         const float sensor_range_no_obj,          // Sensor range reported when nothing is detected
         const unsigned int map_width,             // Map number of pixels along x axis
         const unsigned int map_height,            // Map number of pixels along y axis
-        const float map_x_origin,                 // Map x translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_y_origin,                 // Map y translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_th,                       // Map angle relative to world frame (read)
-        const float map_scale,                    // Map scale relative to world frame (meters per pixel)
-        const std::vector<int8_t> map_data        // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+        const float map_x_origin_world,           // Map x translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_y_origin_world,           // Map y translation of origin (cell 0,0) relative to world frame (meters)
+        const float map_th_world,                 // Map angle relative to world frame (read)
+        const float map_scale_world,              // Map scale relative to world frame (meters per pixel)
+        const std::vector<int8_t>& map_data       // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
        );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
@@ -90,15 +90,15 @@ namespace localize
     double car_base_to_sensor_frame_y_;   // Car base to sensor frame y translation
     double car_base_to_sensor_frame_th_;  // Car base to sensor frame rotation
 
-    const Map map_;                       // Map
-    VelModel motion_model_;               // Motion model
-    BeamModel sensor_model_;              // Sensor model
+    const Map map_;           // Map
+    VelModel motion_model_;   // Motion model
+    BeamModel sensor_model_;  // Sensor model
 
-    ParticleDistribution dist_;           // Particle distribution in the sensor frame
-    ParticleVector samples_;              // Sampled particles (temporary storage)
-    ParticleOccupancyHistogram hist_;     // Histogram for estimating probability distribution complexity
-    ParticleRandomSampler random_sample_; // Random particle sampler, generates samples in free space based on the map
-    bool localization_reset_;             // Indicates localization was reset by random sampling in the last update
+    ParticleDistribution dist_;     // Particle distribution in the sensor frame
+    ParticleVector samples_;        // Sampled particles (temporary storage)
+    PoseOccupancyHistogram hist_;   // Histogram for estimating probability distribution complexity
+    PoseRandomSampler random_pose_; // Random pose sampler, generates samples in free space based on the map
+    bool localization_reset_;       // Indicates localization was reset by random sampling in the last update
 
     RNG rng_; // Random number generator
     std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])

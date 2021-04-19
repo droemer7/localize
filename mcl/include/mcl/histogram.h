@@ -6,21 +6,21 @@
 namespace localize
 {
   // Histogram representing occupancy of pose space (x, y, th)
-  class ParticleOccupancyHistogram
+  class PoseOccupancyHistogram
   {
   public:
     // Constructors
-    ParticleOccupancyHistogram(const Map& map);  // Map
+    PoseOccupancyHistogram(const Map& map);  // Map
 
     // Update histogram occupancy with the particle's pose
     // Returns true if the particle fell into a new (unoccupied) cell, increasing the occupancy count
-    bool add(const Particle& particle);
-
-    // Histogram occupancy count
-    size_t count() const;
+    bool add(const Pose& pose);
 
     // Reset cell states and occupancy count
     void reset();
+
+    // Histogram occupancy count
+    size_t count() const;
 
   private:
     // Reference a cell by index
@@ -29,12 +29,13 @@ namespace localize
                                       const size_t th_i
                                      );
   private:
+    const Map& map_;          // Map the histogram represents
+
+    const double xy_scale_;   // Scale of histogram x and y dimensions relative to map frame (cells per map pixel)
+    const double th_scale_;   // Scale of histogram angular dimension (cells per rad)
     const size_t x_size_;     // Size of x dimension (number of elements)
     const size_t y_size_;     // Size of y dimension (number of elements)
     const size_t th_size_;    // Size of angular dimension (number of elements)
-    const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
-    const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
-    const double th_origin_;  // Angle relative to world frame (rad, range 0 to 2pi)
 
     std::vector<bool> hist_;  // Histogram
     size_t count_;            // Histogram occupancy count
@@ -129,12 +130,13 @@ namespace localize
                                         const size_t th_i
                                        );
   private:
+    const Map& map_;          // Map the histogram represents
+
+    const double xy_scale_;   // Scale of histogram x and y dimensions relative to map frame (cells per map pixel)
+    const double th_scale_;   // Scale of histogram angular dimension (cells per rad)
     const size_t x_size_;     // Size of x dimension (number of elements)
     const size_t y_size_;     // Size of y dimension (number of elements)
     const size_t th_size_;    // Size of angular dimension (number of elements)
-    const double x_origin_;   // X translation of origin (cell 0,0) relative to world frame (meters)
-    const double y_origin_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
-    const double th_origin_;  // Angle relative to world frame (rad)
 
     std::vector<ParticleEstimateHistogramCell> hist_;   // Histogram
     std::vector<ParticleEstimateHistogramCell*> cells_; // Pointers to populated cells

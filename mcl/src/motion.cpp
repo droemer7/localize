@@ -64,9 +64,8 @@ void VelModel::apply(ParticleDistribution& dist,
   double th_noise = 0.0;
   double vel_lin_adj = 0.0;
   double vel_ang_adj = 0.0;
-
-  double particle_new_x = 0.0;
-  double particle_new_y = 0.0;
+  double x = 0.0;
+  double y = 0.0;
 
   // Apply to each particle in the distribution
   for (size_t i = 0; i < dist.count(); ++i) {
@@ -80,21 +79,21 @@ void VelModel::apply(ParticleDistribution& dist,
     vel_ang_adj = vel_ang + vel_ang_noise;
 
     // Calculate new x and y using noisy velocities
-    particle_new_x = dist.particle(i).x_ + (  (vel_lin_adj / vel_ang_adj)
-                                            * (- std::sin(dist.particle(i).th_)
-                                               + std::sin(dist.particle(i).th_ + vel_ang_adj * dt)
-                                              )
-                                           );
-    particle_new_y = dist.particle(i).y_ + (  (vel_lin_adj / vel_ang_adj)
-                                            * (  std::cos(dist.particle(i).th_)
-                                               - std::cos(dist.particle(i).th_ + vel_ang_adj * dt)
-                                              )
-                                           );
-    // Position validity check: only move particle if landed in free space
-    if (!map_.occupied(particle_new_x, particle_new_y)) {
+    x = dist.particle(i).x_ + (  (vel_lin_adj / vel_ang_adj)
+                               * (- std::sin(dist.particle(i).th_)
+                                  + std::sin(dist.particle(i).th_ + vel_ang_adj * dt)
+                                 )
+                              );
+    y = dist.particle(i).y_ + (  (vel_lin_adj / vel_ang_adj)
+                               * (  std::cos(dist.particle(i).th_)
+                                  - std::cos(dist.particle(i).th_ + vel_ang_adj * dt)
+                                 )
+                              );
+    // Position validity check: only move particle if it landed in free space
+    if (!map_.occupied(worldToMap(map_, Point(x, y)))) {
       // New position is valid
-      dist.particle(i).x_ = particle_new_x;
-      dist.particle(i).y_ = particle_new_y;
+      dist.particle(i).x_ = x;
+      dist.particle(i).y_ = y;
 
       // Calculate new orientation, adding additional noise
       dist.particle(i).th_ += (vel_ang_adj + th_noise) * dt;
