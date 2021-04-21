@@ -76,14 +76,10 @@ const ParticleVector& ParticleDistribution::estimates()
 }
 
 Particle& ParticleDistribution::particle(const size_t i)
-{
-  return particles_[i];
-}
+{ return particles_[i]; }
 
 size_t ParticleDistribution::count() const
-{
-  return count_;
-}
+{ return count_; }
 
 const Particle& ParticleDistribution::sample()
 {
@@ -171,24 +167,16 @@ void ParticleDistribution::resetWeightAvgHistory()
 }
 
 double ParticleDistribution::weightAvgCurr() const
-{
-  return weight_avg_curr_;
-}
+{ return weight_avg_curr_;}
 
 double ParticleDistribution::weightAvgFast() const
-{
-  return weight_avg_fast_;
-}
+{ return weight_avg_fast_;}
 
 double ParticleDistribution::weightAvgSlow() const
-{
-  return weight_avg_slow_;
-}
+{ return weight_avg_slow_;}
 
 double ParticleDistribution::weightAvgCreep() const
-{
-  return weight_avg_creep_;
-}
+{ return weight_avg_creep_;}
 
 double ParticleDistribution::weightAvgRatio() const
 {
@@ -200,19 +188,13 @@ double ParticleDistribution::weightAvgRatio() const
 }
 
 double ParticleDistribution::weightVar() const
-{
-  return weight_var_;
-}
+{ return weight_var_;}
 
 double ParticleDistribution::weightStdDev() const
-{
-  return weight_std_dev_;
-}
+{ return weight_std_dev_;}
 
 double ParticleDistribution::weightRelativeStdDev() const
-{
-  return weight_relative_std_dev_;
-}
+{ return weight_relative_std_dev_;}
 
 void ParticleDistribution::printWeightStats() const
 {

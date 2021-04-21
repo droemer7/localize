@@ -18,13 +18,7 @@ using namespace localize;
 BeamModel::BeamModel(const float range_min,
                      const float range_max,
                      const float range_no_obj,
-                     const unsigned int map_width,
-                     const unsigned int map_height,
-                     const float map_x_origin_world,
-                     const float map_y_origin_world,
-                     const float map_th_world,
-                     const float map_scale_world,
-                     const std::vector<int8_t>& map_data
+                     const Map& map
                     ) :
   range_min_(range_min),
   range_max_(range_max),
@@ -45,15 +39,15 @@ BeamModel::BeamModel(const float range_min,
   weight_table_new_obj_(weight_table_size_, std::vector<double>(weight_table_size_)),
   weight_table_(weight_table_size_, std::vector<double>(weight_table_size_)),
   rays_obs_sample_(SENSOR_TH_SAMPLE_COUNT),
-  raycaster_(ranges::OMap(map_width,
-                          map_height,
-                          map_x_origin_world,
-                          map_y_origin_world,
-                          map_th_world,
-                          map_scale_world,
-                          map_data
+  raycaster_(ranges::OMap(map.xSize(),
+                          map.ySize(),
+                          map.xOriginWorld(),
+                          map.yOriginWorld(),
+                          map.thWorld(),
+                          map.scaleWorld(),
+                          map.data()
                          ),
-             range_max / map_scale_world,
+             range_max / map.scaleWorld(),
              TH_RAYCAST_COUNT
             ),
   th_sample_dist_(0.0, L_2PI / SENSOR_TH_SAMPLE_COUNT)
@@ -93,7 +87,6 @@ void BeamModel::apply(Particle& particle, const bool calc_enable)
   }
   // Update full weight, applying overall model uncertainty
   particle.weight_ = std::pow(weight, WEIGHT_UNCERTAINTY_FACTOR);
-  return;
 }
 
 void BeamModel::apply(ParticleDistribution& dist, const bool calc_enable)
@@ -107,8 +100,6 @@ void BeamModel::apply(ParticleDistribution& dist, const bool calc_enable)
 
   // Recalculate weight statistics
   dist.update();
-
-  return;
 }
 
 void BeamModel::apply(ParticleDistribution& dist,
@@ -121,8 +112,6 @@ void BeamModel::apply(ParticleDistribution& dist,
 
   // Calculate particle weights
   apply(dist, calc_enable);
-
-  return;
 }
 
 void BeamModel::update(const RayScan& obs)

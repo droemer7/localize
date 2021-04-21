@@ -1,7 +1,8 @@
 <launch>
   <!-- Launch arguments -->
-  <arg name="car_name" default="car"/>
-  <arg name="real"     default="false"/>
+  <arg name="car_name"  default="car"/>
+  <arg name="node_name" default="localizer"/>
+  <arg name="real"      default="false"/>
 
   <!-- MCL arguments -->
   <arg name="num_particles_min" default="1000"/>
@@ -24,12 +25,16 @@
 
   <!-- MCL -->
   <group ns="$(arg car_name)">
-    <node pkg="mcl" type="mcl" name="localizer" output="screen">
-      <param name="num_particles_min" type="int"    value="$(arg num_particles_min)"/>
-      <param name="num_particles_max" type="int"    value="$(arg num_particles_max)"/>
-      <param name="base_frame_id"     type="string" value="$(arg car_name)/base_link"/>
-      <param name="wheel_bl_frame_id" type="string" value="$(arg car_name)/back_left/wheel_link"/>
-      <param name="publish_tf"        type="bool"   value="$(arg real)"/>
+    <node pkg="mcl" type="mcl" name="$(arg node_name)" output="screen">
+      <param name="num_particles_min"   type="int"    value="$(arg num_particles_min)"/>
+      <param name="num_particles_max"   type="int"    value="$(arg num_particles_max)"/>
+      <param name="localizer_node_name" type="string" value="$(arg node_name)"/>
+      <param name="drive_node_name"     type="string" value="vesc"/>
+      <param name="sensor_node_name"    type="string" value="laser"/>
+      <param name="map_frame_id"        type="string" value="map"/>
+      <param name="base_frame_id"       type="string" value="$(arg car_name)/base_link"/>
+      <param name="wheel_bl_frame_id"   type="string" value="$(arg car_name)/back_left/wheel_link"/>
+      <param name="publish_tf"          type="bool"   value="$(arg real)"/>
     </node>
   </group>
 </launch>

@@ -154,27 +154,27 @@ namespace localize
   };
 
   // Occupancy grid map
-  class Map : private ranges::OMap
+  class Map
   {
   public:
     // Constructor
-    Map(const unsigned int width,           // Length of x axis (pixels)
-        const unsigned int height,          // Length of y axis (pixels)
-        const double x_origin_world,        // X translation of origin (cell 0,0) relative to world frame (meters)
-        const double y_origin_world,        // Y translation of origin (cell 0,0) relative to world frame (meters)
-        const double th_world,              // Angle relative to world frame (rad)
-        const double scale_world,           // Scale relative to world frame (meters per pixel)
-        const std::vector<int8_t>& occ_data // Occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+    Map(const unsigned int x_size,      // Length of x axis (width) (pixels)
+        const unsigned int y_size,      // Length of y axis (height) (pixels)
+        const double x_origin_world,    // X translation of origin (cell 0,0) relative to world frame (meters)
+        const double y_origin_world,    // Y translation of origin (cell 0,0) relative to world frame (meters)
+        const double th_world,          // Angle relative to world frame (rad)
+        const double scale_world,       // Scale relative to world frame (meters per pixel)
+        const std::vector<int8_t>& data // Occupancy data in 1D row-major order, -1: Unknown, 0: Free, 100: Occupied
        );
 
     // Return true if a point (in the map frame) is in an occupied space (out of bounds is considered occupied)
     bool occupied(const Point& point) const;
 
     // Length of x axis (pixels)
-    unsigned int width() const;
+    unsigned int xSize() const;
 
     // Length of y axis (pixels)
-    unsigned int height() const;
+    unsigned int ySize() const;
 
     // X translation of origin (cell 0,0) relative to world frame (meters)
     double xOriginWorld() const;
@@ -194,6 +194,19 @@ namespace localize
     // Scale relative to world frame (meters per pixel)
     double scaleWorld() const;
 
+    // Occupancy data in 1D row-major order
+    const std::vector<bool>& data() const;
+
+  private:
+    const unsigned int x_size_;     // Length of x axis (pixels)
+    const unsigned int y_size_;     // Length of y axis (pixels)
+    const double x_origin_world_;   // X translation of origin (cell 0,0) relative to world frame (meters)
+    const double y_origin_world_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
+    const double th_world_;         // Angle relative to world frame
+    const double sin_th_world_;     // Sin of angle relative to world frame
+    const double cos_th_world_;     // Cos of angle relative to world frame
+    const double scale_world_;      // Scale relative to world frame (meters per pixel)
+    const std::vector<bool> data_;  // Occupancy data in 1D row-major order, 0: Free, 1: Occupied
   };
 
   // Transform a point in the world frame to the map frame
@@ -244,62 +257,6 @@ namespace localize
            particle.weight_,
            particle.weight_normed_
           );
-  }
-
-  // Saves data to file in CSV format
-  template <class T>
-  void save(const std::vector<std::vector<T>>& data_matrix,
-            const std::string filename,
-            const bool overwrite = true
-           )
-  {
-    std::ofstream output(DATA_PATH + filename,
-                         overwrite ? std::ofstream::trunc :
-                                     std::ofstream::app
-                        );
-    for (const std::vector<T>& row : data_matrix) {
-      for (const T& val : row) {
-        output << static_cast<double>(val) << ", ";
-      }
-      output << "\n";
-    }
-    output << "\n";
-    output.close();
-  }
-
-  // Saves data to file in CSV format
-  template <class T>
-  void save(const std::vector<T>& data_vector,
-            const std::string filename,
-            size_t num_cols = 0,
-            const unsigned int precision = 0,
-            const bool overwrite = true
-           )
-  {
-    size_t num_rows;
-
-    if (num_cols > 0) {
-      num_rows = std::ceil(data_vector.size() / num_cols);
-    }
-    else {
-      num_rows = 1;
-      num_cols = data_vector.size();
-    }
-    std::vector<std::vector<T>> data_matrix;
-
-    for (size_t r = 0; r < num_rows; ++r) {
-      std::vector<T> row;
-
-      for (size_t c = 0; c < num_cols; ++c) {
-        row.push_back(data_vector[r * num_cols + c]);
-      }
-      data_matrix.push_back(row);
-    }
-    save(data_matrix,
-         filename,
-         precision,
-         overwrite
-        );
   }
 
   // Save data to file in CSV format

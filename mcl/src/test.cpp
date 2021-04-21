@@ -14,6 +14,7 @@ using namespace localize;
 
 std::chrono::_V2::high_resolution_clock::time_point start;
 std::chrono::_V2::high_resolution_clock::time_point end;
+std::chrono::duration<double> dur;
 const size_t x_size = 500;
 const size_t y_size = 500;
 const size_t th_size = 500;
@@ -194,6 +195,10 @@ void testAngleUtils()
 //   size_t th_;
 // };
 
+int a1 = 2;
+int a2 = 4;
+int a3 = 6;
+
 int main(int argc, char** argv)
 {
   // testParticleHistogramArray();
@@ -203,7 +208,43 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
-  printParticle(Particle(1.0, 2.5, 3.3, 0.11, 0.44));
+  size_t x_size = 100;
+  size_t y_size = 100;
+  size_t z_size = 50;
+  std::vector<int> data1d(x_size * y_size * z_size);
+
+  start = std::chrono::high_resolution_clock::now();
+  for (double i = 0; i < x_size; ++i) {
+    for (double j = 0; j < y_size; ++j) {
+      for (double k = 0; k < z_size; ++k) {
+        data1d[static_cast<size_t>(i) * y_size * z_size + static_cast<size_t>(j) * z_size + static_cast<size_t>(k)] = a1 + a2 + a3;
+      }
+    }
+  }
+  std::fill(data1d.begin(), data1d.end(), 0);
+  end = std::chrono::high_resolution_clock::now();
+  dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  printf("[1D] Duration = %.2f ms\n", dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
+
+  std::vector<std::vector<std::vector<int>>> data3d(x_size, std::vector<std::vector<int>>(y_size, std::vector<int>(z_size)));
+  start = std::chrono::high_resolution_clock::now();
+  for (double i = 0; i < x_size; ++i) {
+    for (double j = 0; j < y_size; ++j) {
+      for (double k = 0; k < z_size; ++k) {
+        data3d[i][j][k] = a1 + a2 + a3;
+      }
+    }
+  }
+  for (size_t i = 0; i < x_size; ++i) {
+    for (size_t j = 0; j < y_size; ++j) {
+      std::fill(data3d[i][j].begin(), data3d[i][j].end(), 0);
+    }
+  }
+  end = std::chrono::high_resolution_clock::now();
+  dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  printf("[3D] Duration = %.2f ms\n", dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
 
   return 0;
 }

@@ -1,7 +1,7 @@
 #include "mcl/mcl.h"
 
 static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-8;  // Average weight below which random sampling is enabled
-static const double WEIGHT_DEV_RESAMPLE = 0.75;       // Weight standard deviation above which resampling is performed
+static const double WEIGHT_DEV_RESAMPLE = 0.5;        // Weight standard deviation above which resampling is performed
 static const double SPEED_STOPPED = 1e-6;             // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;                   // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;            // Z score for P(0.01) of Normal(0,1) distribution
@@ -21,12 +21,12 @@ MCL::MCL(const unsigned int num_particles_min,
          const float sensor_range_min,
          const float sensor_range_max,
          const float sensor_range_no_obj,
-         const unsigned int map_width,
-         const unsigned int map_height,
-         const float map_x_origin_world,
-         const float map_y_origin_world,
-         const float map_th_world,
-         const float map_scale_world,
+         const unsigned int map_x_size,
+         const unsigned int map_y_size,
+         const double map_x_origin_world,
+         const double map_y_origin_world,
+         const double map_th_world,
+         const double map_scale_world,
          const std::vector<int8_t>& map_data
         ) :
   num_particles_min_(num_particles_min),
@@ -34,8 +34,8 @@ MCL::MCL(const unsigned int num_particles_min,
   car_base_to_sensor_frame_x_(car_base_to_sensor_frame_x),
   car_base_to_sensor_frame_y_(car_base_to_sensor_frame_y),
   car_base_to_sensor_frame_th_(car_base_to_sensor_frame_th),
-  map_(map_width,
-       map_height,
+  map_(map_x_size,
+       map_y_size,
        map_x_origin_world,
        map_y_origin_world,
        map_th_world,
@@ -50,13 +50,7 @@ MCL::MCL(const unsigned int num_particles_min,
   sensor_model_(sensor_range_min,
                 sensor_range_max,
                 sensor_range_no_obj,
-                map_width,
-                map_height,
-                map_x_origin_world,
-                map_y_origin_world,
-                map_th_world,
-                map_scale_world,
-                map_data
+                map_
                ),
   dist_(num_particles_max, map_),
   samples_(num_particles_max),
@@ -202,18 +196,19 @@ void MCL::update()
     // Update distribution with new sample set
     dist_.update(samples_, s);
   }
-  return;
 }
 
 bool MCL::resampleRequired()
 {
   RecursiveLock lock(dist_mtx_);
+
   return dist_.weightRelativeStdDev() > WEIGHT_DEV_RESAMPLE;
 }
 
 bool MCL::randomSampleRequired()
 {
   RecursiveLock lock(dist_mtx_);
+
   return dist_.weightAvgFast() < WEIGHT_AVG_RANDOM_SAMPLE;
 }
 

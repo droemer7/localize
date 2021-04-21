@@ -37,14 +37,16 @@ RayScan localize::rayScan(const SensorScanMsg::ConstPtr& msg)
 }
 
 // ========== MCLNode ========== //
-MCLNode::MCLNode(const std::string& pose_topic,
-                 const std::string& pose_array_topic,
-                 const std::string& drive_vel_topic,
-                 const std::string& drive_steer_topic,
-                 const std::string& sensor_topic,
+MCLNode::MCLNode(const std::string& localizer_node_name,
+                 const std::string& localizer_pose_topic_name,
+                 const std::string& localizer_pose_array_topic_name,
+                 const std::string& drive_node_name,
+                 const std::string& drive_vel_topic_name,
+                 const std::string& drive_steer_topic_name,
+                 const std::string& sensor_node_name,
+                 const std::string& sensor_topic_name,
                  const std::string& map_topic
                 ) :
-  map_frame_id_("map"),
   drive_vel_spinner_(1, &drive_vel_cb_queue_),
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
   sensor_spinner_(1, &sensor_cb_queue_),
@@ -61,40 +63,32 @@ MCLNode::MCLNode(const std::string& pose_topic,
 {
   // Localizer parameters
   ros::NodeHandle nh;
-  if (   !getParam(nh, "localizer/num_particles_min", num_particles_min_)
-      || !getParam(nh, "localizer/num_particles_max", num_particles_max_)
-      || !getParam(nh, "localizer/base_frame_id", base_frame_id_)
-      || !getParam(nh, "localizer/wheel_bl_frame_id", wheel_bl_frame_id_)
-      || !getParam(nh, "localizer/publish_tf", publish_tf_)
-      || !getParam(nh, "vesc/frame_id", odom_frame_id_)
-      || !getParam(nh, "vesc/chassis_length", car_length_)
-      || !getParam(nh, "vesc/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
-      || !getParam(nh, "vesc/speed_to_erpm_offset", drive_vel_to_erpm_offset_)
-      || !getParam(nh, "vesc/steering_angle_to_servo_gain", drive_steer_angle_to_servo_gain_)
-      || !getParam(nh, "vesc/steering_angle_to_servo_offset", drive_steer_angle_to_servo_offset_)
-      || !getParam(nh, "laser/frame_id", sensor_frame_id_)
-      || !getParam(nh, "laser/range_min", sensor_range_min_)
-      || !getParam(nh, "laser/range_max", sensor_range_max_)
-      || !getParam(nh, "laser/range_no_obj", sensor_range_no_obj_)
+  map_frame_id_ = nh.param(localizer_node_name + "/map_frame_id", std::string("map"));
+  if (   !getParam(nh, localizer_node_name + "/num_particles_min", num_particles_min_)
+      || !getParam(nh, localizer_node_name + "/num_particles_max", num_particles_max_)
+      || !getParam(nh, localizer_node_name + "/base_frame_id", base_frame_id_)
+      || !getParam(nh, localizer_node_name + "/wheel_bl_frame_id", wheel_bl_frame_id_)
+      || !getParam(nh, localizer_node_name + "/publish_tf", publish_tf_)
+      || !getParam(nh, drive_node_name + "/frame_id", odom_frame_id_)
+      || !getParam(nh, drive_node_name + "/chassis_length", car_length_)
+      || !getParam(nh, drive_node_name + "/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
+      || !getParam(nh, drive_node_name + "/speed_to_erpm_offset", drive_vel_to_erpm_offset_)
+      || !getParam(nh, drive_node_name + "/steering_angle_to_servo_gain", drive_steer_angle_to_servo_gain_)
+      || !getParam(nh, drive_node_name + "/steering_angle_to_servo_offset", drive_steer_angle_to_servo_offset_)
+      || !getParam(nh, sensor_node_name + "/frame_id", sensor_frame_id_)
+      || !getParam(nh, sensor_node_name + "/range_min", sensor_range_min_)
+      || !getParam(nh, sensor_node_name + "/range_max", sensor_range_max_)
+      || !getParam(nh, sensor_node_name + "/range_no_obj", sensor_range_no_obj_)
      ) {
     throw std::runtime_error("MCL: Missing required parameters");
   }
   // Map parameters
-  nav_msgs::GetMap get_map_msg;
+  nav_msgs::GetMap map_msg;
   if (   !ros::service::waitForService(map_topic, ros::Duration(5))
-      || !ros::service::call(map_topic, get_map_msg)
+      || !ros::service::call(map_topic, map_msg)
      ) {
     throw std::runtime_error(std::string("MCL: Failed to retrieve map from topic '") + map_topic + "'");
   }
-  const OccupancyGridMsg& map_msg = get_map_msg.response.map;
-  map_width_ = map_msg.info.width;
-  map_height_ = map_msg.info.height;
-  map_x_origin_ = map_msg.info.origin.position.x;
-  map_y_origin_ = map_msg.info.origin.position.y;
-  map_th_ = tf2::getYaw(map_msg.info.origin.orientation);
-  map_scale_ = map_msg.info.resolution;
-  map_data_ = map_msg.data;
-
   TransformStampedMsg tf_base_to_sensor;
   TransformStampedMsg tf_wheel_bl_to_sensor;
 
@@ -113,8 +107,7 @@ MCLNode::MCLNode(const std::string& pose_topic,
   catch (tf2::TransformException & except) {
     throw std::runtime_error(except.what());
   }
-
-  // Construct the localizer with retrieved parameters before starting threads
+  // Construct localizer before starting threads
   mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_min_,
                                           num_particles_max_,
                                           car_length_,
@@ -126,13 +119,13 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                           sensor_range_min_,
                                           sensor_range_max_,
                                           sensor_range_no_obj_,
-                                          map_width_,
-                                          map_height_,
-                                          map_x_origin_,
-                                          map_y_origin_,
-                                          map_th_,
-                                          map_scale_,
-                                          map_data_
+                                          map_msg.response.map.info.width,
+                                          map_msg.response.map.info.height,
+                                          map_msg.response.map.info.origin.position.x,
+                                          map_msg.response.map.info.origin.position.y,
+                                          tf2::getYaw(map_msg.response.map.info.origin.orientation),
+                                          map_msg.response.map.info.resolution,
+                                          map_msg.response.map.data
                                          )
                                  );
   // Assign ROS callback queues
@@ -143,19 +136,19 @@ MCLNode::MCLNode(const std::string& pose_topic,
   status_nh_.setCallbackQueue(&status_cb_queue_);
 
   // Subscribe to topics for motor, steering servo and sensor data
-  drive_vel_sub_ = drive_vel_nh_.subscribe(drive_vel_topic,
+  drive_vel_sub_ = drive_vel_nh_.subscribe(drive_vel_topic_name,
                                            1,
                                            &MCLNode::driveVelCb,
                                            this,
                                            ros::TransportHints().tcpNoDelay()
                                           );
-  drive_steer_sub_ = drive_steer_nh.subscribe(drive_steer_topic,
+  drive_steer_sub_ = drive_steer_nh.subscribe(drive_steer_topic_name,
                                               1,
                                               &MCLNode::driveSteerCb,
                                               this,
                                               ros::TransportHints().tcpNoDelay()
                                              );
-  sensor_sub_ = sensor_nh_.subscribe(sensor_topic,
+  sensor_sub_ = sensor_nh_.subscribe(sensor_topic_name,
                                      1,
                                      &MCLNode::sensorCb,
                                      this,
@@ -171,8 +164,8 @@ MCLNode::MCLNode(const std::string& pose_topic,
                                          this
                                         );
   // Setup publishers for pose estimates
-  pose_pub_ = pose_nh_.advertise<PoseStampedMsg>(pose_topic, 1);
-  pose_array_pub_ = pose_array_nh_.advertise<PoseArrayMsg>(pose_array_topic, 1);
+  pose_pub_ = pose_nh_.advertise<PoseStampedMsg>(localizer_pose_topic_name, 1);
+  pose_array_pub_ = pose_array_nh_.advertise<PoseArrayMsg>(localizer_pose_array_topic_name, 1);
 
   // Start threads
   drive_vel_spinner_.start();
@@ -244,21 +237,6 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 {
   printMotionUpdateTime(0.01);
   printSensorUpdateTime(0.5);
-}
-
-template <class T>
-bool MCLNode::getParam(const ros::NodeHandle& nh,
-                       std::string name,
-                       T& value
-                      )
-{
-  bool result = true;
-
-  if (!nh.getParam(name, value)) {
-    ROS_FATAL("MCL: Parameter '%s' not found", name.c_str());
-    result = false;
-  }
-  return result;
 }
 
 void MCLNode::publishTf()
@@ -367,30 +345,4 @@ void MCLNode::printSensorUpdateTime(const double min_msec)
              sensor_update_time_msec_, sensor_update_time_worst_msec_
             );
   }
-}
-
-void MCLNode::printMotionParams()
-{
-  ROS_INFO("MCL: car_length = %f", car_length_);
-  ROS_INFO("MCL: drive_vel_to_erpm_gain = %f", drive_vel_to_erpm_gain_);
-  ROS_INFO("MCL: drive_vel_to_erpm_offset = %f", drive_vel_to_erpm_offset_);
-  ROS_INFO("MCL: drive_steer_angle_to_servo_gain = %f", drive_steer_angle_to_servo_gain_);
-  ROS_INFO("MCL: drive_steer_angle_to_servo_offset = %f", drive_steer_angle_to_servo_offset_);
-}
-
-void MCLNode::printSensorParams()
-{
-  ROS_INFO("MCL: sensor_range_min = %f", sensor_range_min_);
-  ROS_INFO("MCL: sensor_range_max = %f", sensor_range_max_);
-  ROS_INFO("MCL: sensor_range_no_obj = %f", sensor_range_no_obj_);
-}
-
-void MCLNode::printMapParams()
-{
-  ROS_INFO("MCL: map_width = %d", map_width_);
-  ROS_INFO("MCL: map_height_= %d", map_height_);
-  ROS_INFO("MCL: map_x_origin = %f", map_x_origin_);
-  ROS_INFO("MCL: map_y_origin = %f", map_y_origin_);
-  ROS_INFO("MCL: map_th = %f", map_th_);
-  ROS_INFO("MCL: map_scale = %f", map_scale_);
 }

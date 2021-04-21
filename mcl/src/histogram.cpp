@@ -15,8 +15,8 @@ PoseOccupancyHistogram::PoseOccupancyHistogram(const Map& map) :
   map_(map),
   xy_scale_(map.scaleWorld() / HIST_OCCUPANCY_XY_RES),
   th_scale_(1.0 / HIST_OCCUPANCY_TH_RES),
-  x_size_(std::round(map.width() * xy_scale_)),
-  y_size_(std::round(map.height() * xy_scale_)),
+  x_size_(std::round(map.xSize() * xy_scale_)),
+  y_size_(std::round(map.ySize() * xy_scale_)),
   th_size_(std::round(L_2PI * th_scale_)),
   hist_(x_size_ * y_size_ * th_size_, false),
   count_(0)
@@ -59,17 +59,13 @@ void PoseOccupancyHistogram::reset()
 }
 
 size_t PoseOccupancyHistogram::count() const
-{
-  return count_;
-}
+{ return count_; }
 
 std::vector<bool>::reference PoseOccupancyHistogram::cell(const size_t x_i,
-                                                              const size_t y_i,
-                                                              const size_t th_i
-                                                             )
-{
-  return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
-}
+                                                          const size_t y_i,
+                                                          const size_t th_i
+                                                         )
+{ return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i]; }
 
 // ========== ParticleEstimateHistogramCell ========== //
 ParticleEstimateHistogramCell::ParticleEstimateHistogramCell() :
@@ -137,9 +133,7 @@ void ParticleEstimateHistogramCell::add(const Particle& particle)
 }
 
 size_t ParticleEstimateHistogramCell::count() const
-{
-  return count_;
-}
+{ return count_; }
 
 namespace localize
 {
@@ -178,17 +172,15 @@ namespace localize
 bool localize::cellEstimateGreater(const ParticleEstimateHistogramCell* lhs,
                                    const ParticleEstimateHistogramCell* rhs
                                   )
-{
-  return *lhs > *rhs;
-}
+{ return *lhs > *rhs; }
 
 // ========== ParticleEstimateHistogram ========== //
 ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
   map_(map),
   xy_scale_(map.scaleWorld() / HIST_ESTIMATE_XY_RES),
   th_scale_(1.0 / HIST_ESTIMATE_TH_RES),
-  x_size_(std::round(map.width() * xy_scale_)),
-  y_size_(std::round(map.height() * xy_scale_)),
+  x_size_(std::round(map.xSize() * xy_scale_)),
+  y_size_(std::round(map.ySize() * xy_scale_)),
   th_size_(std::round(L_2PI * th_scale_)),
   hist_(x_size_ * y_size_ * th_size_),
   estimates_(NUM_ESTIMATES),
@@ -305,12 +297,9 @@ ParticleEstimateHistogramCell& ParticleEstimateHistogram::cell(const size_t x_i,
                                                                const size_t y_i,
                                                                const size_t th_i
                                                               )
-{
-  return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i];
-}
+{ return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i]; }
 
 size_t ParticleEstimateHistogram::count() const
-{
-  return count_;
-}
+{ return count_; }
+
 // ========== ParticleEstimateHistogram ========== //

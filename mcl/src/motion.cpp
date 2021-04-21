@@ -1,11 +1,11 @@
 #include "mcl/motion.h"
 
-static const double VEL_LIN_N1 = 0.008;  // Linear velocity noise coefficient 1
-static const double VEL_LIN_N2 = 0.008;  // Linear velocity noise coefficient 2
-static const double VEL_ANG_N1 = 0.008;  // Angular velocity noise coefficient 1
-static const double VEL_ANG_N2 = 0.008;  // Angular velocity noise coefficient 2
-static const double TH_N1 = 0.008;       // Final rotation noise coefficient 1
-static const double TH_N2 = 0.008;       // Final rotation noise coefficient 2
+static const double VEL_LIN_N1 = 0.001;  // Linear velocity noise coefficient 1
+static const double VEL_LIN_N2 = 0.001;  // Linear velocity noise coefficient 2
+static const double VEL_ANG_N1 = 0.001;  // Angular velocity noise coefficient 1
+static const double VEL_ANG_N2 = 0.001;  // Angular velocity noise coefficient 2
+static const double TH_N1 = 0.001;       // Final rotation noise coefficient 1
+static const double TH_N2 = 0.001;       // Final rotation noise coefficient 2
 
 using namespace localize;
 
@@ -64,8 +64,7 @@ void VelModel::apply(ParticleDistribution& dist,
   double th_noise = 0.0;
   double vel_lin_adj = 0.0;
   double vel_ang_adj = 0.0;
-  double x = 0.0;
-  double y = 0.0;
+  Point point;
 
   // Apply to each particle in the distribution
   for (size_t i = 0; i < dist.count(); ++i) {
@@ -79,21 +78,21 @@ void VelModel::apply(ParticleDistribution& dist,
     vel_ang_adj = vel_ang + vel_ang_noise;
 
     // Calculate new x and y using noisy velocities
-    x = dist.particle(i).x_ + (  (vel_lin_adj / vel_ang_adj)
-                               * (- std::sin(dist.particle(i).th_)
-                                  + std::sin(dist.particle(i).th_ + vel_ang_adj * dt)
-                                 )
-                              );
-    y = dist.particle(i).y_ + (  (vel_lin_adj / vel_ang_adj)
-                               * (  std::cos(dist.particle(i).th_)
-                                  - std::cos(dist.particle(i).th_ + vel_ang_adj * dt)
-                                 )
-                              );
-    // Position validity check: only move particle if it landed in free space
-    if (!map_.occupied(worldToMap(map_, Point(x, y)))) {
-      // New position is valid
-      dist.particle(i).x_ = x;
-      dist.particle(i).y_ = y;
+    point.x_ = dist.particle(i).x_ + (  (vel_lin_adj / vel_ang_adj)
+                                      * (- std::sin(dist.particle(i).th_)
+                                         + std::sin(dist.particle(i).th_ + vel_ang_adj * dt)
+                                        )
+                                     );
+    point.y_ = dist.particle(i).y_ + (  (vel_lin_adj / vel_ang_adj)
+                                      * (  std::cos(dist.particle(i).th_)
+                                         - std::cos(dist.particle(i).th_ + vel_ang_adj * dt)
+                                        )
+                                     );
+    // Only move particle if it landed in free space, otherwise leave it where it is
+    if (!map_.occupied(worldToMap(map_, point))) {
+      // Update location
+      dist.particle(i).x_ = point.x_;
+      dist.particle(i).y_ = point.y_;
 
       // Calculate new orientation, adding additional noise
       dist.particle(i).th_ += (vel_ang_adj + th_noise) * dt;
@@ -102,5 +101,4 @@ void VelModel::apply(ParticleDistribution& dist,
       dist.particle(i).th_ = wrapAngle(dist.particle(i).th_);
     }
   }
-  return;
 }

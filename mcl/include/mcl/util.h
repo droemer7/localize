@@ -199,8 +199,6 @@ namespace localize
       val_ = started_ ? val_ + rate_ * (val - val_)
                       : val;
       started_ = true;
-
-      return;
     }
 
     // Reset the internal value directly without smoothing

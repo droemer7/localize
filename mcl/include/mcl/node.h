@@ -40,15 +40,34 @@ namespace localize
 
   RayScan rayScan(const SensorScanMsg::ConstPtr& msg);
 
+  // Retrieve the desired parameter value from the ROS parameter server
+  template <class T>
+  bool getParam(const ros::NodeHandle& nh,
+                std::string name,
+                T& val
+               )
+  {
+    bool result = true;
+
+    if (!nh.getParam(name, val)) {
+      ROS_FATAL("MCL: Parameter '%s' not found", name.c_str());
+      result = false;
+    }
+    return result;
+  }
+
   class MCLNode
   {
   public:
-    MCLNode(const std::string& pose_topic,        // Pose topic name
-            const std::string& pose_array_topic,  // Pose array topic name
-            const std::string& drive_vel_topic,   // Drive velocity topic name
-            const std::string& drive_steer_topic, // Drive steering topic name
-            const std::string& sensor_topic,      // Sensor topic name
-            const std::string& map_topic          // Map topic name
+    MCLNode(const std::string& localizer_node_name,             // Localizer node name
+            const std::string& localizer_pose_topic_name,       // Localizer pose topic name
+            const std::string& localizer_pose_array_topic_name, // Localizer pose array topic name
+            const std::string& drive_node_name,                 // Drive node name
+            const std::string& drive_vel_topic_name,            // Drive velocity topic name
+            const std::string& drive_steer_topic_name,          // Drive steering topic name
+            const std::string& sensor_node_name,                // Sensor node name
+            const std::string& sensor_topic_name,               // Sensor topic name
+            const std::string& map_topic                        // Map topic name
            );
 
     // Drive velocity state callback
@@ -67,13 +86,6 @@ namespace localize
     void statusCb(const ros::TimerEvent& event);
 
   private:
-    // Retrieve the desired parameter value from the ROS parameter server
-    template <class T>
-    bool getParam(const ros::NodeHandle& nh,
-                  std::string name,
-                  T& value
-                 );
-
     // Publish the transform estimated by the localizer
     void publishTf();
 
@@ -88,15 +100,6 @@ namespace localize
 
     // Print Sensor update times (last and worst)
     void printSensorUpdateTime(const double min_msec = 0.0);
-
-    // Print Motion parameters
-    void printMotionParams();
-
-    // Print Sensor parameters
-    void printSensorParams();
-
-    // Print Map parameters
-    void printMapParams();
 
   private:
     Mutex drive_steer_servo_pos_mtx_;  // Servo mutex
@@ -159,15 +162,6 @@ namespace localize
     float sensor_range_no_obj_;             // Sensor range reported when nothing is detected
     double sensor_update_time_msec_;        // Sensor update last time (milliseconds)
     double sensor_update_time_worst_msec_;  // Sensor update worst time (milliseconds)
-
-    // Map parameters
-    unsigned int map_width_;        // Map number of pixels along x axis
-    unsigned int map_height_;       // Map number of pixels along y axis
-    float map_x_origin_;            // Map x translation of origin (cell 0,0) relative to world frame (meters)
-    float map_y_origin_;            // Map y translation of origin (cell 0,0) relative to world frame (meters)
-    float map_th_;                  // Map angle relative to world frame (rad)
-    float map_scale_;               // Map scale relative to world frame (meters per pixel)
-    std::vector<int8_t> map_data_;  // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
   };
 
 } // namespace localize

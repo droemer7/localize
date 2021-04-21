@@ -113,68 +113,61 @@ RayScan::RayScan(size_t num_rays) :
 {}
 
 // ========== Map ========== //
-Map::Map(const unsigned int width,
-         const unsigned int height,
+Map::Map(const unsigned int x_size,
+         const unsigned int y_size,
          const double x_origin_world,
          const double y_origin_world,
          const double th_world,
          const double scale_world,
-         const std::vector<int8_t>& occ_data
+         const std::vector<int8_t>& data
         ) :
-  OMap(width,
-       height,
-       x_origin_world,
-       y_origin_world,
-       th_world,
-       scale_world,
-       occ_data
-      )
+  x_size_(x_size),
+  y_size_(y_size),
+  x_origin_world_(x_origin_world),
+  y_origin_world_(y_origin_world),
+  th_world_(th_world),
+  sin_th_world_(std::sin(th_world)),
+  cos_th_world_(std::cos(th_world)),
+  scale_world_(scale_world),
+  data_(data.begin(), data.end())
 {}
 
 bool Map::occupied(const Point& point) const
 {
-  return isOccupiedNT(point.y_, point.x_);
+  return (   point.x_ < 0.0
+          || point.x_ >= x_size_
+          || point.y_ < 0.0
+          || point.y_ >= y_size_
+          || data_[static_cast<size_t>(point.y_) * x_size_ + static_cast<size_t>(point.x_)]
+         );
 }
 
-unsigned int Map::width() const
-{
-  return OMap::width;
-}
+unsigned int Map::xSize() const
+{ return x_size_; }
 
-unsigned int Map::height() const
-{
-  return OMap::height;
-}
+unsigned int Map::ySize() const
+{ return y_size_; }
 
 double Map::xOriginWorld() const
-{
-  return OMap::x_origin_world;
-}
+{ return x_origin_world_; }
 
 double Map::yOriginWorld() const
-{
-  return OMap::y_origin_world;
-}
+{ return y_origin_world_; }
 
 double Map::thWorld() const
-{
-  return OMap::th_world;
-}
+{ return th_world_; }
 
 double Map::sinThWorld() const
-{
-  return OMap::sin_th_world;
-}
+{ return sin_th_world_; }
 
 double Map::cosThWorld() const
-{
-  return OMap::cos_th_world;
-}
+{ return cos_th_world_; }
 
 double Map::scaleWorld() const
-{
-  return OMap::scale_world;
-}
+{ return scale_world_; }
+
+const std::vector<bool>& Map::data() const
+{ return data_; }
 
 Point localize::worldToMap(const Map& map, const Point& point_world)
 {
@@ -185,9 +178,9 @@ Point localize::worldToMap(const Map& map, const Point& point_world)
   point_map.y_ = (point_world.y_ - map.yOriginWorld()) / map.scaleWorld();
 
   // Rotate
-  double temp_map_x = point_map.x_;
-  point_map.x_ =   map.cosThWorld() * point_map.x_ + map.sinThWorld() * point_map.y_;
-  point_map.y_ = - map.sinThWorld() * temp_map_x   + map.cosThWorld() * point_map.y_;
+  double temp_point_map_x = point_map.x_;
+  point_map.x_ =   map.cosThWorld() * point_map.x_     + map.sinThWorld() * point_map.y_;
+  point_map.y_ = - map.sinThWorld() * temp_point_map_x + map.cosThWorld() * point_map.y_;
 
   return point_map;
 }
@@ -224,8 +217,8 @@ Pose localize::mapToWorld(const Map& map, const Pose& pose_map)
 // ========== PoseRandomSampler ========== //
 PoseRandomSampler::PoseRandomSampler(const Map& map) :
   map_(map),
-  x_dist_(0.0, map_.width()),
-  y_dist_(0.0, map_.height()),
+  x_dist_(0.0, map_.xSize()),
+  y_dist_(0.0, map_.ySize()),
   th_dist_(std::nextafter(-L_PI, std::numeric_limits<double>::max()),
            std::nextafter(L_PI, std::numeric_limits<double>::max())
           )

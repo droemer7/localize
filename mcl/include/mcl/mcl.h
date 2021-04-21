@@ -29,13 +29,13 @@ namespace localize
         const float sensor_range_min,             // Sensor min range in meters
         const float sensor_range_max,             // Sensor max range in meters
         const float sensor_range_no_obj,          // Sensor range reported when nothing is detected
-        const unsigned int map_width,             // Map number of pixels along x axis
-        const unsigned int map_height,            // Map number of pixels along y axis
-        const float map_x_origin_world,           // Map x translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_y_origin_world,           // Map y translation of origin (cell 0,0) relative to world frame (meters)
-        const float map_th_world,                 // Map angle relative to world frame (read)
-        const float map_scale_world,              // Map scale relative to world frame (meters per pixel)
-        const std::vector<int8_t>& map_data       // Map occupancy data in 1D vector, -1: Unknown, 0: Free, 100: Occupied
+        const unsigned int map_x_size,            // Map length of x axis (width) (pixels)
+        const unsigned int map_y_size,            // Map length of y axis (height) (pixels)
+        const double map_x_origin_world,          // Map x translation of origin (cell 0,0) relative to world frame (meters)
+        const double map_y_origin_world,          // Map y translation of origin (cell 0,0) relative to world frame (meters)
+        const double map_th_world,                // Map angle relative to world frame (read)
+        const double map_scale_world,             // Map scale relative to world frame (meters per pixel)
+        const std::vector<int8_t>& map_data       // Map occupancy data in 1D row-major order, -1: Unknown, 0: Free, 100: Occupied
        );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
