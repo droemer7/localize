@@ -67,7 +67,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
   if (   !getParam(nh, localizer_node_name + "/num_particles_min", num_particles_min_)
       || !getParam(nh, localizer_node_name + "/num_particles_max", num_particles_max_)
       || !getParam(nh, localizer_node_name + "/base_frame_id", base_frame_id_)
-      || !getParam(nh, localizer_node_name + "/wheel_bl_frame_id", wheel_bl_frame_id_)
+      || !getParam(nh, localizer_node_name + "/wheel_back_left_frame_id", wheel_back_left_frame_id_)
       || !getParam(nh, localizer_node_name + "/publish_tf", publish_tf_)
       || !getParam(nh, drive_node_name + "/frame_id", odom_frame_id_)
       || !getParam(nh, drive_node_name + "/chassis_length", car_length_)
@@ -90,7 +90,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
     throw std::runtime_error(std::string("MCL: Failed to retrieve map from topic '") + map_topic + "'");
   }
   TransformStampedMsg tf_base_to_sensor;
-  TransformStampedMsg tf_wheel_bl_to_sensor;
+  TransformStampedMsg tf_wheel_back_left_to_sensor;
 
   try {
     tf_base_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
@@ -98,11 +98,11 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                                                    ros::Time(0),
                                                    ros::Duration(30.0)
                                                   );
-    tf_wheel_bl_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
-                                                       wheel_bl_frame_id_,
-                                                       ros::Time(0),
-                                                       ros::Duration(30.0)
-                                                      );
+    tf_wheel_back_left_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
+                                                              wheel_back_left_frame_id_,
+                                                              ros::Time(0),
+                                                              ros::Duration(30.0)
+                                                             );
   }
   catch (tf2::TransformException & except) {
     throw std::runtime_error(except.what());
@@ -114,7 +114,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                                           tf_base_to_sensor.transform.translation.x,
                                           tf_base_to_sensor.transform.translation.y,
                                           tf2::getYaw(tf_base_to_sensor.transform.rotation),
-                                          tf_wheel_bl_to_sensor.transform.translation.x,
+                                          tf_wheel_back_left_to_sensor.transform.translation.x,
                                           tf_base_to_sensor.transform.translation.y,
                                           sensor_range_min_,
                                           sensor_range_max_,

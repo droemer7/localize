@@ -106,7 +106,7 @@ namespace localize
 
     // ROS interface
     std::string base_frame_id_;
-    std::string wheel_bl_frame_id_;
+    std::string wheel_back_left_frame_id_;
     std::string sensor_frame_id_;
     std::string odom_frame_id_;
     std::string map_frame_id_;

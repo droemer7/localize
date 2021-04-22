@@ -11,13 +11,13 @@ using namespace localize;
 
 // ========== VelModel ========== //
 VelModel::VelModel(const double car_length,
-                   const double car_back_to_motion_frame_x,
-                   const double car_back_to_motion_frame_y,
+                   const double car_back_center_to_motion_frame_x,
+                   const double car_back_center_to_motion_frame_y,
                    const Map& map
                   ) :
   car_length_(car_length),
-  car_back_to_motion_frame_x_(car_back_to_motion_frame_x),
-  car_back_to_motion_frame_y_(car_back_to_motion_frame_y),
+  car_back_center_to_motion_frame_x_(car_back_center_to_motion_frame_x),
+  car_back_center_to_motion_frame_y_(car_back_center_to_motion_frame_y),
   map_(map)
 {}
 
@@ -36,11 +36,11 @@ void VelModel::apply(ParticleDistribution& dist,
       && std::abs(tan_steering_angle) > DBL_EPSILON
      ) {
     // Calculate ICR radius by offsetting from the motion model reference point (midpoint between back wheels)
-    double icr_radius_x = car_back_to_motion_frame_x_;
-    double icr_radius_y = (car_length_ / tan_steering_angle) + car_back_to_motion_frame_y_;
+    double icr_radius_x = std::abs(car_back_center_to_motion_frame_x_);
+    double icr_radius_y = (car_length_ / tan_steering_angle) + car_back_center_to_motion_frame_y_;
     double icr_radius = std::sqrt(icr_radius_x * icr_radius_x + icr_radius_y * icr_radius_y);
 
-    // Radius of ICR sign must match steering angle sign so the resulting angular velocity has the correct sign as well
+    // Sign of ICR radius must match steering angle sign so the resulting angular velocity has the correct sign
     icr_radius = std::signbit(tan_steering_angle) ? -icr_radius : icr_radius;
 
     // Angular velocity = v / r
