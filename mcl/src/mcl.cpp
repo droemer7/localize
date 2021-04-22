@@ -13,9 +13,9 @@ using namespace localize;
 MCL::MCL(const unsigned int num_particles_min,
          const unsigned int num_particles_max,
          const double car_length,
-         const double car_base_to_sensor_frame_x,
-         const double car_base_to_sensor_frame_y,
-         const double car_base_to_sensor_frame_th,
+         const double car_origin_to_sensor_frame_x,
+         const double car_origin_to_sensor_frame_y,
+         const double car_origin_to_sensor_frame_th,
          const double car_back_to_sensor_frame_x,
          const double car_back_to_sensor_frame_y,
          const float sensor_range_min,
@@ -31,9 +31,9 @@ MCL::MCL(const unsigned int num_particles_min,
         ) :
   num_particles_min_(num_particles_min),
   vel_lin_(0.0),
-  car_base_to_sensor_frame_x_(car_base_to_sensor_frame_x),
-  car_base_to_sensor_frame_y_(car_base_to_sensor_frame_y),
-  car_base_to_sensor_frame_th_(car_base_to_sensor_frame_th),
+  car_origin_to_sensor_frame_x_(car_origin_to_sensor_frame_x),
+  car_origin_to_sensor_frame_y_(car_origin_to_sensor_frame_y),
+  car_origin_to_sensor_frame_th_(car_origin_to_sensor_frame_th),
   map_(map_x_size,
        map_y_size,
        map_x_origin_world,
@@ -100,18 +100,18 @@ ParticleVector MCL::estimates()
     RecursiveLock lock(dist_mtx_);
     estimates = dist_.estimates();
   }
-  // Transform from sensor frame (MCL local frame) to the car base frame
-  double th_base_to_map = 0.0;
+  // Transform from sensor frame (MCL local frame) to the car origin frame
+  double th_car_origin_to_map = 0.0;
 
   for (size_t i = 0; i < estimates.size(); ++i) {
-    th_base_to_map = wrapAngle(estimates[i].th_ + car_base_to_sensor_frame_th_);
-    estimates[i].x_ += (  std::cos(th_base_to_map) * car_base_to_sensor_frame_x_
-                        - std::sin(th_base_to_map) * car_base_to_sensor_frame_y_
+    th_car_origin_to_map = wrapAngle(estimates[i].th_ + car_origin_to_sensor_frame_th_);
+    estimates[i].x_ += (  std::cos(th_car_origin_to_map) * car_origin_to_sensor_frame_x_
+                        - std::sin(th_car_origin_to_map) * car_origin_to_sensor_frame_y_
                        );
-    estimates[i].y_ += (  std::sin(th_base_to_map) * car_base_to_sensor_frame_x_
-                        + std::cos(th_base_to_map) * car_base_to_sensor_frame_y_
+    estimates[i].y_ += (  std::sin(th_car_origin_to_map) * car_origin_to_sensor_frame_x_
+                        + std::cos(th_car_origin_to_map) * car_origin_to_sensor_frame_y_
                        );
-    estimates[i].th_ = th_base_to_map;
+    estimates[i].th_ = th_car_origin_to_map;
   }
   return estimates;
 }

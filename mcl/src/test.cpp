@@ -208,9 +208,21 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
-  size_t x_size = 1000;
-  size_t y_size = 1000;
-  size_t z_size = 500;
+  double car_length = 0.29;
+  double radius_r = car_length / std::tan(0.34);
+  double measureable_radius_r = radius_r - 0.225 / 2.0;
+
+  double beta = std::atan2(0.158 * std::tan(0.34), car_length);
+  double radius_cg = car_length / (std::cos(beta) * std::tan(0.34));
+
+  printf("radius_f = %.4f (inches)\n", car_length / std::sin(0.34) * 100.0 / 2.54);
+  printf("radius_cg = %.4f (inches)\n", radius_cg * 100.0 / 2.54);
+  printf("radius_r = %.4f (inches)\n", radius_r * 100.0 / 2.54);
+  printf("measureable_radius_r = %.4f (inches)\n", measureable_radius_r * 100.0 / 2.54);
+
+  size_t x_size = 100;
+  size_t y_size = 100;
+  size_t z_size = 50;
   std::vector<int> data1d(x_size * y_size * z_size);
 
   start = std::chrono::high_resolution_clock::now();
