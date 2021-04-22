@@ -1,11 +1,11 @@
 #include "mcl/motion.h"
 
-static const double VEL_LIN_N1 = 0.001;  // Linear velocity noise coefficient 1
-static const double VEL_LIN_N2 = 0.001;  // Linear velocity noise coefficient 2
-static const double VEL_ANG_N1 = 0.001;  // Angular velocity noise coefficient 1
-static const double VEL_ANG_N2 = 0.001;  // Angular velocity noise coefficient 2
-static const double TH_N1 = 0.001;       // Final rotation noise coefficient 1
-static const double TH_N2 = 0.001;       // Final rotation noise coefficient 2
+static const double VEL_LIN_N1 = 0.003;  // Linear velocity noise coefficient 1
+static const double VEL_LIN_N2 = 0.003;  // Linear velocity noise coefficient 2
+static const double VEL_ANG_N1 = 0.003;  // Angular velocity noise coefficient 1
+static const double VEL_ANG_N2 = 0.003;  // Angular velocity noise coefficient 2
+static const double TH_N1 = 0.003;       // Final rotation noise coefficient 1
+static const double TH_N2 = 0.003;       // Final rotation noise coefficient 2
 
 using namespace localize;
 
@@ -27,28 +27,24 @@ void VelModel::apply(ParticleDistribution& dist,
                      const double dt
                     )
 {
-  // Calculate angular velocity in the particle distribution's frame from steering angle and linear velocity
-  // First find the radius of the particle frame's ICR (instantaneous center of rotation)
+  // Calculate angular velocity in the motion model's frame from the car's steering angle, linear velocity and the
+  // motion frame's ICR (instantaneous center of rotation)
   double vel_ang = 0.0;
   double tan_steering_angle = std::tan(steering_angle);
 
   if (   !std::isnan(tan_steering_angle)
       && std::abs(tan_steering_angle) > DBL_EPSILON
      ) {
-    // Calculate particle ICR by offsetting from the motion model reference point
-    // Reference point is the midpoint between back wheels, with x axis collinear with velocity
-    double particle_icr_x = car_back_to_motion_frame_x_;
-    double particle_icr_y = (car_length_ / tan_steering_angle) + car_back_to_motion_frame_y_;
-    double particle_icr_radius = std::sqrt(particle_icr_x * particle_icr_x + particle_icr_y * particle_icr_y);
+    // Calculate ICR radius by offsetting from the motion model reference point (midpoint between back wheels)
+    double icr_radius_x = car_back_to_motion_frame_x_;
+    double icr_radius_y = (car_length_ / tan_steering_angle) + car_back_to_motion_frame_y_;
+    double icr_radius = std::sqrt(icr_radius_x * icr_radius_x + icr_radius_y * icr_radius_y);
 
     // Radius of ICR sign must match steering angle sign so the resulting angular velocity has the correct sign as well
-    particle_icr_radius = std::signbit(tan_steering_angle) ? -particle_icr_radius : particle_icr_radius;
+    icr_radius = std::signbit(tan_steering_angle) ? -icr_radius : icr_radius;
 
     // Angular velocity = v / r
-    vel_ang = vel_lin / particle_icr_radius;
-  }
-  else {
-    vel_ang = 0.0;
+    vel_ang = vel_lin / icr_radius;
   }
   // Calculate standard deviation of noise
   double vel_lin_sq = vel_lin * vel_lin;

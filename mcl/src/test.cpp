@@ -208,23 +208,37 @@ int main(int argc, char** argv)
   // test3Dto1DVector();
   // testResize(100'000);
 
-  size_t x_size = 100;
-  size_t y_size = 100;
-  size_t z_size = 50;
+  size_t x_size = 1000;
+  size_t y_size = 1000;
+  size_t z_size = 500;
   std::vector<int> data1d(x_size * y_size * z_size);
 
   start = std::chrono::high_resolution_clock::now();
   for (double i = 0; i < x_size; ++i) {
     for (double j = 0; j < y_size; ++j) {
       for (double k = 0; k < z_size; ++k) {
-        data1d[static_cast<size_t>(i) * y_size * z_size + static_cast<size_t>(j) * z_size + static_cast<size_t>(k)] = a1 + a2 + a3;
+        data1d[i * y_size * z_size + j * z_size + k] = i * j / 100.0 + j * k / 100.0 + k * i / 100.0;
       }
     }
   }
   std::fill(data1d.begin(), data1d.end(), 0);
   end = std::chrono::high_resolution_clock::now();
   dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-  printf("[1D] Duration = %.2f ms\n", dur.count() * 1000.0);
+  printf("[1D double] Duration = %.2f ms\n", dur.count() * 1000.0);
+  printf("--- Test complete ---\n");
+
+  start = std::chrono::high_resolution_clock::now();
+  for (float i = 0; i < x_size; ++i) {
+    for (float j = 0; j < y_size; ++j) {
+      for (float k = 0; k < z_size; ++k) {
+        data1d[i * y_size * z_size + j * z_size + k] = i * j / 100.0 + j * k / 100.0 + k * i / 100.0;
+      }
+    }
+  }
+  std::fill(data1d.begin(), data1d.end(), 0);
+  end = std::chrono::high_resolution_clock::now();
+  dur = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  printf("[1D float] Duration = %.2f ms\n", dur.count() * 1000.0);
   printf("--- Test complete ---\n");
 
   std::vector<std::vector<std::vector<int>>> data3d(x_size, std::vector<std::vector<int>>(y_size, std::vector<int>(z_size)));
