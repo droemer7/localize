@@ -54,7 +54,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
   status_spinner_(1, &status_cb_queue_),
   drive_t_prev_(ros::Time::now()),
   tf_buffer_(ros::Duration(1)),
-  tf_listener_(tf_buffer_, true, ros::TransportHints().tcpNoDelay()),
+  tf_listener_(tf_buffer_),
   drive_steer_servo_pos_(0.0),
   motion_update_time_msec_(0.0),
   motion_update_time_worst_msec_(0.0),
@@ -96,12 +96,12 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
     tf_base_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
                                                    base_frame_id_,
                                                    ros::Time(0),
-                                                   ros::Duration(30.0)
+                                                   ros::Duration(5.0)
                                                   );
     tf_wheel_back_left_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
                                                               wheel_back_left_frame_id_,
                                                               ros::Time(0),
-                                                              ros::Duration(30.0)
+                                                              ros::Duration(5.0)
                                                              );
   }
   catch (tf2::TransformException & except) {

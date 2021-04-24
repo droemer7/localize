@@ -32,9 +32,7 @@ void VelModel::apply(ParticleDistribution& dist,
   double vel_ang = 0.0;
   double tan_steering_angle = std::tan(steering_angle);
 
-  if (   !std::isnan(tan_steering_angle)
-      && std::abs(tan_steering_angle) > DBL_EPSILON
-     ) {
+  if (std::abs(tan_steering_angle) > DBL_EPSILON) {
     // Calculate ICR radius by offsetting from the motion model reference point (midpoint between back wheels)
     double icr_radius_x = std::abs(car_back_center_to_motion_frame_x_);
     double icr_radius_y = (car_length_ / tan_steering_angle) + car_back_center_to_motion_frame_y_;
@@ -65,25 +63,31 @@ void VelModel::apply(ParticleDistribution& dist,
   // Apply to each particle in the distribution
   for (size_t i = 0; i < dist.count(); ++i) {
     // Calculate noise for velocities and rotation
-    vel_lin_noise = vel_lin_std_dev > DBL_MIN ? sampler_.gen(0.0, vel_lin_std_dev) : 0.0;
-    vel_ang_noise = vel_ang_std_dev > DBL_MIN ? sampler_.gen(0.0, vel_ang_std_dev) : 0.0;
-    th_noise = th_std_dev > DBL_MIN ? sampler_.gen(0.0, th_std_dev) : 0.0;
+    vel_lin_noise = vel_lin_std_dev > DBL_EPSILON ? sampler_.gen(0.0, vel_lin_std_dev) : 0.0;
+    vel_ang_noise = vel_ang_std_dev > DBL_EPSILON ? sampler_.gen(0.0, vel_ang_std_dev) : 0.0;
+    th_noise = th_std_dev > DBL_EPSILON ? sampler_.gen(0.0, th_std_dev) : 0.0;
 
     // Add noise to velocities
     vel_lin_adj = vel_lin + vel_lin_noise;
     vel_ang_adj = vel_ang + vel_ang_noise;
 
-    // Calculate new x and y using noisy velocities
-    point.x_ = dist.particle(i).x_ + (  (vel_lin_adj / vel_ang_adj)
-                                      * (- std::sin(dist.particle(i).th_)
-                                         + std::sin(dist.particle(i).th_ + vel_ang_adj * dt)
-                                        )
-                                     );
-    point.y_ = dist.particle(i).y_ + (  (vel_lin_adj / vel_ang_adj)
-                                      * (  std::cos(dist.particle(i).th_)
-                                         - std::cos(dist.particle(i).th_ + vel_ang_adj * dt)
-                                        )
-                                     );
+    // Calculate new x and y using noisy parameters
+    if (std::abs(vel_ang_adj) > DBL_EPSILON) {
+      point.x_ = dist.particle(i).x_ + (  (vel_lin_adj / vel_ang_adj)
+                                        * (- std::sin(dist.particle(i).th_)
+                                           + std::sin(dist.particle(i).th_ + vel_ang_adj * dt)
+                                          )
+                                       );
+      point.y_ = dist.particle(i).y_ + (  (vel_lin_adj / vel_ang_adj)
+                                        * (  std::cos(dist.particle(i).th_)
+                                           - std::cos(dist.particle(i).th_ + vel_ang_adj * dt)
+                                          )
+                                       );
+    }
+    else {
+      point.x_ = dist.particle(i).x_ + vel_lin_adj * std::cos(dist.particle(i).th_ + vel_ang_noise * dt) * dt;
+      point.y_ = dist.particle(i).y_ + vel_lin_adj * std::sin(dist.particle(i).th_ + vel_ang_noise * dt) * dt;
+    }
     // Only move particle if it landed in free space, otherwise leave it where it is
     if (!map_.occupied(worldToMap(map_, point))) {
       // Update location

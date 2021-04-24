@@ -29,7 +29,7 @@ int main(int argc, char** argv)
     ros::waitForShutdown();
   }
   catch (std::runtime_error & except) {
-    ROS_FATAL("%s", except.what());
+    ROS_FATAL("MCL: %s", except.what());
 
     return 1;
   }
