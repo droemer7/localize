@@ -54,5 +54,9 @@ int main(int argc, char** argv)
   printf("radius_cg = %.4f (inches)\n", radius_cg * 100.0 / 2.54);
   printf("radius_r = %.4f (inches)\n", radius_r * 100.0 / 2.54);
 
+  double nan_val = std::sqrt(-1);
+  printf("%d\n", nan_val > DBL_EPSILON);
+  printf("%d\n", std::abs(nan_val) > DBL_EPSILON);
+
   return 0;
 }

@@ -143,7 +143,7 @@ void ParticleDistribution::calcWeightStats()
     weight_var_ /= count_;
 
     // Calculate standard deviation
-    weight_std_dev_ = weight_var_ > 0.0 ? std::sqrt(weight_var_) : 0.0;
+    weight_std_dev_ = std::sqrt(weight_var_);
     weight_relative_std_dev_ = weight_avg_curr_ > 0.0 ? weight_std_dev_ / weight_avg_curr_ : 0.0;
   }
   else {

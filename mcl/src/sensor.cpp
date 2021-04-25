@@ -295,7 +295,7 @@ float BeamModel::repairRange(float range) const
 {
   return (   range > range_max_
           || std::signbit(range)
-          || std::isnan(range)
+          || !std::isfinite(range)
          ) ?
          range_no_obj_ : range;
 }

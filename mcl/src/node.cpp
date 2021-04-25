@@ -84,11 +84,13 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
   }
   // Map parameters
   nav_msgs::GetMap map_msg;
+
   if (   !ros::service::waitForService(map_topic, ros::Duration(5))
       || !ros::service::call(map_topic, map_msg)
      ) {
     throw std::runtime_error(std::string("MCL: Failed to retrieve map from topic '") + map_topic + "'");
   }
+  // Transforms
   TransformStampedMsg tf_base_to_sensor;
   TransformStampedMsg tf_wheel_back_left_to_sensor;
 
@@ -96,12 +98,12 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
     tf_base_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
                                                    base_frame_id_,
                                                    ros::Time(0),
-                                                   ros::Duration(5.0)
+                                                   ros::Duration(15.0)
                                                   );
     tf_wheel_back_left_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
                                                               wheel_back_left_frame_id_,
                                                               ros::Time(0),
-                                                              ros::Duration(5.0)
+                                                              ros::Duration(15.0)
                                                              );
   }
   catch (tf2::TransformException & except) {
