@@ -244,7 +244,7 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 void MCLNode::publishTf()
 {
   // MCL estimates the transform from the robot base frame to the map frame. In order to complete the transform tree,
-  // we need to publish this transform or its inverse.
+  // we need to publish the inverse of this transform (i.e., map to base frame).
   //
   // ROS convention unfortunately overloads the usual definition of a transform for the map to odom frame 'transform'.
   // It is comprised of two components:
@@ -253,9 +253,9 @@ void MCLNode::publishTf()
   //   2) A _correction_ to the odom frame data which, when applied to the odom frame, adjusts the odometry-derived
   //      pose to the 'true' (estimated) pose provided by MCL.
   //
-  // Following ROS convention, the transformation from the odom to map frame is determined here by subtracting the
-  // robot base to odom transformation (provided by another module) from the robot base to map frame transform we have
-  // estimated here.
+  // Following ROS convention, the transformation from the map to odom frame is determined here by subtracting the
+  // robot base to map frame transform we have estimated here from the robot base to odom transformation (provided by
+  // the odometry module).
   //
   // See REP 105 at https://www.ros.org/reps/rep-0105.html
   try {
@@ -266,27 +266,27 @@ void MCLNode::publishTf()
     Particle tf_base_to_map = mcl_ptr_->estimate();
 
     if (tf_base_to_map.weight_normed_ > 0.0) {
-      // Calculate odom to map transformation as delta between known transforms
-      double tf_odom_to_map_x = tf_base_to_map.x_ - tf_base_to_odom.transform.translation.x;
-      double tf_odom_to_map_y = tf_base_to_map.y_ - tf_base_to_odom.transform.translation.y;
-      tf2::Quaternion tf_odom_to_map_orient;
-      tf_odom_to_map_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ - tf2::getYaw(tf_base_to_odom.transform.rotation));
+      // Calculate map to odom transformation as delta between known transforms
+      double tf_map_to_odom_x = tf_base_to_odom.transform.translation.x - tf_base_to_map.x_;
+      double tf_map_to_odom_y = tf_base_to_odom.transform.translation.y - tf_base_to_map.y_;
+      tf2::Quaternion tf_map_to_odom_orient;
+      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf2::getYaw(tf_base_to_odom.transform.rotation) - tf_base_to_map.th_);
 
       // Create transform message
-      TransformStampedMsg tf_odom_to_map;
-      tf_odom_to_map.header.stamp = ros::Time::now();
-      tf_odom_to_map.header.frame_id = odom_frame_id_;
-      tf_odom_to_map.child_frame_id = map_frame_id_;
-      tf_odom_to_map.transform.translation.x = tf_odom_to_map_x;
-      tf_odom_to_map.transform.translation.y = tf_odom_to_map_y;
-      tf_odom_to_map.transform.translation.z = 0.0;
-      tf_odom_to_map.transform.rotation.x = tf_odom_to_map_orient.x();
-      tf_odom_to_map.transform.rotation.y = tf_odom_to_map_orient.y();
-      tf_odom_to_map.transform.rotation.z = tf_odom_to_map_orient.z();
-      tf_odom_to_map.transform.rotation.w = tf_odom_to_map_orient.w();
+      TransformStampedMsg tf_map_to_odom;
+      tf_map_to_odom.header.stamp = ros::Time::now();
+      tf_map_to_odom.header.frame_id = map_frame_id_;
+      tf_map_to_odom.child_frame_id = odom_frame_id_;
+      tf_map_to_odom.transform.translation.x = tf_map_to_odom_x;
+      tf_map_to_odom.transform.translation.y = tf_map_to_odom_y;
+      tf_map_to_odom.transform.translation.z = 0.0;
+      tf_map_to_odom.transform.rotation.x = tf_map_to_odom_orient.x();
+      tf_map_to_odom.transform.rotation.y = tf_map_to_odom_orient.y();
+      tf_map_to_odom.transform.rotation.z = tf_map_to_odom_orient.z();
+      tf_map_to_odom.transform.rotation.w = tf_map_to_odom_orient.w();
 
       // Broadcast transform
-      tf_broadcaster_.sendTransform(tf_odom_to_map);
+      tf_broadcaster_.sendTransform(tf_map_to_odom);
     }
   }
   catch (tf2::TransformException & except) {
