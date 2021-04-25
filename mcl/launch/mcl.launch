@@ -2,7 +2,7 @@
   <!-- Launch arguments -->
   <arg name="car_name"  default="car"/>
   <arg name="node_name" default="localizer"/>
-  <arg name="real"      default="false"/>
+  <arg name="real"      default="true"/>
 
   <!-- MCL arguments -->
   <arg name="num_particles_min" default="1000"/>
