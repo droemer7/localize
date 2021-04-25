@@ -253,9 +253,9 @@ void MCLNode::publishTf()
   //   2) A _correction_ to the odom frame data which, when applied to the odom frame, adjusts the odometry-derived
   //      pose to the 'true' (estimated) pose provided by MCL.
   //
-  // Following ROS convention, the transformation from the map to odom frame is determined here by subtracting the
-  // robot base to map frame transform we have estimated here from the robot base to odom transformation (provided by
-  // the odometry module).
+  // Following ROS convention, the transformation from the map to odom frame is determined here by computing the delta
+  // between the robot base to map frame transform we have estimated here and the robot base to odom transformation
+  // calculated by the odometry module.
   //
   // See REP 105 at https://www.ros.org/reps/rep-0105.html
   try {
@@ -267,10 +267,10 @@ void MCLNode::publishTf()
 
     if (tf_base_to_map.weight_normed_ > 0.0) {
       // Calculate map to odom transformation as delta between known transforms
-      double tf_map_to_odom_x = tf_base_to_odom.transform.translation.x - tf_base_to_map.x_;
-      double tf_map_to_odom_y = tf_base_to_odom.transform.translation.y - tf_base_to_map.y_;
+      double tf_map_to_odom_x = tf_base_to_map.x_ - tf_base_to_odom.transform.translation.x;
+      double tf_map_to_odom_y = tf_base_to_map.y_ - tf_base_to_odom.transform.translation.y;
       tf2::Quaternion tf_map_to_odom_orient;
-      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf2::getYaw(tf_base_to_odom.transform.rotation) - tf_base_to_map.th_);
+      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ - tf2::getYaw(tf_base_to_odom.transform.rotation));
 
       // Create transform message
       TransformStampedMsg tf_map_to_odom;
