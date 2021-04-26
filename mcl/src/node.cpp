@@ -244,18 +244,8 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 void MCLNode::publishTf()
 {
   // MCL estimates the transform from the robot base frame to the map frame. In order to complete the transform tree,
-  // we need to publish the inverse of this transform (i.e., map to base frame).
-  //
-  // ROS convention unfortunately overloads the usual definition of a transform for the map to odom frame 'transform'.
-  // It is comprised of two components:
-  //   1) A transformation from the (fixed) map frame to the (fixed) odom frame. Note that the odom frame is located at
-  //      the robot's initial position, which may be anywhere on the map.
-  //   2) A _correction_ to the odom frame data which, when applied to the odom frame, adjusts the odometry-derived
-  //      pose to the 'true' (estimated) pose provided by MCL.
-  //
-  // Following ROS convention, the transformation from the map to odom frame is determined here by computing the delta
-  // between the robot base to map frame transform we have estimated here and the robot base to odom transformation
-  // calculated by the odometry module.
+  // we need to publish the missing map to odom frame transformation. This transformation represents a correction
+  // which, when applied to a point in the odometry frame, yields the MCL estimate of where the robot is in the map.
   //
   // See REP 105 at https://www.ros.org/reps/rep-0105.html
   try {
@@ -266,11 +256,21 @@ void MCLNode::publishTf()
     Particle tf_base_to_map = mcl_ptr_->estimate();
 
     if (tf_base_to_map.weight_normed_ > 0.0) {
-      // Calculate map to odom transformation as delta between known transforms
-      double tf_map_to_odom_x = tf_base_to_map.x_ - tf_base_to_odom.transform.translation.x;
-      double tf_map_to_odom_y = tf_base_to_map.y_ - tf_base_to_odom.transform.translation.y;
+      // Rotate the map frame into the odometry frame, and then calculate the delta from the map point (MCL estimate)
+      // to the odometry point
+      double tf_map_to_odom_th = tf2::getYaw(tf_base_to_odom.transform.rotation) - tf_base_to_map.th_;
+      double tf_map_to_odom_x = (  tf_base_to_odom.transform.translation.x
+                                 - (  tf_base_to_map.x_ * std::cos(tf_map_to_odom_th)
+                                    - tf_base_to_map.y_ * std::sin(tf_map_to_odom_th)
+                                   )
+                                );
+      double tf_map_to_odom_y = (  tf_base_to_odom.transform.translation.y
+                                 - (  tf_base_to_map.x_ * std::sin(tf_map_to_odom_th)
+                                    + tf_base_to_map.y_ * std::cos(tf_map_to_odom_th)
+                                   )
+                                );
       tf2::Quaternion tf_map_to_odom_orient;
-      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ - tf2::getYaw(tf_base_to_odom.transform.rotation));
+      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf_map_to_odom_th);
 
       // Create transform message
       TransformStampedMsg tf_map_to_odom;

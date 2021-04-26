@@ -10,6 +10,9 @@
 
 #include "includes/RangeLib.h"
 
+#define DEG2RAD(x) ((x) * L_PI / 180.0)
+#define RAD2DEG(x) ((x) * 180.0 / L_PI)
+
 using namespace localize;
 
 std::chrono::_V2::high_resolution_clock::time_point start;
@@ -44,19 +47,87 @@ void testAngleUtils()
 
 int main(int argc, char** argv)
 {
-  double car_length = 0.3;
-  double radius_r = car_length / std::tan(0.34);
+  // double car_length = 0.3;
+  // double car_width = 0.225 + 2 * 0.02225;
+  // double radius_rear_meas = car_length / std::tan(0.34) - car_width;
+  // printf("radius_rear_meas = %.4f (inches)\n", radius_rear_meas * 100.0 / 2.54);
 
-  double beta = std::atan2(0.158 * std::tan(0.34), car_length);
-  double radius_cg = car_length / (std::cos(beta) * std::tan(0.34));
+  printf("\n");
+  Pose map(3,3,DEG2RAD(80));
+  Pose odom(1,1,DEG2RAD(45));
+  Pose map_to_odom;
 
-  printf("radius_f = %.4f (inches)\n", car_length / std::sin(0.34) * 100.0 / 2.54);
-  printf("radius_cg = %.4f (inches)\n", radius_cg * 100.0 / 2.54);
-  printf("radius_r = %.4f (inches)\n", radius_r * 100.0 / 2.54);
+  // Translate
+  map_to_odom.x_ = odom.x_;
+  map_to_odom.y_ = odom.y_;
+  map_to_odom.th_ = odom.th_ - map.th_;
 
-  double nan_val = std::sqrt(-1);
-  printf("%d\n", nan_val > DBL_EPSILON);
-  printf("%d\n", std::abs(nan_val) > DBL_EPSILON);
+  // Rotate
+  map_to_odom.x_ -= map.x_ * std::cos(map_to_odom.th_) - map.y_ * std::sin(map_to_odom.th_);
+  map_to_odom.y_ -= map.x_ * std::sin(map_to_odom.th_) + map.y_ * std::cos(map_to_odom.th_);
+
+  printf("Transform:\n");
+  printf("x = %.2f\n", map_to_odom.x_);             // x = -3.18
+  printf("y = %.2f\n", map_to_odom.y_);             // y = 0.26
+  printf("th = %.2f\n", RAD2DEG(map_to_odom.th_));  // th = -35.00
+  printf("==========================\n");
+
+  map = Pose(3,3, DEG2RAD(80.0));
+
+  // Rotate
+  double temp_map_x = map.x_;
+  map.x_ = temp_map_x * std::cos(map_to_odom.th_) - map.y_ * std::sin(map_to_odom.th_);
+  map.y_ = temp_map_x * std::sin(map_to_odom.th_) + map.y_ * std::cos(map_to_odom.th_);
+
+  // Translate
+  map.x_ += map_to_odom.x_;
+  map.y_ += map_to_odom.y_;
+  map.th_ += map_to_odom.th_;
+
+  printf("Map point in odom:\n");
+  printf("x = %.2f\n", map.x_);             // x = 1.00
+  printf("y = %.2f\n", map.y_);             // y = 1.00
+  printf("th = %.2f\n", RAD2DEG(map.th_));  // th = 45.00
+  printf("==========================\n");
+
+  /*
+  Pose map(3,3,DEG2RAD(80));
+  Pose odom(1,1,DEG2RAD(45));
+  Pose map_to_odom;
+
+  // Rotate
+  map_to_odom.th_ = odom.th_ - map.th_;
+  map_to_odom.x_ = odom.x_ * std::cos(map_to_odom.th_) + odom.y_ * std::sin(map_to_odom.th_);
+  map_to_odom.y_ = -odom.x_ * std::sin(map_to_odom.th_) + odom.y_ * std::cos(map_to_odom.th_);
+
+  // Translate
+  map_to_odom.x_ -= map.x_;
+  map_to_odom.y_ -= map.y_;
+
+  printf("Transform (reverse?):\n");
+  printf("x = %.2f\n", map_to_odom.x_);
+  printf("y = %.2f\n", map_to_odom.y_);
+  printf("th = %.2f\n", RAD2DEG(map_to_odom.th_));
+  printf("==========================\n");
+
+  map = Pose(3,3, DEG2RAD(80.0));
+
+  // Translate
+  map.x_ += map_to_odom.x_;
+  map.y_ += map_to_odom.y_;
+  map.th_ += map_to_odom.th_;
+
+  // Rotate
+  double temp_map_x = map.x_;
+  map.x_ = temp_map_x * std::cos(map_to_odom.th_) - map.y_ * std::sin(map_to_odom.th_);
+  map.y_ = temp_map_x * std::sin(map_to_odom.th_) + map.y_ * std::cos(map_to_odom.th_);
+
+  printf("Map point in odom:\n");
+  printf("x = %.2f\n", map.x_);
+  printf("y = %.2f\n", map.y_);
+  printf("th = %.2f\n", RAD2DEG(map.th_));
+  printf("==========================\n");
+  */
 
   return 0;
 }
