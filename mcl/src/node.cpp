@@ -244,33 +244,33 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 void MCLNode::publishTf()
 {
   // MCL estimates the transform from the robot base frame to the map frame. In order to complete the transform tree,
-  // we need to publish the missing map to odom frame transformation. This transformation represents a correction
-  // which, when applied to a point in the odometry frame, yields the MCL estimate of where the robot is in the map.
+  // we need to publish the missing map to odom frame transformation. This transforms the MCL estimate to the odometry
+  // estimate.
   //
   // See REP 105 at https://www.ros.org/reps/rep-0105.html
   try {
-    TransformStampedMsg tf_base_to_odom = tf_buffer_.lookupTransform(odom_frame_id_,
-                                                                     base_frame_id_,
+    TransformStampedMsg tf_odom_to_base = tf_buffer_.lookupTransform(base_frame_id_,
+                                                                     odom_frame_id_,
                                                                      ros::Time(0)
                                                                     );
+    printf("odom_to_base = %.4f, %.4f, %.4f\n", tf_odom_to_base.transform.translation.x,
+                                                tf_odom_to_base.transform.translation.y,
+                                                tf2::getYaw(tf_odom_to_base.transform.rotation) * 180.0 / L_PI);
     Particle tf_base_to_map = mcl_ptr_->estimate();
 
     if (tf_base_to_map.weight_normed_ > 0.0) {
-      // Rotate the map frame into the odometry frame, and then calculate the delta from the map point (MCL estimate)
-      // to the odometry point
-      double tf_map_to_odom_th = tf2::getYaw(tf_base_to_odom.transform.rotation) - tf_base_to_map.th_;
-      double tf_map_to_odom_x = (  tf_base_to_odom.transform.translation.x
-                                 - (  tf_base_to_map.x_ * std::cos(tf_map_to_odom_th)
-                                    - tf_base_to_map.y_ * std::sin(tf_map_to_odom_th)
+      double tf_map_to_odom_x = (  tf_base_to_map.x_
+                                 + (  tf_odom_to_base.transform.translation.x * std::cos(tf_base_to_map.th_)
+                                    - tf_odom_to_base.transform.translation.y * std::sin(tf_base_to_map.th_)
                                    )
                                 );
-      double tf_map_to_odom_y = (  tf_base_to_odom.transform.translation.y
-                                 - (  tf_base_to_map.x_ * std::sin(tf_map_to_odom_th)
-                                    + tf_base_to_map.y_ * std::cos(tf_map_to_odom_th)
+      double tf_map_to_odom_y = (  tf_base_to_map.y_
+                                 + (  tf_odom_to_base.transform.translation.x * std::sin(tf_base_to_map.th_)
+                                    + tf_odom_to_base.transform.translation.y * std::cos(tf_base_to_map.th_)
                                    )
                                 );
       tf2::Quaternion tf_map_to_odom_orient;
-      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf_map_to_odom_th);
+      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ + tf2::getYaw(tf_odom_to_base.transform.rotation));
 
       // Create transform message
       TransformStampedMsg tf_map_to_odom;

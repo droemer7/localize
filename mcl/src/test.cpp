@@ -53,8 +53,8 @@ int main(int argc, char** argv)
   // printf("radius_rear_meas = %.4f (inches)\n", radius_rear_meas * 100.0 / 2.54);
 
   printf("\n");
-  Pose map(3,3,DEG2RAD(80));
-  Pose odom(1,1,DEG2RAD(45));
+  Pose map(2.144, 1.719, DEG2RAD(35.744)); // map(3,3,DEG2RAD(80));
+  Pose odom(0.163, 0.0, DEG2RAD(-0.001));  // odom(1,1,DEG2RAD(45));
   Pose map_to_odom;
 
   // Translate
@@ -71,8 +71,6 @@ int main(int argc, char** argv)
   printf("y = %.2f\n", map_to_odom.y_);             // y = 0.26
   printf("th = %.2f\n", RAD2DEG(map_to_odom.th_));  // th = -35.00
   printf("==========================\n");
-
-  map = Pose(3,3, DEG2RAD(80.0));
 
   // Rotate
   double temp_map_x = map.x_;
@@ -91,8 +89,8 @@ int main(int argc, char** argv)
   printf("==========================\n");
 
   /*
-  Pose map(3,3,DEG2RAD(80));
-  Pose odom(1,1,DEG2RAD(45));
+  Pose map(2.144, 1.719, DEG2RAD(35.744)); // map(3,3,DEG2RAD(80));
+  Pose odom(0.163, 0.0, DEG2RAD(-0.001));  // odom(1,1,DEG2RAD(45));
   Pose map_to_odom;
 
   // Rotate
