@@ -34,7 +34,7 @@ bool PoseOccupancyHistogram::add(const Pose& pose)
   // Since x and y scale must be equal for an occupancy grid, order of rotating and scaling doesn't matter
   long x_i = pose_map.x_ * xy_scale_;
   long y_i = pose_map.y_ * xy_scale_;
-  long th_i = pose_map.th_ * th_scale_ + L_PI;
+  long th_i = (pose_map.th_ + L_PI) * th_scale_;
 
   // Ignore poses out of bounds
   if(   0 <= x_i  && x_i  < x_size_
@@ -198,7 +198,7 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   // Since x and y scale must be equal for an occupancy grid, order of rotating and scaling doesn't matter
   long x_i = pose_map.x_ * xy_scale_;
   long y_i = pose_map.y_ * xy_scale_;
-  long th_i = pose_map.th_ * th_scale_ + L_PI;
+  long th_i = (pose_map.th_ + L_PI ) * th_scale_;
 
   // Ignore particles out of bounds
   if(   0 <= x_i  && x_i  < x_size_
