@@ -52,41 +52,83 @@ int main(int argc, char** argv)
   // double radius_rear_meas = car_length / std::tan(0.34) - car_width;
   // printf("radius_rear_meas = %.4f (inches)\n", radius_rear_meas * 100.0 / 2.54);
 
+  // printf("\n");
+  // Pose base_to_odom(0.508, 0.398, DEG2RAD(40.848));
+  // Pose odom_to_base;
+
+  // // Rotate
+  // odom_to_base.x_ = -(base_to_odom.x_ * std::cos(-base_to_odom.th_) - base_to_odom.y_ * std::sin(-base_to_odom.th_));
+  // odom_to_base.y_ = -(base_to_odom.x_ * std::sin(-base_to_odom.th_) + base_to_odom.y_ * std::cos(-base_to_odom.th_));
+  // odom_to_base.th_ = -base_to_odom.th_;
+
+  // printf("odom_to_base:\n");
+  // printf("x = %.3f\n", odom_to_base.x_);
+  // printf("y = %.3f\n", odom_to_base.y_);
+  // printf("th = %.3f\n", RAD2DEG(odom_to_base.th_));
+  // printf("==========================\n");
+
+  // Pose base_to_map(0.594, 0.475, DEG2RAD(40.934));
+  // Pose map_to_odom;
+
+  // map_to_odom.x_ = (  base_to_map.x_
+  //                   + (  odom_to_base.x_ * std::cos(base_to_map.th_)
+  //                      - odom_to_base.y_ * std::sin(base_to_map.th_)
+  //                     )
+  //                  );
+  // map_to_odom.y_ = (  base_to_map.y_
+  //                   + (  odom_to_base.x_ * std::sin(base_to_map.th_)
+  //                      + odom_to_base.y_ * std::cos(base_to_map.th_)
+  //                     )
+  //                  );
+  // map_to_odom.th_ = base_to_map.th_ + odom_to_base.th_;
+
+  // printf("map_to_odom:\n");
+  // printf("x = %.3f\n", map_to_odom.x_);
+  // printf("y = %.3f\n", map_to_odom.y_);
+  // printf("th = %.3f\n", RAD2DEG(map_to_odom.th_));
+  // printf("==========================\n");
+
+  // map_to_odom:
+  // x = 3.328
+  // y = 1.788
+  // th = 35.000
+
   printf("\n");
-  Pose map(2.144, 1.719, DEG2RAD(35.744)); // map(3,3,DEG2RAD(80));
-  Pose odom(0.163, 0.0, DEG2RAD(-0.001));  // odom(1,1,DEG2RAD(45));
+  Pose base_to_map(0.594, 0.475, DEG2RAD(40.934));
+  Pose map_to_base;
+
+  // Rotate
+  map_to_base.x_ = -(base_to_map.x_ * std::cos(-base_to_map.th_) - base_to_map.y_ * std::sin(-base_to_map.th_));
+  map_to_base.y_ = -(base_to_map.x_ * std::sin(-base_to_map.th_) + base_to_map.y_ * std::cos(-base_to_map.th_));
+  map_to_base.th_ = -base_to_map.th_;
+
+  printf("map_to_base:\n");
+  printf("x = %.3f\n", map_to_base.x_);
+  printf("y = %.3f\n", map_to_base.y_);
+  printf("th = %.3f\n", RAD2DEG(map_to_base.th_));
+  printf("==========================\n");
+
+  Pose base_to_odom(0.508, 0.398, DEG2RAD(40.848));
   Pose map_to_odom;
 
-  // Translate
-  map_to_odom.x_ = odom.x_;
-  map_to_odom.y_ = odom.y_;
-  map_to_odom.th_ = odom.th_ - map.th_;
+  map_to_odom.x_ = (  base_to_odom.x_
+                    + (  map_to_base.x_ * std::cos(base_to_odom.th_)
+                       - map_to_base.y_ * std::sin(base_to_odom.th_)
+                      )
+                   );
+  map_to_odom.y_ = (  base_to_odom.y_
+                    + (  map_to_base.x_ * std::sin(base_to_odom.th_)
+                       + map_to_base.y_ * std::cos(base_to_odom.th_)
+                      )
+                   );
+  map_to_odom.th_ = base_to_odom.th_ + map_to_base.th_;
 
-  // Rotate
-  map_to_odom.x_ -= map.x_ * std::cos(map_to_odom.th_) - map.y_ * std::sin(map_to_odom.th_);
-  map_to_odom.y_ -= map.x_ * std::sin(map_to_odom.th_) + map.y_ * std::cos(map_to_odom.th_);
-
-  printf("Transform:\n");
-  printf("x = %.2f\n", map_to_odom.x_);             // x = -3.18
-  printf("y = %.2f\n", map_to_odom.y_);             // y = 0.26
-  printf("th = %.2f\n", RAD2DEG(map_to_odom.th_));  // th = -35.00
+  printf("map_to_odom:\n");
+  printf("x = %.3f\n", map_to_odom.x_);
+  printf("y = %.3f\n", map_to_odom.y_);
+  printf("th = %.3f\n", RAD2DEG(map_to_odom.th_));
   printf("==========================\n");
 
-  // Rotate
-  double temp_map_x = map.x_;
-  map.x_ = temp_map_x * std::cos(map_to_odom.th_) - map.y_ * std::sin(map_to_odom.th_);
-  map.y_ = temp_map_x * std::sin(map_to_odom.th_) + map.y_ * std::cos(map_to_odom.th_);
-
-  // Translate
-  map.x_ += map_to_odom.x_;
-  map.y_ += map_to_odom.y_;
-  map.th_ += map_to_odom.th_;
-
-  printf("Map point in odom:\n");
-  printf("x = %.2f\n", map.x_);             // x = 1.00
-  printf("y = %.2f\n", map.y_);             // y = 1.00
-  printf("th = %.2f\n", RAD2DEG(map.th_));  // th = 45.00
-  printf("==========================\n");
 
   /*
   Pose map(2.144, 1.719, DEG2RAD(35.744)); // map(3,3,DEG2RAD(80));
