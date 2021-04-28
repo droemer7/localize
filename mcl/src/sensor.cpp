@@ -1,6 +1,6 @@
 #include "mcl/sensor.h"
 
-static const float RANGE_STD_DEV = 0.3;                       // Standard deviation in range measurements
+static const float RANGE_STD_DEV = 0.2;                       // Standard deviation in range measurements
 static const float NEW_OBJ_DECAY_RATE = 0.5;                  // Decay rate for new / unexpected object probability
 static const double WEIGHT_NO_OBJ = 20.0;                     // Weight for no object detected probability
 static const double WEIGHT_NEW_OBJ = 9.0;                     // Weight for new / unexpected object probability
@@ -238,7 +238,6 @@ RaySampleVector BeamModel::sample(const RayScan& obs)
   return rays_obs_sample;
 }
 
-// TBD remove print statements
 void BeamModel::removeOutliers(ParticleDistribution& dist)
 {
   // Calculate ratios and pair them with their index
@@ -268,6 +267,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
         ) {
     if (outlier_weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
       ++reject_count;
+      printRejectedRange(rays_obs_sample_[outlier_weight_ratios[i].index_], outlier_weight_ratios[i].val_);
     }
     else {
       break;  // Once one is accepted, remaining ones will also be acceptable from sorting

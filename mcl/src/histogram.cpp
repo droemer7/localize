@@ -2,11 +2,11 @@
 
 static const size_t NUM_ESTIMATES = 5;                    // Number of pose estimates to provide
 static const double ESTIMATE_MERGE_DXY_MAX = 0.10;        // Maximum x or y delta for two estimates to be combined
-static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 72.0; // Maximum angular delta for two estimates to be combined
-static const double HIST_OCCUPANCY_XY_RES = 0.10;         // Occupancy histogram resolution for x and y position (meters per cell)
+static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 36.0; // Maximum angular delta for two estimates to be combined
+static const double HIST_OCCUPANCY_XY_RES = 0.25;         // Occupancy histogram resolution for x and y position (meters per cell)
 static const double HIST_OCCUPANCY_TH_RES = L_PI / 18.0;  // Occupancy histogram resolution for heading angle (rad per cell)
 static const double HIST_ESTIMATE_XY_RES = 0.25;          // Estimate histogram resolution for x and y position (meters per cell)
-static const double HIST_ESTIMATE_TH_RES = L_PI / 4.0;    // Estimate histogram resolution for heading angle (rad per cell)
+static const double HIST_ESTIMATE_TH_RES = L_PI / 8.0;    // Estimate histogram resolution for heading angle (rad per cell)
 
 using namespace localize;
 
