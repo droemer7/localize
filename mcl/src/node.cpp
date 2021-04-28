@@ -243,22 +243,22 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 
 void MCLNode::publishTf()
 {
-  // MCL estimates the transform from the robot base frame to the map frame. In order to complete the transform tree,
-  // we need to publish the missing map to odom frame transformation. This transforms the MCL estimate to the odometry
+  // MCL estimates the transform from the robot base to the map frame. In order to complete the transform tree, we
+  // need to publish the missing map to odom frame transformation. This transforms the MCL estimate to the odometry
   // estimate.
-  //
-  // See REP 105 at https://www.ros.org/reps/rep-0105.html
-  try {
-    TransformStampedMsg tf_odom_to_base = tf_buffer_.lookupTransform(base_frame_id_,
-                                                                     odom_frame_id_,
-                                                                     ros::Time(0)
-                                                                    );
-    printf("odom_to_base = %.4f, %.4f, %.4f\n", tf_odom_to_base.transform.translation.x,
-                                                tf_odom_to_base.transform.translation.y,
-                                                tf2::getYaw(tf_odom_to_base.transform.rotation) * 180.0 / L_PI);
-    Particle tf_base_to_map = mcl_ptr_->estimate();
 
-    if (tf_base_to_map.weight_normed_ > 0.0) {
+  // Get the latest estimate which represents the transform of the robot base relative to the map frame
+  Particle tf_base_to_map = mcl_ptr_->estimate();
+
+  if (tf_base_to_map.weight_normed_ > 0.0) {
+    try {
+      // Get the latest transform of the odometry frame relative to the robot base frame
+      TransformStampedMsg tf_odom_to_base = tf_buffer_.lookupTransform(base_frame_id_,
+                                                                       odom_frame_id_,
+                                                                       ros::Time(0)
+                                                                      );
+      // Rotate the odometry to robot base x & y translations into the map frame
+      // Then, map to odom = base to map [in map] + odom to base [in map]
       double tf_map_to_odom_x = (  tf_base_to_map.x_
                                  + (  tf_odom_to_base.transform.translation.x * std::cos(tf_base_to_map.th_)
                                     - tf_odom_to_base.transform.translation.y * std::sin(tf_base_to_map.th_)
@@ -269,8 +269,11 @@ void MCLNode::publishTf()
                                     + tf_odom_to_base.transform.translation.y * std::cos(tf_base_to_map.th_)
                                    )
                                 );
+      double tf_map_to_odom_th = tf_base_to_map.th_ + tf2::getYaw(tf_odom_to_base.transform.rotation);
+
+      // Convert map to odom angle to quaternion orientation
       tf2::Quaternion tf_map_to_odom_orient;
-      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf_base_to_map.th_ + tf2::getYaw(tf_odom_to_base.transform.rotation));
+      tf_map_to_odom_orient.setRPY(0.0, 0.0, tf_map_to_odom_th);
 
       // Create transform message
       TransformStampedMsg tf_map_to_odom;
@@ -288,24 +291,25 @@ void MCLNode::publishTf()
       // Broadcast transform
       tf_broadcaster_.sendTransform(tf_map_to_odom);
     }
-  }
-  catch (tf2::TransformException & except) {
-    ROS_WARN("MCL: %s", except.what());
+    catch (tf2::TransformException & except) {
+      ROS_WARN("MCL: %s", except.what());
+    }
   }
 }
 
 void MCLNode::publishPose()
 {
-  // Get estimate
+  // Get the best estimate
   Particle estimate = mcl_ptr_->estimate();
 
-  // Estimates with a zero weight are considered null
   if (estimate.weight_normed_ > 0.0) {
+    // Create pose message
     PoseStampedMsg pose_msg;
     pose_msg.header.stamp = ros::Time::now();
     pose_msg.header.frame_id = map_frame_id_;
     pose_msg.pose = poseMsg(estimate);
 
+    // Publish pose
     pose_pub_.publish(pose_msg);
   }
 }
@@ -315,18 +319,18 @@ void MCLNode::publishPoseArray()
   // Get estimates
   ParticleVector estimates = mcl_ptr_->estimates();
 
-  // Check if we have anything to publish
   if (estimates.size() > 0) {
+    // Create pose array message
     PoseArrayMsg pose_array_msg;
     pose_array_msg.header.stamp = ros::Time::now();
     pose_array_msg.header.frame_id = map_frame_id_;
 
     for (size_t i = 0; i < estimates.size(); ++i) {
-      // Estimates with a zero weight are considered null
       if (estimates[i].weight_normed_ > 0.0) {
         pose_array_msg.poses.push_back(poseMsg(estimates[i]));
       }
     }
+    // Publish pose array
     pose_array_pub_.publish(pose_array_msg);
   }
 }
