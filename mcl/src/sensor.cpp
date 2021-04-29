@@ -7,7 +7,7 @@ static const double WEIGHT_NEW_OBJ = 9.0;                     // Weight for new 
 static const double WEIGHT_MAP_OBJ = 70.0;                    // Weight for mapped / expected object probability
 static const double WEIGHT_RAND_EFFECT = 1.0;                 // Weight for random effect probability
 static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;          // Weight uncertainty factor (extra noise added)
-static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.50;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
+static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.70;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
 static const double WEIGHT_TABLE_RES = 0.01;                  // Lookup table resolution (meters per cell)
 static const unsigned int TH_RAYCAST_COUNT = 314;             // Number of angles for raycast approximation (count per revolution)
 static const float RANGE_EPSILON = 1e-5;                      // Maximum delta between two ranges such that they are still considered 'equal'
@@ -267,7 +267,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
         ) {
     if (outlier_weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
       ++reject_count;
-      printRejectedRange(rays_obs_sample_[outlier_weight_ratios[i].index_], outlier_weight_ratios[i].val_);
+      // printRejectedRange(rays_obs_sample_[outlier_weight_ratios[i].index_], outlier_weight_ratios[i].val_);
     }
     else {
       break;  // Once one is accepted, remaining ones will also be acceptable from sorting
