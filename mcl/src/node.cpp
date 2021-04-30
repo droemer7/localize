@@ -44,8 +44,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                  const std::string& drive_vel_topic_name,
                  const std::string& drive_steer_topic_name,
                  const std::string& sensor_node_name,
-                 const std::string& sensor_topic_name,
-                 const std::string& map_topic
+                 const std::string& sensor_topic_name
                 ) :
   drive_vel_spinner_(1, &drive_vel_cb_queue_),
   drive_steer_spinner_(1, &drive_steer_cb_queue_),
@@ -68,7 +67,8 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
       || !getParam(nh, localizer_node_name + "/num_particles_max", num_particles_max_)
       || !getParam(nh, localizer_node_name + "/base_frame_id", base_frame_id_)
       || !getParam(nh, localizer_node_name + "/wheel_back_left_frame_id", wheel_back_left_frame_id_)
-      || !getParam(nh, localizer_node_name + "/publish_tf", publish_tf_)
+      || !getParam(nh, localizer_node_name + "/real", real_)
+      || !getParam(nh, localizer_node_name + "/load_map_altered", load_map_altered_)
       || !getParam(nh, drive_node_name + "/frame_id", odom_frame_id_)
       || !getParam(nh, drive_node_name + "/chassis_length", car_length_)
       || !getParam(nh, drive_node_name + "/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
@@ -83,12 +83,24 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
     throw std::runtime_error("MCL: Missing required parameters");
   }
   // Map parameters
-  nav_msgs::GetMap map_msg;
+  std::string map_metadata_topic = "/static_map";
+  nav_msgs::GetMap map_metadata_msg;
 
-  if (   !ros::service::waitForService(map_topic, ros::Duration(5))
-      || !ros::service::call(map_topic, map_msg)
+  if (   !ros::service::waitForService(map_metadata_topic, ros::Duration(5))
+      || !ros::service::call(map_metadata_topic, map_metadata_msg)
      ) {
-    throw std::runtime_error(std::string("MCL: Failed to retrieve map from topic '") + map_topic + "'");
+    throw std::runtime_error(std::string("MCL: Failed to retrieve map metadata from topic '") + map_metadata_topic + "'");
+  }
+  // Map occupancy grid
+  nav_msgs::OccupancyGrid map_grid_msg;
+
+  if (load_map_altered_) {
+    nav_msgs::OccupancyGrid::ConstPtr map_grid_msg_ptr =
+      ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(std::string("/map_altered"), nh);
+    map_grid_msg.data = map_grid_msg_ptr->data;
+  }
+  else {
+    map_grid_msg.data = map_metadata_msg.response.map.data;
   }
   // Transforms
   TransformStampedMsg tf_base_to_sensor;
@@ -121,15 +133,16 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                                           sensor_range_min_,
                                           sensor_range_max_,
                                           sensor_range_no_obj_,
-                                          map_msg.response.map.info.width,
-                                          map_msg.response.map.info.height,
-                                          map_msg.response.map.info.origin.position.x,
-                                          map_msg.response.map.info.origin.position.y,
-                                          tf2::getYaw(map_msg.response.map.info.origin.orientation),
-                                          map_msg.response.map.info.resolution,
-                                          map_msg.response.map.data
+                                          map_metadata_msg.response.map.info.width,
+                                          map_metadata_msg.response.map.info.height,
+                                          map_metadata_msg.response.map.info.origin.position.x,
+                                          map_metadata_msg.response.map.info.origin.position.y,
+                                          tf2::getYaw(map_metadata_msg.response.map.info.origin.orientation),
+                                          map_metadata_msg.response.map.info.resolution,
+                                          map_grid_msg.data
                                          )
                                  );
+
   // Assign ROS callback queues
   drive_vel_nh_.setCallbackQueue(&drive_vel_cb_queue_);
   drive_steer_nh.setCallbackQueue(&drive_steer_cb_queue_);
@@ -156,6 +169,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                                      this,
                                      ros::TransportHints().tcpNoDelay()
                                     );
+
   // Create timers for estimate and status updates
   estimate_timer_ = status_nh_.createTimer(ros::Duration(0.02),
                                            &MCLNode::estimateCb,
@@ -228,7 +242,7 @@ void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
 void MCLNode::estimateCb(const ros::TimerEvent& event)
 {
   // Publish transform and pose
-  if (publish_tf_) {
+  if (real_) {
     publishTf();
   }
   publishPose();

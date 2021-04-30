@@ -66,8 +66,7 @@ namespace localize
             const std::string& drive_vel_topic_name,            // Drive velocity topic name
             const std::string& drive_steer_topic_name,          // Drive steering topic name
             const std::string& sensor_node_name,                // Sensor node name
-            const std::string& sensor_topic_name,               // Sensor topic name
-            const std::string& map_topic                        // Map topic name
+            const std::string& sensor_topic_name                // Sensor topic name
            );
 
     // Drive velocity state callback
@@ -110,6 +109,7 @@ namespace localize
     std::string sensor_frame_id_;
     std::string odom_frame_id_;
     std::string map_frame_id_;
+
     ros::NodeHandle pose_nh_;
     ros::NodeHandle pose_array_nh_;
     ros::NodeHandle drive_vel_nh_;
@@ -117,44 +117,49 @@ namespace localize
     ros::NodeHandle sensor_nh_;
     ros::NodeHandle estimate_nh_;
     ros::NodeHandle status_nh_;
+
     ros::CallbackQueue drive_vel_cb_queue_;
     ros::CallbackQueue drive_steer_cb_queue_;
     ros::CallbackQueue sensor_cb_queue_;
     ros::CallbackQueue estimate_cb_queue_;
     ros::CallbackQueue status_cb_queue_;
+
     ros::Publisher pose_pub_;
     ros::Publisher pose_array_pub_;
     ros::Subscriber drive_vel_sub_;
     ros::Subscriber drive_steer_sub_;
     ros::Subscriber sensor_sub_;
+
     ros::AsyncSpinner drive_vel_spinner_;
     ros::AsyncSpinner drive_steer_spinner_;
     ros::AsyncSpinner sensor_spinner_;
     ros::AsyncSpinner estimate_spinner_;
     ros::AsyncSpinner status_spinner_;
+
     ros::Time drive_t_prev_;
     ros::Timer estimate_timer_;
     ros::Timer status_timer_;
 
-    bool publish_tf_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
 
     // MCL
     std::unique_ptr<MCL> mcl_ptr_;
+    bool real_;              // Running on real robot
+    bool load_map_altered_;  // Serve the raycaster with an altered map for stress testing
     int num_particles_min_;  // Minimum number of particles to use
     int num_particles_max_;  // Maximum number of particles to use
 
     // Motion model parameters
-    double car_length_;                        // Car length
-    double drive_vel_to_erpm_gain_;            // Gain for converting motor velocity to electrical rpm
-    double drive_vel_to_erpm_offset_;          // Bias for converting motor velocity to electrical rpm
-    double drive_steer_angle_to_servo_gain_;   // Gain for converting steering angle to servo position
-    double drive_steer_angle_to_servo_offset_; // Bias for converting steering angle to servo position
-    double drive_steer_servo_pos_;             // Steering servo position
-    double motion_update_time_msec_;           // Motion update last time (milliseconds)
-    double motion_update_time_worst_msec_;     // Motion update worst time (milliseconds)
+    double car_length_;                         // Car length
+    double drive_vel_to_erpm_gain_;             // Gain for converting motor velocity to electrical rpm
+    double drive_vel_to_erpm_offset_;           // Bias for converting motor velocity to electrical rpm
+    double drive_steer_angle_to_servo_gain_;    // Gain for converting steering angle to servo position
+    double drive_steer_angle_to_servo_offset_;  // Bias for converting steering angle to servo position
+    double drive_steer_servo_pos_;              // Steering servo position
+    double motion_update_time_msec_;            // Motion update last time (milliseconds)
+    double motion_update_time_worst_msec_;      // Motion update worst time (milliseconds)
 
     // Sensor model parameters
     float sensor_range_min_;                // Sensor min range in meters

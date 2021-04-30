@@ -22,8 +22,7 @@ int main(int argc, char** argv)
                      drive_node_name + "/sensors/core",
                      drive_node_name + "/sensors/servo_position_command",
                      sensor_node_name,
-                     sensor_node_name + "/scan",
-                     "/static_map"
+                     sensor_node_name + "/scan"
                     );
     // Run MCL node until ROS is shutdown
     ros::waitForShutdown();
