@@ -244,8 +244,7 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 void MCLNode::publishTf()
 {
   // MCL estimates the transform from the robot base to the map frame. In order to complete the transform tree, we
-  // need to publish the missing map to odom frame transformation. This transforms the MCL estimate to the odometry
-  // estimate.
+  // need to publish the missing map to odom frame transformation.
 
   // Get the latest estimate which represents the transform of the robot base relative to the map frame
   Particle tf_base_to_map = mcl_ptr_->estimate();
