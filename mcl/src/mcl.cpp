@@ -74,7 +74,6 @@ void MCL::update(const double vel_lin,
 {
   if (!stopped(vel_lin)) {
     RecursiveLock lock(dist_mtx_);
-
     motion_model_.apply(dist_, vel_lin, steering_angle, dt);
   }
 }
@@ -86,7 +85,6 @@ void MCL::update(const RayScan& obs)
 
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
-
     sensor_model_.apply(dist_);
     // printStats("\n===== Sensor update =====\n"); // TBD remove
     update();

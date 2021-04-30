@@ -100,6 +100,8 @@ namespace localize
     // Print Sensor update times (last and worst)
     void printSensorUpdateTime(const double min_msec = 0.0);
 
+    void printMaxRangeInfo();
+
   private:
     Mutex drive_steer_servo_pos_mtx_;  // Servo mutex
 
