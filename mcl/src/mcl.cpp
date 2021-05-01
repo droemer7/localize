@@ -1,8 +1,8 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-8;  // Average weight below which random sampling is enabled
+static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-6;  // Average weight below which random sampling is enabled
 static const double WEIGHT_DEV_RESAMPLE = 0.5;        // Weight standard deviation above which resampling is performed
-static const double SPEED_STOPPED = 1e-4;             // Speed below which the robot is stopped (defers updates)
+static const double SPEED_STOPPED = 1e-3;             // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;                   // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;            // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2.0 / 9.0;                // Fraction 2/9
@@ -86,7 +86,7 @@ void MCL::update(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
-    // printStats("\n===== Sensor update =====\n"); // TBD remove
+    printStats("\n===== Sensor update =====\n"); // TBD remove
     update();
   }
 }
