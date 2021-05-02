@@ -1,16 +1,16 @@
 #include "mcl/sensor.h"
 
-static const float RANGE_STD_DEV = 0.2;                       // Standard deviation in range measurements
-static const float NEW_OBJ_DECAY_RATE = 0.5;                  // Decay rate for new / unexpected object probability
-static const double WEIGHT_NO_OBJ = 0.0;                      // Weight for no object detected probability
-static const double WEIGHT_NEW_OBJ = 15.0;                    // Weight for new / unexpected object probability
-static const double WEIGHT_MAP_OBJ = 83.0;                    // Weight for mapped / expected object probability
-static const double WEIGHT_RAND_EFFECT = 2.0;                 // Weight for random effect probability
-static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;          // Weight uncertainty factor (extra noise added)
-static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.30;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
-static const double WEIGHT_TABLE_RES = 0.01;                  // Lookup table resolution (meters per cell)
-static const unsigned int TH_RAYCAST_COUNT = 314;             // Number of angles for raycast approximation (count per revolution)
-static const float RANGE_EPSILON = 1e-5;                      // Maximum delta between two ranges such that they are still considered 'equal'
+static const float RANGE_STD_DEV = 0.2;                     // Standard deviation in range measurements
+static const float NEW_OBJ_DECAY_RATE = 0.3;                // Decay rate for new / unexpected object probability
+static const double WEIGHT_NO_OBJ = 1.0;                    // Weight for no object detected probability
+static const double WEIGHT_NEW_OBJ = 15.0;                  // Weight for new / unexpected object probability
+static const double WEIGHT_MAP_OBJ = 82.0;                  // Weight for mapped / expected object probability
+static const double WEIGHT_RAND_EFFECT = 2.0;               // Weight for random effect probability
+static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;        // Weight uncertainty factor (extra noise added)
+static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.3; // Weight ratio above which a ray is rejected for likely representing an unexpected object
+static const double WEIGHT_TABLE_RES = 0.01;                // Lookup table resolution (meters per cell)
+static const unsigned int TH_RAYCAST_COUNT = 314;           // Number of angles for raycast approximation (count per revolution)
+static const float RANGE_EPSILON = 1e-5;                    // Maximum delta between two ranges such that they are still considered 'equal'
 
 using namespace localize;
 

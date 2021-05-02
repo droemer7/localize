@@ -1,6 +1,6 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-8;  // Average weight below which random sampling is enabled
+static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-7;  // Average weight below which random sampling is enabled
 static const double WEIGHT_DEV_RESAMPLE = 0.5;        // Weight standard deviation above which resampling is performed
 static const double SPEED_STOPPED = 1e-3;             // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;                   // KL distance epsilon
@@ -86,7 +86,7 @@ void MCL::update(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
-    printStats("\n===== Sensor update =====\n"); // TBD remove
+    // printStats("\n===== Sensor update =====\n"); // TBD remove
     update();
   }
 }
@@ -147,7 +147,7 @@ void MCL::update()
   if (localization_reset_) {
     dist_.resetWeightAvgHistory();
     localization_reset_ = false;
-    printStats("\n***** Re-localizing *****\n");  // TBD remove
+    printStats("\n********** Re-localizing **********\n");  // TBD remove
   }
   // Random sample probability is based on the short term vs. long term weight average: the worse the short term
   // is compared to the long term, the more random samples are added
@@ -241,7 +241,7 @@ bool MCL::stopped(const double vel_lin)
 void MCL::printStats(const std::string& header) const
 {
   printf("%s", header.c_str());
-  printf("Sample size = %lu\n", dist_.count());
-  printf("Weight average = %.2e\n", dist_.weightAvgCurr());
+  printf("Weight average [curr] = %.2e\n", dist_.weightAvgCurr());
+  printf("Weight average [fast] = %.2e\n", dist_.weightAvgFast());
   printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());
 }
