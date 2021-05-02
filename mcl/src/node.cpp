@@ -1,8 +1,5 @@
 #include "mcl/node.h"
 
-static size_t ray_count_max_range = 0;
-static size_t ray_count_total = 0;
-
 using namespace localize;
 
 PoseMsg localize::poseMsg(const Particle& particle)
@@ -35,13 +32,7 @@ RayScan localize::rayScan(const SensorScanMsg::ConstPtr& msg)
   for (size_t i = 0; i < ray_scan.rays_.size(); ++i) {
     ray_scan.rays_[i].range_ = msg->ranges[i];
     ray_scan.rays_[i].th_ = msg->angle_min + ray_scan.th_inc_ * i;
-
-    // This is one of those rare cases where we actually do want to compare to 0.0 exactly
-    if (ray_scan.rays_[i].range_ == 0.0) {
-      ++ray_count_max_range;
-    }
   }
-  ray_count_total += msg->ranges.size();
   return ray_scan;
 }
 
@@ -262,7 +253,6 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 {
   printMotionUpdateTime(0.01);
   printSensorUpdateTime(0.5);
-  printMaxRangeInfo();
 }
 
 void MCLNode::publishTf()
@@ -372,15 +362,6 @@ void MCLNode::printSensorUpdateTime(const double min_msec)
   if (sensor_update_time_msec_ > min_msec) {
     ROS_INFO("MCL: Sensor update times: last = %.2f ms, worst = %.2f",
              sensor_update_time_msec_, sensor_update_time_worst_msec_
-            );
-  }
-}
-
-void MCLNode::printMaxRangeInfo()
-{
-  if (ray_count_max_range > 0) {
-    ROS_INFO("MCL: Max range rays: %%%.2f",
-             100.0 * static_cast<float>(ray_count_max_range) / static_cast<float>(ray_count_total)
             );
   }
 }

@@ -100,6 +100,7 @@ const Particle& ParticleDistribution::sample()
 void ParticleDistribution::resetSampler()
 {
   sample_s_ = 0;
+
   if (count_ > 0) {
     sample_step_ = 1.0 / count_;
     sample_sum_target_ = prob_(rng_.engine()) * sample_step_;
