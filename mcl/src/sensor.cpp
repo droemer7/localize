@@ -121,59 +121,49 @@ void BeamModel::update(const RayScan& obs)
 
 RaySampleVector BeamModel::sample(const RayScan& obs, const size_t sample_count)
 {
-  RaySampleVector rays_obs_sample;
-  std::vector<bool> sample_int_empty(sample_count, false);  // Indicates if an observation interval has no hits
+  RaySampleVector rays_obs_sample(sample_count);
+  size_t s = 0;
 
   if (obs.rays_.size() > 0) {
-    // Generate a random index to start from so we don't repeat samples / directions
+    // Generate a random index to start from so we don't repeat the same direction every time
+    // This helps maintain some variability from scan to scan to uphold the Markov assumption of independence
     size_t o_step_size = std::max(static_cast<size_t>((L_2PI / sample_count) / obs.th_inc_), 1ul);
-    size_t o = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
-    size_t s = 0;
-    size_t sample_int_empty_count = 0;
+    size_t o_offset = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
+    size_t o = o_offset;
+    size_t o_start = o;
+    float range_o = 0.0;
 
     // Iterate through observations selecting the desired amount of samples
-    while (   rays_obs_sample.size() < sample_count
-           && rays_obs_sample.size() < obs.rays_.size()
-           && sample_int_empty_count < sample_count
-           && sample_int_empty_count < obs.rays_.size()
+    while (   s < sample_count
+           && s < obs.rays_.size()
           ) {
-      // printf("o = %lu\n", o);
-      // Search this interval only if it hasn't been found empty yet
-      if (!sample_int_empty[s]) {
-        size_t o_start = o;
-        float range_o = repairRange(obs.rays_[o].range_);
+      o_start = o;
+      range_o = repairRange(obs.rays_[o].range_);
 
-        // Cycle through this sample interval until we find an observation that hit something
-        while (approxEqual(range_o, range_no_obj_, RANGE_EPSILON)) {
-          // Wrap around if we reached the end of the sample interval
-          if (++o >= o_step_size * (s + 1)) {
-            o = o_step_size * s;
-          }
-          // If we get back to the start index, all observations in this sample interval are misses
-          // Mark the interval as empty so we don't search it again later, and move on to the next
-          if (o == o_start) {
-            sample_int_empty[s] = true;
-            ++sample_int_empty_count;
-            break;
-          }
-          // Otherwise, get the next observed range for examination
-          else {
-            range_o = repairRange(obs.rays_[o].range_);
-          }
+      // Cycle through this sample interval looking for an observation that hit something
+      while (approxEqual(range_o, range_no_obj_, RANGE_EPSILON)) {
+        // Wrap around if we reached the end of the sample interval
+        if (++o >= o_step_size * (s + 1)) {
+          o = o_step_size * s;
         }
-        // If the interval is not empty after the search, we found a hit to add to the sample set
-        if (!sample_int_empty[s]) {
-          rays_obs_sample.push_back(RaySample(range_o, obs.rays_[o].th_));
+        // Get the next observation
+        range_o = repairRange(obs.rays_[o].range_);
+
+        // If we get back to the start index, all observations in this sample interval were misses
+        // In this case we accept the miss and use it, since it's more likely to not be erroneous
+        // Additionally, we don't want to reject misses _all_ the time (e.g., in larger open spaces)
+        if (o == o_start) {
+          break;
         }
       }
-      // Increment the sample interval we're searching and reset indexes on rollover
-      if (++s >= sample_count) {
-        s = 0;
-        o = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
-      }
-      o = o_step_size * s;
+      rays_obs_sample[s].range_ = range_o;
+      rays_obs_sample[s].th_ = obs.rays_[o].th_;
+      o = o_step_size * ++s + o_offset;
     }
   }
+  // Resize in case for some reason the observation had fewer samples than we wanted
+  rays_obs_sample.resize(s);
+
   return rays_obs_sample;
 }
 

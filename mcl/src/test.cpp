@@ -140,14 +140,15 @@ float repairRange(float range)
          0.0 : range;
 }
 
-RaySampleVector sample(const RayScan& obs, const size_t sample_count)
+RaySampleVector sampleNoMisses(const RayScan& obs, const size_t sample_count)
 {
   size_t iterations = 0;
   RaySampleVector rays_obs_sample;
   std::vector<bool> sample_int_empty(sample_count, false);  // Indicates if an observation interval has no hits
 
   if (obs.rays_.size() > 0) {
-    // Generate a random index to start from so we don't repeat samples / directions
+    // Generate a random index to start from so we don't use the same direction every time
+    // This helps adherence to the Markov assumption of independence
     size_t o_step_size = std::max(static_cast<size_t>((L_2PI / sample_count) / obs.th_inc_), 1ul);
     size_t o = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
     size_t s = 0;
@@ -195,6 +196,8 @@ RaySampleVector sample(const RayScan& obs, const size_t sample_count)
       // Increment the sample interval we're searching and reset indexes on rollover
       if (++s >= sample_count) {
         s = 0;
+        // Again, generate a random index to start from so we don't duplicate samples taken on the previous pass
+        // Required to maintain adherence to Markov assumption of indenpendence
         o = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
       }
       o = o_step_size * s;
@@ -204,9 +207,66 @@ RaySampleVector sample(const RayScan& obs, const size_t sample_count)
   return rays_obs_sample;
 }
 
+RaySampleVector sample(const RayScan& obs, const size_t sample_count)
+{
+  size_t iterations = 0;
+  RaySampleVector rays_obs_sample(sample_count);
+  size_t s = 0;
+
+  if (obs.rays_.size() > 0) {
+    // Generate a random index to start from so we don't repeat the same direction every time
+    // This helps maintain some variability from scan to scan to uphold the Markov assumption of independence
+    size_t o_step_size = std::max(static_cast<size_t>((L_2PI / sample_count) / obs.th_inc_), 1ul);
+    size_t o_offset = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
+    size_t o = o_offset;
+    size_t o_start = o;
+    float range_o = 0.0;
+    printf("o_step_size = %lu\n", o_step_size);
+    printf("o_offset = %lu\n", o_offset);
+
+    // Iterate through observations selecting the desired amount of samples
+    while (   s < sample_count
+           && s < obs.rays_.size()
+          ) {
+      ++iterations;
+      o_start = o;
+      printf("o_start = %lu\n", o_start);
+      range_o = repairRange(obs.rays_[o].range_);
+
+      // Cycle through this sample interval looking for an observation that hit something
+      while (approxEqual(range_o, range_no_obj_, RANGE_EPSILON)) {
+        ++iterations;
+        // Wrap around if we reached the end of the sample interval
+        if (++o >= o_step_size * (s + 1)) {
+          o = o_step_size * s;
+        }
+        // Get the next observation
+        range_o = repairRange(obs.rays_[o].range_);
+
+        // If we get back to the start index, all observations in this sample interval were misses
+        // In this case we accept the miss and use it, since it's more likely to not be erroneous
+        // Additionally, we don't want to reject misses _all_ the time (e.g., in larger open spaces)
+        if (o == o_start) {
+          break;
+        }
+      }
+      rays_obs_sample[s].range_ = range_o;
+      rays_obs_sample[s].th_ = obs.rays_[o].th_;
+      printf("Selected ray[%lu]: range = %.2f, theta = %.2f\n",
+             o, rays_obs_sample[s].range_, RAD2DEG(rays_obs_sample[s].th_)
+            );
+      o = o_step_size * ++s + o_offset;
+    }
+  }
+  rays_obs_sample.resize(s);
+  printf("Iterations = %lu\n", iterations);
+
+  return rays_obs_sample;
+}
+
 void testRaySampling()
 {
-  RayScan scan = generateScan(360, 1, 0.5);
+  RayScan scan = generateScan(720, 1, 0.5);
 
   for (size_t i = 0; i < scan.rays_.size(); ++i) {
     printf("ray[%lu] = %.2f, %.2f\n", i, scan.rays_[i].range_, RAD2DEG(scan.rays_[i].th_));
@@ -239,6 +299,7 @@ void steeringAngleMeasurement()
 
 int main(int argc, char** argv)
 {
-  steeringAngleMeasurement();
+  testRaySampling();
+
   return 0;
 }
