@@ -146,10 +146,10 @@ namespace localize
 
     // MCL
     std::unique_ptr<MCL> mcl_ptr_;
-    bool real_;              // Running on real robot
-    bool load_map_altered_;  // Serve the raycaster with an altered map for stress testing
-    int num_particles_min_;  // Minimum number of particles to use
-    int num_particles_max_;  // Maximum number of particles to use
+    bool real_;               // Running on real robot
+    bool load_map_modified_;  // Serve the localizer with an alternate map for testing a dynamic environment
+    int num_particles_min_;   // Minimum number of particles to use
+    int num_particles_max_;   // Maximum number of particles to use
 
     // Motion model parameters
     double car_length_;                         // Car length

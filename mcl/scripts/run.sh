@@ -75,7 +75,7 @@ then
   roslaunch mcl mcl.launch real:=true
 elif [ $mode == "sim" ]
 then
-  roslaunch mcl mcl.launch real:=false
+  roslaunch mcl mcl.launch real:=false load_map_modified:=true
 elif [ $mode == "test" ]
 then
   ./devel/lib/mcl/mcl_test

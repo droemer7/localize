@@ -1,24 +1,9 @@
 <launch>
   <!-- Launch arguments -->
-  <arg name="car_name"         default="car"/>
-  <arg name="node_name"        default="localizer"/>
-  <arg name="real"             default="false"/>
-  <arg name="load_map_altered" default="true"/>
-
-  <!-- MCL arguments -->
-  <arg name="num_particles_min" default="1000"/>
-  <arg name="num_particles_max" default="10000"/>
-
-  <!--
-  Serve the localizer with an altered map for stress testing against dynamic or cluttered environments.
-  To use this feature you must create both an altered map and edit the map_altered.yaml config file to load it.
-  Altered map must have the same parameters (width, height, origin, orientation) as the 'actual' map.
-  -->
-  <group if="$(arg load_map_altered)">
-    <node pkg="map_server" type="map_server" name="map_altered_server" args="$(find mcl)/maps/map_altered.yaml">
-      <remap from="map" to="map_altered"/>
-    </node>
-  </group>
+  <arg name="car_name"          default="car"/>
+  <arg name="node_name"         default="localizer"/>
+  <arg name="real"              default="false"/>
+  <arg name="load_map_modified" default="false"/>
 
   <!-- Real -->
   <group if="$(arg real)">
@@ -37,11 +22,21 @@
     </include>
   </group>
 
+  <!--
+  Serve the localizer with an altered map for stress testing against dynamic or cluttered environments.
+  To use this feature you must create both an altered map and edit the map_altered.yaml config file to load it.
+  Altered map must have the same parameters (width, height, origin, orientation) as the 'actual' map.
+  -->
+  <group if="$(arg load_map_modified)">
+    <node pkg="map_server" type="map_server" name="map_modified_server"
+          args="map:=/map_modified $(find mcl)/maps/map_modified.yaml"/>
+  </group>
+
   <!-- MCL -->
   <group ns="$(arg car_name)">
     <node pkg="mcl" type="mcl" name="$(arg node_name)" output="screen">
-      <param name="num_particles_min"        type="int"    value="$(arg num_particles_min)"/>
-      <param name="num_particles_max"        type="int"    value="$(arg num_particles_max)"/>
+      <param name="num_particles_min"        type="int"    value="1000"/>
+      <param name="num_particles_max"        type="int"    value="10000"/>
       <param name="localizer_node_name"      type="string" value="$(arg node_name)"/>
       <param name="drive_node_name"          type="string" value="vesc"/>
       <param name="sensor_node_name"         type="string" value="laser"/>
@@ -49,7 +44,7 @@
       <param name="base_frame_id"            type="string" value="$(arg car_name)/base_link"/>
       <param name="wheel_back_left_frame_id" type="string" value="$(arg car_name)/back_left/wheel_link"/>
       <param name="real"                     type="bool"   value="$(arg real)"/>
-      <param name="load_map_altered"         type="bool"   value="$(arg load_map_altered)"/>
+      <param name="load_map_modified"        type="bool"   value="$(arg load_map_modified)"/>
     </node>
   </group>
 </launch>
