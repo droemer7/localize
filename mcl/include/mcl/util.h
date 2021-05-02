@@ -14,6 +14,9 @@
 #define L_PI 3.14159265358979323846
 #define L_2PI 6.28318530717958647693
 
+#define DEG2RAD(x) ((x) * L_PI / 180.0)
+#define RAD2DEG(x) ((x) * 180.0 / L_PI)
+
 namespace localize
 {
   template <class T> struct IndexedValue;

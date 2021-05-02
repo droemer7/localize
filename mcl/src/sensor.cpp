@@ -2,12 +2,12 @@
 
 static const float RANGE_STD_DEV = 0.2;                       // Standard deviation in range measurements
 static const float NEW_OBJ_DECAY_RATE = 0.5;                  // Decay rate for new / unexpected object probability
-static const double WEIGHT_NO_OBJ = 50.0;                     // Weight for no object detected probability
-static const double WEIGHT_NEW_OBJ = 9.5;                     // Weight for new / unexpected object probability
-static const double WEIGHT_MAP_OBJ = 40.0;                    // Weight for mapped / expected object probability
-static const double WEIGHT_RAND_EFFECT = 0.5;                 // Weight for random effect probability
+static const double WEIGHT_NO_OBJ = 0.0;                      // Weight for no object detected probability
+static const double WEIGHT_NEW_OBJ = 15.0;                    // Weight for new / unexpected object probability
+static const double WEIGHT_MAP_OBJ = 83.0;                    // Weight for mapped / expected object probability
+static const double WEIGHT_RAND_EFFECT = 2.0;                 // Weight for random effect probability
 static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;          // Weight uncertainty factor (extra noise added)
-static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.20;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
+static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.30;  // Weight ratio above which a ray is rejected for likely representing an unexpected object
 static const double WEIGHT_TABLE_RES = 0.01;                  // Lookup table resolution (meters per cell)
 static const unsigned int TH_RAYCAST_COUNT = 314;             // Number of angles for raycast approximation (count per revolution)
 static const float RANGE_EPSILON = 1e-5;                      // Maximum delta between two ranges such that they are still considered 'equal'
@@ -116,124 +116,63 @@ void BeamModel::apply(ParticleDistribution& dist,
 
 void BeamModel::update(const RayScan& obs)
 {
-  rays_obs_sample_ = sample(obs);
+  rays_obs_sample_ = sample(obs, SENSOR_TH_SAMPLE_COUNT);
 }
 
-void BeamModel::tune(const RayScanVector& obs, const Particle& particle)
+RaySampleVector BeamModel::sample(const RayScan& obs, const size_t sample_count)
 {
-  printf("===== Sensor tuning =====\n");
-  std::vector<double> ranges_obs;
-  std::vector<double> ranges_map;
+  RaySampleVector rays_obs_sample;
+  std::vector<bool> sample_int_empty(sample_count, false);  // Indicates if an observation interval has no hits
 
-  for (size_t i = 0; i < obs.size(); ++i) {
-    for (size_t j = 0; j < obs[i].rays_.size(); ++j) {
-      double range_obs = obs[i].rays_[j].range_;
-      double range_map = raycaster_.calc_range(particle.x_,
-                                               particle.y_,
-                                               particle.th_ + obs[i].rays_[j].th_
-                                              );
-      ranges_obs.push_back(repairRange(range_obs));
-      ranges_map.push_back(repairRange(range_map));
-    }
-  }
-  size_t n = 0;
-
-  while (n < 40) { // TBD change this into a real convergence condition
-    double prob_sum = 0.0;
-    double prob_no_obj = 0.0;
-    double prob_new_obj = 0.0;
-    double prob_map_obj = 0.0;
-    double prob_rand_effect = 0.0;
-    std::vector<double> probs_no_obj;
-    std::vector<double> probs_new_obj;
-    std::vector<double> probs_map_obj;
-    std::vector<double> probs_rand_effect;
-
-    for (size_t i = 0; i < ranges_obs.size(); ++i) {
-      prob_no_obj = calcWeightedProbNoObj(ranges_obs[i]);
-      prob_new_obj = calcWeightedProbNewObj(ranges_obs[i], ranges_map[i]);
-      prob_map_obj = calcWeightedProbMapObj(ranges_obs[i], ranges_map[i]);
-      prob_rand_effect = calcWeightedProbRandEffect(ranges_obs[i]);
-      prob_sum = (  prob_no_obj
-                  + prob_new_obj
-                  + prob_map_obj
-                  + prob_rand_effect
-                 );
-      probs_no_obj.push_back(prob_sum > 0.0 ? prob_no_obj / prob_sum : 0.0);
-      probs_new_obj.push_back(prob_sum > 0.0 ? prob_new_obj / prob_sum : 0.0);
-      probs_map_obj.push_back(prob_sum > 0.0 ? prob_map_obj / prob_sum : 0.0);
-      probs_rand_effect.push_back(prob_sum > 0.0 ? prob_rand_effect / prob_sum : 0.0);
-    }
-    if (ranges_obs.size() > 0) {
-      double probs_sum_no_obj = 0.0;
-      double probs_sum_new_obj = 0.0;
-      double probs_sum_new_obj_range = 0.0;
-      double probs_sum_map_obj = 0.0;
-      double probs_sum_map_obj_err_sq = 0.0;
-      double probs_sum_rand_effect = 0.0;
-
-      for (size_t i = 0; i < ranges_obs.size(); ++i) {
-        probs_sum_no_obj += probs_no_obj[i];
-        probs_sum_new_obj += probs_new_obj[i];
-        probs_sum_new_obj_range += probs_new_obj[i] * ranges_obs[i];
-        probs_sum_map_obj += probs_map_obj[i];
-        probs_sum_map_obj_err_sq += (  probs_map_obj[i]
-                                     * (ranges_obs[i] - ranges_map[i])
-                                     * (ranges_obs[i] - ranges_map[i])
-                                    );
-        probs_sum_rand_effect += probs_rand_effect[i];
-      }
-      weight_no_obj_ = probs_sum_no_obj / ranges_obs.size();
-      weight_new_obj_ = probs_sum_new_obj / ranges_obs.size();
-      weight_map_obj_ = probs_sum_map_obj / ranges_obs.size();
-      weight_rand_effect_ = probs_sum_rand_effect / ranges_obs.size();
-      range_std_dev_ = probs_sum_map_obj > 0.0 ? std::sqrt(probs_sum_map_obj_err_sq / probs_sum_map_obj) :
-                                                 range_std_dev_;
-      new_obj_decay_rate_ = probs_sum_new_obj_range > 0.0 ? probs_sum_new_obj / probs_sum_new_obj_range :
-                                                            new_obj_decay_rate_;
-    }
-    ++n;
-  }
-  printf("Weight no object = %.4f\n", weight_no_obj_);
-  printf("Weight new object = %.4f\n", weight_new_obj_);
-  printf("Weight map object = %.4f\n", weight_map_obj_);
-  printf("Weight random effect = %.4f\n", weight_rand_effect_);
-  printf("Range sigma = %.4f\n", range_std_dev_);
-  printf("New object decay rate = %.4f\n", new_obj_decay_rate_);
-  printf("===== Sensor tuning complete =====\n");
-}
-
-RaySampleVector BeamModel::sample(const RayScan& obs)
-{
-  RaySampleVector rays_obs_sample(rays_obs_sample_.size());
-
-  // More than one observation
-  if (   obs.rays_.size() > 1
-      && rays_obs_sample.size() > 0
-     ) {
-    // Generate a random offset for the sampled set to start from
-    size_t o_step_size = (L_2PI / rays_obs_sample.size()) / obs.th_inc_;
-    size_t o = th_sample_dist_(rng_.engine()) / obs.th_inc_;
+  if (obs.rays_.size() > 0) {
+    // Generate a random index to start from so we don't repeat samples / directions
+    size_t o_step_size = std::max(static_cast<size_t>((L_2PI / sample_count) / obs.th_inc_), 1ul);
+    size_t o = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
     size_t s = 0;
+    size_t sample_int_empty_count = 0;
 
-    // Iterate through both arrays selecting the desired amount of samples
-    while (   o < obs.rays_.size()
-           && s < rays_obs_sample.size()
+    // Iterate through observations selecting the desired amount of samples
+    while (   rays_obs_sample.size() < sample_count
+           && rays_obs_sample.size() < obs.rays_.size()
+           && sample_int_empty_count < sample_count
+           && sample_int_empty_count < obs.rays_.size()
           ) {
-      rays_obs_sample[s] = RaySample(obs.rays_[o]);
-      rays_obs_sample[s].range_ = repairRange(rays_obs_sample[s].range_);
-      o += o_step_size;
-      ++s;
+      // printf("o = %lu\n", o);
+      // Search this interval only if it hasn't been found empty yet
+      if (!sample_int_empty[s]) {
+        size_t o_start = o;
+        float range_o = repairRange(obs.rays_[o].range_);
+
+        // Cycle through this sample interval until we find an observation that hit something
+        while (approxEqual(range_o, range_no_obj_, RANGE_EPSILON)) {
+          // Wrap around if we reached the end of the sample interval
+          if (++o >= o_step_size * (s + 1)) {
+            o = o_step_size * s;
+          }
+          // If we get back to the start index, all observations in this sample interval are misses
+          // Mark the interval as empty so we don't search it again later, and move on to the next
+          if (o == o_start) {
+            sample_int_empty[s] = true;
+            ++sample_int_empty_count;
+            break;
+          }
+          // Otherwise, get the next observed range for examination
+          else {
+            range_o = repairRange(obs.rays_[o].range_);
+          }
+        }
+        // If the interval is not empty after the search, we found a hit to add to the sample set
+        if (!sample_int_empty[s]) {
+          rays_obs_sample.push_back(RaySample(range_o, obs.rays_[o].th_));
+        }
+      }
+      // Increment the sample interval we're searching and reset indexes on rollover
+      if (++s >= sample_count) {
+        s = 0;
+        o = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
+      }
+      o = o_step_size * s;
     }
-    rays_obs_sample.resize(s);
-  }
-  // Only one observation
-  else if (   obs.rays_.size() == 1
-           && rays_obs_sample.size() > 0
-          ) {
-    rays_obs_sample[0] = RaySample(obs.rays_[0]);
-    rays_obs_sample[0].range_ = repairRange(rays_obs_sample[0].range_);
-    rays_obs_sample.resize(1);
   }
   return rays_obs_sample;
 }

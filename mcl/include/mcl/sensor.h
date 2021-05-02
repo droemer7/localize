@@ -44,12 +44,9 @@ namespace localize
     // Update the latest saved observation by sampling from the input observation
     void update(const RayScan& obs);
 
-    // Tunes the internal model according to the observations provided
-    void tune(const RayScanVector& obs, const Particle& particle);
-
   private:
     // Generate a subset of ranges sampled from the full scan using the preset angle sample increment
-    RaySampleVector sample(const RayScan& obs);
+    RaySampleVector sample(const RayScan& obs, const size_t sample_count);
 
     // Removes the contribution of outliers to the particle weights
     // Outlier weights are those derived from range observations which were likely detecting new / unexpected objects
@@ -132,7 +129,7 @@ namespace localize
     ranges::CDDTCast raycaster_;      // Range calculator
 
     RNG rng_;  // Random number engine
-    std::uniform_real_distribution<double> th_sample_dist_;  // Distribution of initial sample angle offsets
+    std::uniform_real_distribution<float> th_sample_dist_;  // Distribution of initial sample angle offsets
   };
 
 } // namespace localize
