@@ -1,6 +1,6 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-7;  // Average weight below which random sampling is enabled
+static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-6;  // Average weight below which random sampling is enabled
 static const double WEIGHT_DEV_RESAMPLE = 0.5;        // Weight standard deviation above which resampling is performed
 static const double SPEED_STOPPED = 1e-3;             // Speed below which the robot is stopped (defers updates)
 static const double KLD_EPS = 0.02;                   // KL distance epsilon
