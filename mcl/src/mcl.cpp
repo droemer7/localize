@@ -86,7 +86,6 @@ void MCL::update(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
-    // printStats("\n===== Sensor update =====\n"); // TBD remove
     update();
   }
 }
@@ -147,19 +146,17 @@ void MCL::update()
   if (localization_reset_) {
     dist_.resetWeightAvgHistory();
     localization_reset_ = false;
-    printStats("\n********** Re-localizing **********\n");  // TBD remove
   }
   // Random sample probability is based on the short term vs. long term weight average: the worse the short term
   // is compared to the long term, the more random samples are added
   double prob_sample_random = randomSampleRequired() ? 1.0 - dist_.weightAvgRatio() : 0.0;
-  bool resample = resampleRequired();
-
-  // Reset histogram
-  hist_.reset();
 
   if (   prob_sample_random
-      || resample
+      || resampleRequired()
      ) {
+    // Clear histogram of particles
+    hist_.reset();
+
     // Generate samples until we reach the target or max
     while (   s < samples_.size()
            && s < num_particles_target
