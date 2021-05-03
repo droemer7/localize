@@ -196,7 +196,6 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
         ) {
     if (outlier_weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
       ++reject_count;
-      // printRejectedRange(rays_obs_sample_[outlier_weight_ratios[i].index_], outlier_weight_ratios[i].val_);
     }
     else {
       break;  // Once one is accepted, remaining ones will also be acceptable from sorting
