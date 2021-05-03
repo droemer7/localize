@@ -86,13 +86,13 @@ namespace localize
 
   private:
     // Publish the transform estimated by the localizer
-    void publishTf();
+    void publishTf(const Particle& estimate);
 
     // Publish the best pose estimate from the localizer
-    void publishPose();
+    void publishPose(const Particle& estimate);
 
     // Publish all pose estimates from the localizer
-    void publishPoseArray();
+    void publishPoseArray(const ParticleVector& estimates);
 
     // Print Motion update times (last and worst)
     void printMotionUpdateTime(const double min_msec = 0.0);

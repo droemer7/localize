@@ -228,12 +228,16 @@ void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
 
 void MCLNode::estimateCb(const ros::TimerEvent& event)
 {
+  // Get estimates
+  ParticleVector estimates = mcl_ptr_->estimates();
+  Particle estimate = estimates.size() > 0 ? estimates[0] : Particle();
+
   // Publish transform and pose
   if (real_) {
-    publishTf();
+    publishTf(estimate);
   }
-  publishPose();
-  publishPoseArray();
+  publishPose(estimate);
+  publishPoseArray(estimates);
 }
 
 void MCLNode::statusCb(const ros::TimerEvent& event)
@@ -242,15 +246,11 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
   printSensorUpdateTime(0.5);
 }
 
-void MCLNode::publishTf()
+void MCLNode::publishTf(const Particle& estimate)
 {
   // MCL estimates the transform from the robot base to the map frame. In order to complete the transform tree, we
   // need to publish the missing map to odom frame transformation.
-
-  // Get the latest estimate which represents the transform of the robot base relative to the map frame
-  Particle tf_base_to_map = mcl_ptr_->estimate();
-
-  if (tf_base_to_map.weight_normed_ > 0.0) {
+  if (estimate.weight_normed_ > 0.0) {
     try {
       // Get the latest transform of the odometry frame relative to the robot base frame
       TransformStampedMsg tf_odom_to_base = tf_buffer_.lookupTransform(base_frame_id_,
@@ -259,17 +259,17 @@ void MCLNode::publishTf()
                                                                       );
       // Rotate the odometry to robot base x & y translations into the map frame
       // Then, map to odom = base to map [in map] + odom to base [in map]
-      double tf_map_to_odom_x = (  tf_base_to_map.x_
-                                 + (  tf_odom_to_base.transform.translation.x * std::cos(tf_base_to_map.th_)
-                                    - tf_odom_to_base.transform.translation.y * std::sin(tf_base_to_map.th_)
+      double tf_map_to_odom_x = (  estimate.x_
+                                 + (  tf_odom_to_base.transform.translation.x * std::cos(estimate.th_)
+                                    - tf_odom_to_base.transform.translation.y * std::sin(estimate.th_)
                                    )
                                 );
-      double tf_map_to_odom_y = (  tf_base_to_map.y_
-                                 + (  tf_odom_to_base.transform.translation.x * std::sin(tf_base_to_map.th_)
-                                    + tf_odom_to_base.transform.translation.y * std::cos(tf_base_to_map.th_)
+      double tf_map_to_odom_y = (  estimate.y_
+                                 + (  tf_odom_to_base.transform.translation.x * std::sin(estimate.th_)
+                                    + tf_odom_to_base.transform.translation.y * std::cos(estimate.th_)
                                    )
                                 );
-      double tf_map_to_odom_th = tf_base_to_map.th_ + tf2::getYaw(tf_odom_to_base.transform.rotation);
+      double tf_map_to_odom_th = estimate.th_ + tf2::getYaw(tf_odom_to_base.transform.rotation);
 
       // Convert map to odom angle to quaternion orientation
       tf2::Quaternion tf_map_to_odom_orient;
@@ -297,11 +297,8 @@ void MCLNode::publishTf()
   }
 }
 
-void MCLNode::publishPose()
+void MCLNode::publishPose(const Particle& estimate)
 {
-  // Get the best estimate
-  Particle estimate = mcl_ptr_->estimate();
-
   if (estimate.weight_normed_ > 0.0) {
     // Create pose message
     PoseStampedMsg pose_msg;
@@ -314,11 +311,8 @@ void MCLNode::publishPose()
   }
 }
 
-void MCLNode::publishPoseArray()
+void MCLNode::publishPoseArray(const ParticleVector& estimates)
 {
-  // Get estimates
-  ParticleVector estimates = mcl_ptr_->estimates();
-
   if (estimates.size() > 0) {
     // Create pose array message
     PoseArrayMsg pose_array_msg;
