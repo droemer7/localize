@@ -23,7 +23,7 @@
 
     <!-- Sim parameters -->
     <group unless="$(arg mode_real)">
-      <rosparam file="$(find mcl)/config/real.yaml" command="load"/>
+      <rosparam file="$(find mcl)/config/sim.yaml" command="load"/>
     </group>
 
     <!-- Node -->
