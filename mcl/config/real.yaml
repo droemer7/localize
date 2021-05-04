@@ -1,0 +1,25 @@
+localizer:
+  mcl:
+    num_particles_min: 1000
+    num_particles_max: 10000
+    weight_avg_random_sample: 1.0e-6
+    weight_rel_dev_resample: 0.5
+
+  motion:
+    vel_lin_n1: 0.01
+    vel_lin_n2: 0.05
+    vel_ang_n1: 0.10
+    vel_ang_n2: 0.20
+    th_n1: 1.00
+    th_n2: 1.00
+    vel_ang_bias_scale: 0.20
+
+  sensor:
+    range_std_dev: 0.20
+    decay_rate_new_obj: 0.30
+    weight_no_obj: 1.00
+    weight_new_obj: 15.00
+    weight_map_obj: 82.00
+    weight_rand_effect: 2.00
+    weight_uncertainty_factor: 1.10
+    prob_new_obj_reject: 0.30

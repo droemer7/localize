@@ -69,7 +69,7 @@ namespace localize
     double weightStdDev() const;
 
     // Particle weight relative standard deviation (i.e., standard deviation / average)
-    double weightRelativeStdDev() const;
+    double weightRelStdDev() const;
 
     // Print weight statistics
     void printWeightStats() const;

@@ -194,7 +194,7 @@ double ParticleDistribution::weightVar() const
 double ParticleDistribution::weightStdDev() const
 { return weight_std_dev_;}
 
-double ParticleDistribution::weightRelativeStdDev() const
+double ParticleDistribution::weightRelStdDev() const
 { return weight_relative_std_dev_;}
 
 void ParticleDistribution::printWeightStats() const
@@ -203,5 +203,5 @@ void ParticleDistribution::printWeightStats() const
   printf("Weight average slow = %.2e\n", weightAvgSlow());
   printf("Weight average creep = %.2e\n", weightAvgCreep());
   printf("Weight ratio = %.2f\n", weightAvgRatio());
-  printf("Weight relative std dev = %.2e\n", weightRelativeStdDev());
+  printf("Weight relative std dev = %.2e\n", weightRelStdDev());
 }

@@ -18,17 +18,34 @@ namespace localize
   {
   public:
     // Constructors
-    MCL(const unsigned int num_particles_min,           // Minimum number of particles
-        const unsigned int num_particles_max,           // Maximum number of particles
+    MCL(const unsigned int mcl_num_particles_min,       // MCL minimum number of particles
+        const unsigned int mcl_num_particles_max,       // MCL maximum number of particles
+        const double mcl_weight_avg_random_sample,      // MCL weight average below which random sampling is enabled
+        const double mcl_weight_rel_dev_resample,       // MCL weight relative standard deviation above which resampling is performed
         const double car_length,                        // Car length
         const double car_origin_to_sensor_frame_x,      // Car origin to sensor frame x translation
         const double car_origin_to_sensor_frame_y,      // Car origin to sensor frame y translation
         const double car_origin_to_sensor_frame_th,     // Car origin to sensor frame rotation
         const double car_back_center_to_sensor_frame_x, // Car back center to sensor frame x translation
         const double car_back_center_to_sensor_frame_y, // Car back center to sensor frame y translation
+        const double motion_vel_lin_n1,                 // Motion model linear velocity noise coefficient 1
+        const double motion_vel_lin_n2,                 // Motion model linear velocity noise coefficient 2
+        const double motion_vel_ang_n1,                 // Motion model angular velocity noise coefficient 1
+        const double motion_vel_ang_n2,                 // Motion model angular velocity noise coefficient 2
+        const double motion_th_n1,                      // Motion model final rotation noise coefficient 1
+        const double motion_th_n2,                      // Motion model final rotation noise coefficient 2
+        const double motion_vel_ang_bias_scale,         // Motion model slip scale factor: decrease angular velocity according to scale * v^2 / r
         const float sensor_range_min,                   // Sensor min range in meters
         const float sensor_range_max,                   // Sensor max range in meters
         const float sensor_range_no_obj,                // Sensor range reported when nothing is detected
+        const float sensor_range_std_dev,               // Sensor model range measurement standard deviation
+        const float sensor_decay_rate_new_obj,          // Sensor model decay rate for new / unexpected object probability
+        const double sensor_weight_no_obj,              // Sensor model weight for no object detected probability
+        const double sensor_weight_new_obj,             // Sensor model weight for new / unexpected object probability
+        const double sensor_weight_map_obj,             // Sensor model weight for mapped / expected object probability
+        const double sensor_weight_rand_effect,         // Sensor model weight for random effect probability
+        const double sensor_weight_uncertainty_factor,  // Sensor model weight uncertainty factor (extra noise added to final weight)
+        const double sensor_prob_new_obj_reject,        // Sensor model probability above which a ray is rejected for representing a new / unexpected object
         const unsigned int map_x_size,                  // Map length of x axis (width) (pixels)
         const unsigned int map_y_size,                  // Map length of y axis (height) (pixels)
         const double map_x_origin_world,                // Map x translation of origin (cell 0,0) relative to world frame (meters)
@@ -39,8 +56,8 @@ namespace localize
        );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
-    void motionUpdate(const double vel,
-                      const double steering_angle,
+    void motionUpdate(const double car_vel_lin,
+                      const double car_steer_angle,
                       const double dt
                      );
 
@@ -64,24 +81,26 @@ namespace localize
     // Return true if random samples should be added to the distribution
     bool randomSampleRequired();
 
-    // Return true if the robot velocity is within the stopped threshold based on the last saved value
+    // Return true if the car velocity is within the stopped threshold based on the last saved value
     bool stopped();
 
-    // Update the robot velocity with the input value and return true if it is within the stopped threshold
-    bool stopped(const double vel);
+    // Update the car velocity with the input value and return true if it is within the stopped threshold
+    bool stopped(const double car_vel_lin);
 
     // Print statistics about the distribution
     void printStats(const std::string& header) const;
 
   private:
-    RecursiveMutex dist_mtx_;     // Particle distribution mutex
-    RecursiveMutex vel_lin_mtx_;  // Linear velocity mutex
+    RecursiveMutex dist_mtx_;         // Particle distribution mutex
+    RecursiveMutex car_vel_lin_mtx_;  // Linear velocity mutex
 
     const size_t num_particles_min_;              // Minimum number of particles
-    double vel_lin_;                              // Linear velocity of the car
+    const double weight_avg_random_sample_;       // Weight average below which random sampling is enabled
+    const double weight_rel_dev_resample_;        // Weight relative standard deviation above which resampling is performed
     const double car_origin_to_sensor_frame_x_;   // Car origin to sensor frame x translation
     const double car_origin_to_sensor_frame_y_;   // Car origin to sensor frame y translation
     const double car_origin_to_sensor_frame_th_;  // Car origin to sensor frame rotation
+    double car_vel_lin_;                          // Linear velocity of the car
 
     const Map map_;           // Map
     VelModel motion_model_;   // Motion model

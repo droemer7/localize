@@ -1,16 +1,8 @@
 #include "mcl/sensor.h"
 
-static const float RANGE_STD_DEV = 0.2;                     // Standard deviation in range measurements
-static const float NEW_OBJ_DECAY_RATE = 0.3;                // Decay rate for new / unexpected object probability
-static const double WEIGHT_NO_OBJ = 1.0;                    // Weight for no object detected probability
-static const double WEIGHT_NEW_OBJ = 15.0;                  // Weight for new / unexpected object probability
-static const double WEIGHT_MAP_OBJ = 82.0;                  // Weight for mapped / expected object probability
-static const double WEIGHT_RAND_EFFECT = 2.0;               // Weight for random effect probability
-static const double WEIGHT_UNCERTAINTY_FACTOR = 1.1;        // Weight uncertainty factor (extra noise added)
-static const double WEIGHT_RATIO_REJECTION_THRESHOLD = 0.3; // Weight ratio above which a ray is rejected for likely representing an unexpected object
-static const double WEIGHT_TABLE_RES = 0.01;                // Lookup table resolution (meters per cell)
-static const unsigned int TH_RAYCAST_COUNT = 314;           // Number of angles for raycast approximation (count per revolution)
-static const float RANGE_EPSILON = 1e-5;                    // Maximum delta between two ranges such that they are still considered 'equal'
+static const double WEIGHT_TABLE_RES = 0.01;      // Lookup table resolution (meters per cell)
+static const unsigned int TH_RAYCAST_COUNT = 314; // Number of angles for raycast approximation (count per revolution)
+static const float RANGE_EPSILON = 1e-5;          // Maximum delta between two ranges such that they are still considered 'equal'
 
 using namespace localize;
 
@@ -18,22 +10,32 @@ using namespace localize;
 BeamModel::BeamModel(const float range_min,
                      const float range_max,
                      const float range_no_obj,
+                     const float range_std_dev,
+                     const float decay_rate_new_obj,
+                     const double weight_no_obj,
+                     const double weight_new_obj,
+                     const double weight_map_obj,
+                     const double weight_rand_effect,
+                     const double weight_uncertainty_factor,
+                     const double prob_new_obj_reject,
                      const Map& map
                     ) :
   range_min_(range_min),
   range_max_(range_max),
   range_no_obj_(range_no_obj),
-  range_std_dev_(RANGE_STD_DEV),
-  new_obj_decay_rate_(NEW_OBJ_DECAY_RATE),
-  weights_sum_(  WEIGHT_NO_OBJ
-               + WEIGHT_NEW_OBJ
-               + WEIGHT_MAP_OBJ
-               + WEIGHT_RAND_EFFECT
+  range_std_dev_(range_std_dev),
+  decay_rate_new_obj_(decay_rate_new_obj),
+  weights_sum_(  weight_no_obj
+               + weight_new_obj
+               + weight_map_obj
+               + weight_rand_effect
               ),
-  weight_no_obj_(WEIGHT_NO_OBJ / weights_sum_),
-  weight_new_obj_(WEIGHT_NEW_OBJ / weights_sum_),
-  weight_map_obj_(WEIGHT_MAP_OBJ / weights_sum_),
-  weight_rand_effect_(WEIGHT_RAND_EFFECT / weights_sum_),
+  weight_no_obj_(weight_no_obj / weights_sum_),
+  weight_new_obj_(weight_new_obj / weights_sum_),
+  weight_map_obj_(weight_map_obj / weights_sum_),
+  weight_rand_effect_(weight_rand_effect / weights_sum_),
+  weight_uncertainty_factor_(weight_uncertainty_factor),
+  prob_new_obj_reject_(prob_new_obj_reject),
   weight_table_res_(WEIGHT_TABLE_RES),
   weight_table_size_(std::round(range_max / WEIGHT_TABLE_RES) + 1.0),
   weight_table_new_obj_(weight_table_size_, std::vector<double>(weight_table_size_)),
@@ -86,7 +88,7 @@ void BeamModel::apply(Particle& particle, const bool calc_enable)
     weight *= weight_partial;
   }
   // Update full weight, applying overall model uncertainty
-  particle.weight_ = std::pow(weight, WEIGHT_UNCERTAINTY_FACTOR);
+  particle.weight_ = std::pow(weight, weight_uncertainty_factor_);
 }
 
 void BeamModel::apply(ParticleDistribution& dist, const bool calc_enable)
@@ -169,32 +171,32 @@ RaySampleVector BeamModel::sample(const RayScan& obs, const size_t sample_count)
 
 void BeamModel::removeOutliers(ParticleDistribution& dist)
 {
-  // Calculate ratios and pair them with their index
-  IndexedWeightVector outlier_weight_ratios(rays_obs_sample_.size());
+  // Calculate probabilities and pair them with their index
+  IndexedWeightVector outlier_probs(rays_obs_sample_.size());
 
   for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
-    outlier_weight_ratios[i].index_ = i;
+    outlier_probs[i].index_ = i;
 
     if (rays_obs_sample_[i].weight_sum_ > 0.0) {
-      outlier_weight_ratios[i].val_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
+      outlier_probs[i].val_ = rays_obs_sample_[i].weight_new_obj_sum_ / rays_obs_sample_[i].weight_sum_;
     }
     else {
-      outlier_weight_ratios[i].val_ = 0.0;
+      outlier_probs[i].val_ = 0.0;
     }
   }
-  // Sort ratios according to largest outliers first, carrying along the corresponding weight index
-  std::sort(outlier_weight_ratios.begin(), outlier_weight_ratios.end(), Greater());
+  // Sort probabilities according to largest outliers first, carrying along the corresponding weight index
+  std::sort(outlier_probs.begin(), outlier_probs.end(), Greater());
 
-  // Evaluate the sorted weight ratios and remove the largest outliers, up to half at most
-  // Observed ranges and their corresponding weights are considered outliers if they appear
-  // likely to be due to a new / unexpected object
+  // Evaluate the sorted probabilities and remove the largest outliers, up to half at most
+  // Observed ranges and their corresponding weights are considered outliers if they appear likely to be due to a
+  // new / unexpected object
   size_t i = 0;
   size_t reject_count = 0;
 
-  while (   i < outlier_weight_ratios.size()
-         && reject_count < outlier_weight_ratios.size() / 2  // Only reject half at most so we aren't totally blind
+  while (   i < outlier_probs.size()
+         && reject_count < outlier_probs.size() / 2  // Only reject half at most
         ) {
-    if (outlier_weight_ratios[i].val_ > WEIGHT_RATIO_REJECTION_THRESHOLD) {
+    if (outlier_probs[i].val_ > prob_new_obj_reject_) {
       ++reject_count;
     }
     else {
@@ -203,13 +205,13 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
     ++i;
   }
   // Recalculate weights, undoing the outlier contributions
-  if (outlier_weight_ratios.size() > 0) {
+  if (outlier_probs.size() > 0) {
     for (size_t i = 0; i < dist.count(); ++i) {
 
       // Remove weight for each rejected index
       for (size_t j = 0; j < reject_count; ++j) {
-        double& weight_partial = dist.particle(i).weights_[outlier_weight_ratios[j].index_];
-        weight_partial = std::pow(weight_partial, WEIGHT_UNCERTAINTY_FACTOR);
+        double& weight_partial = dist.particle(i).weights_[outlier_probs[j].index_];
+        weight_partial = std::pow(weight_partial, weight_uncertainty_factor_);
 
         dist.particle(i).weight_ = weight_partial > 0.0 ? dist.particle(i).weight_ / weight_partial
                                                         : dist.particle(i).weight_ ;
@@ -253,8 +255,8 @@ double BeamModel::calcProbNewObj(const float range_obs, const float range_map) c
   if (   !approxEqual(range_obs, range_no_obj_, RANGE_EPSILON)
       && range_obs <= range_map
      ) {
-    return (  new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_obs)
-            / (1 - new_obj_decay_rate_ * std::exp(-new_obj_decay_rate_ * range_map))
+    return (  decay_rate_new_obj_ * std::exp(-decay_rate_new_obj_ * range_obs)
+            / (1 - decay_rate_new_obj_ * std::exp(-decay_rate_new_obj_ * range_map))
            );
   }
   else {

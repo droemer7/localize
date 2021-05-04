@@ -37,9 +37,9 @@ RayScan localize::rayScan(const SensorScanMsg::ConstPtr& msg)
 }
 
 // ========== MCLNode ========== //
-MCLNode::MCLNode(const std::string& localizer_node_name,
-                 const std::string& localizer_pose_topic_name,
-                 const std::string& localizer_pose_array_topic_name,
+MCLNode::MCLNode(const std::string& mcl_node_name,
+                 const std::string& mcl_pose_topic_name,
+                 const std::string& mcl_pose_array_topic_name,
                  const std::string& drive_node_name,
                  const std::string& drive_vel_topic_name,
                  const std::string& drive_steer_topic_name,
@@ -62,13 +62,30 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
 {
   // Localizer parameters
   ros::NodeHandle nh;
-  map_frame_id_ = nh.param(localizer_node_name + "/map_frame_id", std::string("map"));
-  if (   !getParam(nh, localizer_node_name + "/num_particles_min", num_particles_min_)
-      || !getParam(nh, localizer_node_name + "/num_particles_max", num_particles_max_)
-      || !getParam(nh, localizer_node_name + "/base_frame_id", base_frame_id_)
-      || !getParam(nh, localizer_node_name + "/wheel_back_left_frame_id", wheel_back_left_frame_id_)
-      || !getParam(nh, localizer_node_name + "/real", real_)
-      || !getParam(nh, localizer_node_name + "/load_map_modified", load_map_modified_)
+  map_frame_id_ = nh.param(mcl_node_name + "frame_ids/map", std::string("map"));
+  if (   !getParam(nh, mcl_node_name + "/mcl/mode_real", mcl_mode_real_)
+      || !getParam(nh, mcl_node_name + "/mcl/use_modified_map", mcl_use_modified_map_)
+      || !getParam(nh, mcl_node_name + "/mcl/num_particles_min", mcl_num_particles_min_)
+      || !getParam(nh, mcl_node_name + "/mcl/num_particles_max", mcl_num_particles_max_)
+      || !getParam(nh, mcl_node_name + "/mcl/weight_avg_random_sample", mcl_weight_avg_random_sample_)
+      || !getParam(nh, mcl_node_name + "/mcl/weight_rel_dev_resample", mcl_weight_rel_dev_resample_)
+      || !getParam(nh, mcl_node_name + "/motion/vel_lin_n1", motion_vel_lin_n1_)
+      || !getParam(nh, mcl_node_name + "/motion/vel_lin_n2", motion_vel_lin_n2_)
+      || !getParam(nh, mcl_node_name + "/motion/vel_ang_n1", motion_vel_ang_n1_)
+      || !getParam(nh, mcl_node_name + "/motion/vel_ang_n2", motion_vel_ang_n2_)
+      || !getParam(nh, mcl_node_name + "/motion/th_n1", motion_th_n1_)
+      || !getParam(nh, mcl_node_name + "/motion/th_n2", motion_th_n2_)
+      || !getParam(nh, mcl_node_name + "/motion/vel_ang_bias_scale", motion_vel_ang_bias_scale_)
+      || !getParam(nh, mcl_node_name + "/sensor/range_std_dev", sensor_range_std_dev_)
+      || !getParam(nh, mcl_node_name + "/sensor/decay_rate_new_obj", sensor_decay_rate_new_obj_)
+      || !getParam(nh, mcl_node_name + "/sensor/weight_no_obj", sensor_weight_no_obj_)
+      || !getParam(nh, mcl_node_name + "/sensor/weight_new_obj", sensor_weight_new_obj_)
+      || !getParam(nh, mcl_node_name + "/sensor/weight_map_obj", sensor_weight_map_obj_)
+      || !getParam(nh, mcl_node_name + "/sensor/weight_rand_effect", sensor_weight_rand_effect_)
+      || !getParam(nh, mcl_node_name + "/sensor/weight_uncertainty_factor", sensor_weight_uncertainty_factor_)
+      || !getParam(nh, mcl_node_name + "/sensor/prob_new_obj_reject", sensor_prob_new_obj_reject_)
+      || !getParam(nh, mcl_node_name + "/frame_ids/car_base", car_base_frame_id_)
+      || !getParam(nh, mcl_node_name + "/frame_ids/car_wheel_back_left", car_wheel_back_left_frame_id_)
       || !getParam(nh, drive_node_name + "/frame_id", odom_frame_id_)
       || !getParam(nh, drive_node_name + "/chassis_length", car_length_)
       || !getParam(nh, drive_node_name + "/speed_to_erpm_gain", drive_vel_to_erpm_gain_)
@@ -85,7 +102,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
   // Map occupancy grid
   nav_msgs::OccupancyGrid::ConstPtr map_msg_ptr;
 
-  if (load_map_modified_) {
+  if (mcl_use_modified_map_) {
     map_msg_ptr = ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(std::string("/map_modified"), nh);
   }
   else {
@@ -97,12 +114,12 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
 
   try {
     tf_base_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
-                                                   base_frame_id_,
+                                                   car_base_frame_id_,
                                                    ros::Time(0),
                                                    ros::Duration(15.0)
                                                   );
     tf_wheel_back_left_to_sensor = tf_buffer_.lookupTransform(sensor_frame_id_,
-                                                              wheel_back_left_frame_id_,
+                                                              car_wheel_back_left_frame_id_,
                                                               ros::Time(0),
                                                               ros::Duration(15.0)
                                                              );
@@ -111,17 +128,34 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
     throw std::runtime_error(except.what());
   }
   // Construct localizer before starting threads
-  mcl_ptr_ = std::unique_ptr<MCL>(new MCL(num_particles_min_,
-                                          num_particles_max_,
+  mcl_ptr_ = std::unique_ptr<MCL>(new MCL(mcl_num_particles_min_,
+                                          mcl_num_particles_max_,
+                                          mcl_weight_avg_random_sample_,
+                                          mcl_weight_rel_dev_resample_,
                                           car_length_,
                                           tf_base_to_sensor.transform.translation.x,
                                           tf_base_to_sensor.transform.translation.y,
                                           tf2::getYaw(tf_base_to_sensor.transform.rotation),
                                           tf_wheel_back_left_to_sensor.transform.translation.x,
                                           tf_base_to_sensor.transform.translation.y,
+                                          motion_vel_lin_n1_,
+                                          motion_vel_lin_n2_,
+                                          motion_vel_ang_n1_,
+                                          motion_vel_ang_n2_,
+                                          motion_th_n1_,
+                                          motion_th_n2_,
+                                          motion_vel_ang_bias_scale_,
                                           sensor_range_min_,
                                           sensor_range_max_,
                                           sensor_range_no_obj_,
+                                          sensor_range_std_dev_,
+                                          sensor_decay_rate_new_obj_,
+                                          sensor_weight_no_obj_,
+                                          sensor_weight_new_obj_,
+                                          sensor_weight_map_obj_,
+                                          sensor_weight_rand_effect_,
+                                          sensor_weight_uncertainty_factor_,
+                                          sensor_prob_new_obj_reject_,
                                           map_msg_ptr->info.width,
                                           map_msg_ptr->info.height,
                                           map_msg_ptr->info.origin.position.x,
@@ -133,7 +167,7 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                                  );
   // Assign ROS callback queues
   drive_vel_nh_.setCallbackQueue(&drive_vel_cb_queue_);
-  drive_steer_nh.setCallbackQueue(&drive_steer_cb_queue_);
+  drive_steer_nh_.setCallbackQueue(&drive_steer_cb_queue_);
   sensor_nh_.setCallbackQueue(&sensor_cb_queue_);
   estimate_nh_.setCallbackQueue(&estimate_cb_queue_);
   status_nh_.setCallbackQueue(&status_cb_queue_);
@@ -145,12 +179,12 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                                            this,
                                            ros::TransportHints().tcpNoDelay()
                                           );
-  drive_steer_sub_ = drive_steer_nh.subscribe(drive_steer_topic_name,
-                                              1,
-                                              &MCLNode::driveSteerCb,
-                                              this,
-                                              ros::TransportHints().tcpNoDelay()
-                                             );
+  drive_steer_sub_ = drive_steer_nh_.subscribe(drive_steer_topic_name,
+                                               1,
+                                               &MCLNode::driveSteerCb,
+                                               this,
+                                               ros::TransportHints().tcpNoDelay()
+                                              );
   sensor_sub_ = sensor_nh_.subscribe(sensor_topic_name,
                                      1,
                                      &MCLNode::sensorCb,
@@ -158,17 +192,17 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
                                      ros::TransportHints().tcpNoDelay()
                                     );
   // Create timers for estimate and status updates
-  estimate_timer_ = status_nh_.createTimer(ros::Duration(0.02),
-                                           &MCLNode::estimateCb,
-                                           this
-                                          );
+  estimate_timer_ = estimate_nh_.createTimer(ros::Duration(0.02),
+                                            &MCLNode::estimateCb,
+                                            this
+                                           );
   status_timer_ = status_nh_.createTimer(ros::Duration(5.0),
                                          &MCLNode::statusCb,
                                          this
                                         );
   // Setup publishers for pose estimates
-  pose_pub_ = pose_nh_.advertise<PoseStampedMsg>(localizer_pose_topic_name, 1);
-  pose_array_pub_ = pose_array_nh_.advertise<PoseArrayMsg>(localizer_pose_array_topic_name, 1);
+  pose_pub_ = pose_nh_.advertise<PoseStampedMsg>(mcl_pose_topic_name, 1);
+  pose_array_pub_ = pose_array_nh_.advertise<PoseArrayMsg>(mcl_pose_array_topic_name, 1);
 
   // Start threads
   drive_vel_spinner_.start();
@@ -178,13 +212,13 @@ MCLNode::MCLNode(const std::string& localizer_node_name,
   status_spinner_.start();
 }
 
-void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& msg)
+void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& drive_msg)
 {
   // Start timer
   ros::Time start = ros::Time::now();
 
   // Calculate velocity and steering angle
-  double vel = (msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
+  double vel = (drive_msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
   double steer_angle = 0.0;
   {
     Lock lock(drive_steer_servo_pos_mtx_);
@@ -193,8 +227,8 @@ void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& msg)
                   );
   }
   // Calculate motor time delta
-  double dt = (msg->header.stamp - drive_t_prev_).toSec();
-  drive_t_prev_ = msg->header.stamp;
+  double dt = (drive_msg->header.stamp - drive_t_prev_).toSec();
+  drive_t_prev_ = drive_msg->header.stamp;
 
   // Update localizer with motion data
   mcl_ptr_->motionUpdate(vel, steer_angle, dt);
@@ -205,20 +239,20 @@ void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& msg)
                                    motion_update_time_msec_ : motion_update_time_worst_msec_;
 }
 
-void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& msg)
+void MCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& drive_msg)
 {
   // Update servo position
   Lock lock(drive_steer_servo_pos_mtx_);
-  drive_steer_servo_pos_ = msg->data;
+  drive_steer_servo_pos_ = drive_msg->data;
 }
 
-void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
+void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg_sensor)
 {
   // Start timer
   ros::Time start = ros::Time::now();
 
   // Update localizer with sensor data
-  mcl_ptr_->sensorUpdate(rayScan(msg));
+  mcl_ptr_->sensorUpdate(rayScan(msg_sensor));
 
   // Save duration
   sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
@@ -232,10 +266,11 @@ void MCLNode::estimateCb(const ros::TimerEvent& event)
   ParticleVector estimates = mcl_ptr_->estimates();
   Particle estimate = estimates.size() > 0 ? estimates[0] : Particle();
 
-  // Publish transform and pose
-  if (real_) {
+  // Publish transform
+  if (mcl_mode_real_) {
     publishTf(estimate);
   }
+  // Publish poses
   publishPose(estimate);
   publishPoseArray(estimates);
 }
@@ -248,16 +283,16 @@ void MCLNode::statusCb(const ros::TimerEvent& event)
 
 void MCLNode::publishTf(const Particle& estimate)
 {
-  // MCL estimates the transform from the robot base to the map frame. In order to complete the transform tree, we
+  // MCL estimates the transform from the car base to the map frame. In order to complete the transform tree, we
   // need to publish the missing map to odom frame transformation.
   if (estimate.weight_normed_ > 0.0) {
     try {
-      // Get the latest transform of the odometry frame relative to the robot base frame
-      TransformStampedMsg tf_odom_to_base = tf_buffer_.lookupTransform(base_frame_id_,
+      // Get the latest transform of the odometry frame relative to the car base frame
+      TransformStampedMsg tf_odom_to_base = tf_buffer_.lookupTransform(car_base_frame_id_,
                                                                        odom_frame_id_,
                                                                        ros::Time(0)
                                                                       );
-      // Rotate the odometry to robot base x & y translations into the map frame
+      // Rotate the odometry to car base x & y translations into the map frame
       // Then, map to odom = base to map [in map] + odom to base [in map]
       double tf_map_to_odom_x = (  estimate.x_
                                  + (  tf_odom_to_base.transform.translation.x * std::cos(estimate.th_)

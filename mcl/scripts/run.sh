@@ -72,10 +72,10 @@ catkin_make $pkg -j4 $cmake_flags
 # ------------------------
 if [ $mode == "real" ]
 then
-  roslaunch mcl mcl.launch real:=true
+  roslaunch mcl mcl_teleop.launch real:=true
 elif [ $mode == "sim" ]
 then
-  roslaunch mcl mcl.launch real:=false load_map_modified:=true
+  roslaunch mcl mcl_teleop.launch real:=false
 elif [ $mode == "test" ]
 then
   ./devel/lib/mcl/mcl_test

@@ -59,24 +59,24 @@ namespace localize
   class MCLNode
   {
   public:
-    MCLNode(const std::string& localizer_node_name,             // Localizer node name
-            const std::string& localizer_pose_topic_name,       // Localizer pose topic name
-            const std::string& localizer_pose_array_topic_name, // Localizer pose array topic name
-            const std::string& drive_node_name,                 // Drive node name
-            const std::string& drive_vel_topic_name,            // Drive velocity topic name
-            const std::string& drive_steer_topic_name,          // Drive steering topic name
-            const std::string& sensor_node_name,                // Sensor node name
-            const std::string& sensor_topic_name                // Sensor topic name
+    MCLNode(const std::string& mcl_node_name,             // MCL node name
+            const std::string& mcl_pose_topic_name,       // MCL pose topic name
+            const std::string& mcl_pose_array_topic_name, // MCL pose array topic name
+            const std::string& drive_node_name,           // Drive node name
+            const std::string& drive_vel_topic_name,      // Drive velocity topic name
+            const std::string& drive_steer_topic_name,    // Drive steering topic name
+            const std::string& sensor_node_name,          // Sensor node name
+            const std::string& sensor_topic_name          // Sensor topic name
            );
 
     // Drive velocity state callback
-    void driveVelCb(const DriveStateStampedMsg::ConstPtr& msg);
+    void driveVelCb(const DriveStateStampedMsg::ConstPtr& drive_msg);
 
     // Drive steering state callback
-    void driveSteerCb(const DriveSteerMsg::ConstPtr& msg);
+    void driveSteerCb(const DriveSteerMsg::ConstPtr& drive_msg);
 
     // Sensor scan callback
-    void sensorCb(const SensorScanMsg::ConstPtr& msg);
+    void sensorCb(const SensorScanMsg::ConstPtr& sensor_msg);
 
     // State estimate callback
     void estimateCb(const ros::TimerEvent& event);
@@ -104,8 +104,8 @@ namespace localize
     Mutex drive_steer_servo_pos_mtx_;  // Servo mutex
 
     // ROS interface
-    std::string base_frame_id_;
-    std::string wheel_back_left_frame_id_;
+    std::string car_base_frame_id_;
+    std::string car_wheel_back_left_frame_id_;
     std::string sensor_frame_id_;
     std::string odom_frame_id_;
     std::string map_frame_id_;
@@ -113,7 +113,7 @@ namespace localize
     ros::NodeHandle pose_nh_;
     ros::NodeHandle pose_array_nh_;
     ros::NodeHandle drive_vel_nh_;
-    ros::NodeHandle drive_steer_nh;
+    ros::NodeHandle drive_steer_nh_;
     ros::NodeHandle sensor_nh_;
     ros::NodeHandle estimate_nh_;
     ros::NodeHandle status_nh_;
@@ -144,12 +144,14 @@ namespace localize
     tf2_ros::TransformListener tf_listener_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
 
-    // MCL
-    std::unique_ptr<MCL> mcl_ptr_;
-    bool real_;               // Running on real robot
-    bool load_map_modified_;  // Serve the localizer with an alternate map for testing a dynamic environment
-    int num_particles_min_;   // Minimum number of particles to use
-    int num_particles_max_;   // Maximum number of particles to use
+    // Localizer parameters
+    std::unique_ptr<MCL> mcl_ptr_;          // MCL localizer
+    bool mcl_mode_real_;                    // MCL localizing real car
+    bool mcl_use_modified_map_;             // MCL will localize within an alternate map (for testing a dynamic environments)
+    int mcl_num_particles_min_;             // MCL minimum number of particles to use
+    int mcl_num_particles_max_;             // MCL maximum number of particles to use
+    double mcl_weight_avg_random_sample_;   // MCL weight average below which random sampling is enabled
+    double mcl_weight_rel_dev_resample_;    // MCL weight relative standard deviation above which resampling is performed
 
     // Motion model parameters
     double car_length_;                         // Car length
@@ -158,15 +160,30 @@ namespace localize
     double drive_steer_angle_to_servo_gain_;    // Gain for converting steering angle to servo position
     double drive_steer_angle_to_servo_offset_;  // Bias for converting steering angle to servo position
     double drive_steer_servo_pos_;              // Steering servo position
+    double motion_vel_lin_n1_;                  // Motion model linear velocity noise coefficient 1
+    double motion_vel_lin_n2_;                  // Motion model linear velocity noise coefficient 2
+    double motion_vel_ang_n1_;                  // Motion model angular velocity noise coefficient 1
+    double motion_vel_ang_n2_;                  // Motion model angular velocity noise coefficient 2
+    double motion_th_n1_;                       // Motion model final rotation noise coefficient 1
+    double motion_th_n2_;                       // Motion model final rotation noise coefficient 2
+    double motion_vel_ang_bias_scale_;          // Motion model slip scale factor: decrease angular velocity according to scale * v^2 / r
     double motion_update_time_msec_;            // Motion update last time (milliseconds)
     double motion_update_time_worst_msec_;      // Motion update worst time (milliseconds)
 
     // Sensor model parameters
-    float sensor_range_min_;                // Sensor min range in meters
-    float sensor_range_max_;                // Sensor max range in meters
-    float sensor_range_no_obj_;             // Sensor range reported when nothing is detected
-    double sensor_update_time_msec_;        // Sensor update last time (milliseconds)
-    double sensor_update_time_worst_msec_;  // Sensor update worst time (milliseconds)
+    float sensor_range_min_;                    // Sensor min range in meters
+    float sensor_range_max_;                    // Sensor max range in meters
+    float sensor_range_no_obj_;                 // Sensor range reported when nothing is detected
+    float sensor_range_std_dev_;                // Sensor model range measurement standard deviation
+    float sensor_decay_rate_new_obj_;           // Sensor model decay rate for new / unexpected object probability
+    double sensor_weight_no_obj_;               // Sensor model weight for no object detected probability
+    double sensor_weight_new_obj_;              // Sensor model weight for new / unexpected object probability
+    double sensor_weight_map_obj_;              // Sensor model weight for mapped / expected object probability
+    double sensor_weight_rand_effect_;          // Sensor model weight for random effect probability
+    double sensor_weight_uncertainty_factor_;   // Sensor model weight uncertainty factor (extra noise added to final weight)
+    double sensor_prob_new_obj_reject_;         // Sensor model probability above which a ray is rejected for representing a new / unexpected object
+    double sensor_update_time_msec_;            // Sensor update last time (milliseconds)
+    double sensor_update_time_worst_msec_;      // Sensor update worst time (milliseconds)
   };
 
 } // namespace localize

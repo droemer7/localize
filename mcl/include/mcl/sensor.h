@@ -23,10 +23,18 @@ namespace localize
   {
   public:
     // Constructor
-    BeamModel(const float range_min,    // Sensor min range in meters
-              const float range_max,    // Sensor max range in meters
-              const float range_no_obj, // Sensor range reported when nothing is detected
-              const Map& map            // Map
+    BeamModel(const float range_min,                  // Sensor min range in meters
+              const float range_max,                  // Sensor max range in meters
+              const float range_no_obj,               // Sensor range reported when nothing is detected
+              const float range_std_dev,              // Model range measurement standard deviation
+              const float decay_rate_new_obj,         // Model decay rate for new / unexpected object probability
+              const double weight_no_obj,             // Model weight for no object detected probability
+              const double weight_new_obj,            // Model weight for new / unexpected object probability
+              const double weight_map_obj,            // Model weight for mapped / expected object probability
+              const double weight_rand_effect,        // Model weight for random effect probability
+              const double weight_uncertainty_factor, // Model weight uncertainty factor (extra noise added to final weight)
+              const double prob_new_obj_reject,       // Model probability above which a ray is rejected for representing a new / unexpected object
+              const Map& map                          // Map
              );
 
     // Apply the sensor model to determine particle importance weights from p(ranges[t] | pose[t], map)
@@ -102,16 +110,18 @@ namespace localize
 
   private:
     // Model parameters
-    float range_min_;           // Sensor min range in meters
-    float range_max_;           // Sensor max range in meters
-    float range_no_obj_;        // Sensor range reported when nothing is detected
-    float range_std_dev_;       // Sensor range standard deviation
-    float new_obj_decay_rate_;  // Model decay rate for new / unexpected object probability
-    double weights_sum_;        // Model weights sum (for normalization)
-    double weight_no_obj_;      // Model weight for no object detected probability
-    double weight_new_obj_;     // Model weight for new / unexpected object probability
-    double weight_map_obj_;     // Model weight for mapped / expected object probability
-    double weight_rand_effect_; // Model weight for random effect probability
+    const float range_min_;                   // Sensor min range in meters
+    const float range_max_;                   // Sensor max range in meters
+    const float range_no_obj_;                // Sensor range reported when nothing is detected
+    const float range_std_dev_;               // Model range measurement standard deviation
+    const float decay_rate_new_obj_;          // Model decay rate for new / unexpected object probability
+    const double weights_sum_;                // Model weights sum (for normalization)
+    const double weight_no_obj_;              // Model weight for no object detected probability
+    const double weight_new_obj_;             // Model weight for new / unexpected object probability
+    const double weight_map_obj_;             // Model weight for mapped / expected object probability
+    const double weight_rand_effect_;         // Model weight for random effect probability
+    const double weight_uncertainty_factor_;  // Model weight uncertainty factor (extra noise added to final weight)
+    const double prob_new_obj_reject_;        // Model probability above which a ray is rejected for representing a new / unexpected object
 
     // Model lookup tables
     // First axis is incremented by ranges observed from the sensor

@@ -1,26 +1,41 @@
 #include "mcl/mcl.h"
 
-static const double WEIGHT_AVG_RANDOM_SAMPLE = 1e-6;  // Average weight below which random sampling is enabled
-static const double WEIGHT_DEV_RESAMPLE = 0.5;        // Weight standard deviation above which resampling is performed
-static const double SPEED_STOPPED = 1e-3;             // Speed below which the robot is stopped (defers updates)
-static const double KLD_EPS = 0.02;                   // KL distance epsilon
-static const double Z_P_01 = 2.3263478740;            // Z score for P(0.01) of Normal(0,1) distribution
-static const double F_2_9 = 2.0 / 9.0;                // Fraction 2/9
+static const double CAR_SPEED_STOPPED = 1e-3; // Speed below which the car is stopped (defers updates)
+static const double KLD_EPS = 0.02;           // KL distance epsilon
+static const double Z_P_01 = 2.3263478740;    // Z score for P(0.01) of Normal(0,1) distribution
+static const double F_2_9 = 2.0 / 9.0;        // Fraction 2/9
 
 using namespace localize;
 
 // ========== MCL ========== //
-MCL::MCL(const unsigned int num_particles_min,
-         const unsigned int num_particles_max,
+MCL::MCL(const unsigned int mcl_num_particles_min,
+         const unsigned int mcl_num_particles_max,
+         const double mcl_weight_avg_random_sample,
+         const double mcl_weight_rel_dev_resample,
          const double car_length,
          const double car_origin_to_sensor_frame_x,
          const double car_origin_to_sensor_frame_y,
          const double car_origin_to_sensor_frame_th,
          const double car_back_center_to_sensor_frame_x,
          const double car_back_center_to_sensor_frame_y,
+         const double motion_vel_lin_n1,
+         const double motion_vel_lin_n2,
+         const double motion_vel_ang_n1,
+         const double motion_vel_ang_n2,
+         const double motion_th_n1,
+         const double motion_th_n2,
+         const double motion_vel_ang_bias_scale,
          const float sensor_range_min,
          const float sensor_range_max,
          const float sensor_range_no_obj,
+         const float sensor_range_std_dev,
+         const float sensor_decay_rate_new_obj,
+         const double sensor_weight_no_obj,
+         const double sensor_weight_new_obj,
+         const double sensor_weight_map_obj,
+         const double sensor_weight_rand_effect,
+         const double sensor_weight_uncertainty_factor,
+         const double sensor_prob_new_obj_reject,
          const unsigned int map_x_size,
          const unsigned int map_y_size,
          const double map_x_origin_world,
@@ -29,11 +44,13 @@ MCL::MCL(const unsigned int num_particles_min,
          const double map_scale_world,
          const std::vector<int8_t>& map_data
         ) :
-  num_particles_min_(num_particles_min),
-  vel_lin_(0.0),
+  num_particles_min_(mcl_num_particles_min),
+  weight_avg_random_sample_(mcl_weight_avg_random_sample),
+  weight_rel_dev_resample_(mcl_weight_rel_dev_resample),
   car_origin_to_sensor_frame_x_(car_origin_to_sensor_frame_x),
   car_origin_to_sensor_frame_y_(car_origin_to_sensor_frame_y),
   car_origin_to_sensor_frame_th_(car_origin_to_sensor_frame_th),
+  car_vel_lin_(0.0),
   map_(map_x_size,
        map_y_size,
        map_x_origin_world,
@@ -45,15 +62,30 @@ MCL::MCL(const unsigned int num_particles_min,
   motion_model_(car_length,
                 car_back_center_to_sensor_frame_x,
                 car_back_center_to_sensor_frame_y,
+                motion_vel_lin_n1,
+                motion_vel_lin_n2,
+                motion_vel_ang_n1,
+                motion_vel_ang_n2,
+                motion_th_n1,
+                motion_th_n2,
+                motion_vel_ang_bias_scale,
                 map_
                ),
   sensor_model_(sensor_range_min,
                 sensor_range_max,
                 sensor_range_no_obj,
+                sensor_range_std_dev,
+                sensor_decay_rate_new_obj,
+                sensor_weight_no_obj,
+                sensor_weight_new_obj,
+                sensor_weight_map_obj,
+                sensor_weight_rand_effect,
+                sensor_weight_uncertainty_factor,
+                sensor_prob_new_obj_reject,
                 map_
                ),
-  dist_(num_particles_max, map_),
-  samples_(num_particles_max),
+  dist_(mcl_num_particles_max, map_),
+  samples_(mcl_num_particles_max),
   hist_(map_),
   random_pose_(map_),
   localization_reset_(false),
@@ -67,14 +99,14 @@ MCL::MCL(const unsigned int num_particles_min,
   dist_.populate(samples_, samples_.size());
 }
 
-void MCL::motionUpdate(const double vel_lin,
-                 const double steering_angle,
-                 const double dt
-                )
+void MCL::motionUpdate(const double car_vel_lin,
+                       const double car_steer_angle,
+                       const double dt
+                      )
 {
-  if (!stopped(vel_lin)) {
+  if (!stopped(car_vel_lin)) {
     RecursiveLock lock(dist_mtx_);
-    motion_model_.apply(dist_, vel_lin, steering_angle, dt);
+    motion_model_.apply(dist_, car_vel_lin, car_steer_angle, dt);
   }
 }
 
@@ -129,7 +161,7 @@ void MCL::sampleUpdate()
   size_t hist_count = 0;
   size_t s = 0;
 
-  // If random sampling was performed on the last update, we relocalized the robot and can no longer compare the new
+  // If random sampling was performed on the last update, we relocalized the car and can no longer compare the new
   // distribution with any time-smoothed weight average 'history' from the old distribution.
   // To handle this, reset the distribution's weight average history.
   if (localization_reset_) {
@@ -186,28 +218,28 @@ bool MCL::resampleRequired()
 {
   RecursiveLock lock(dist_mtx_);
 
-  return dist_.weightRelativeStdDev() > WEIGHT_DEV_RESAMPLE;
+  return dist_.weightRelStdDev() > weight_rel_dev_resample_;
 }
 
 bool MCL::randomSampleRequired()
 {
   RecursiveLock lock(dist_mtx_);
 
-  return dist_.weightAvgFast() < WEIGHT_AVG_RANDOM_SAMPLE;
+  return dist_.weightAvgFast() < weight_avg_random_sample_;
 }
 
 bool MCL::stopped()
 {
-  RecursiveLock lock(vel_lin_mtx_);
+  RecursiveLock lock(car_vel_lin_mtx_);
 
-  return std::abs(vel_lin_) < SPEED_STOPPED;
+  return std::abs(car_vel_lin_) < CAR_SPEED_STOPPED;
 }
 
-bool MCL::stopped(const double vel_lin)
+bool MCL::stopped(const double car_vel_lin)
 {
-  RecursiveLock lock(vel_lin_mtx_);
+  RecursiveLock lock(car_vel_lin_mtx_);
 
-  vel_lin_ = vel_lin;
+  car_vel_lin_ = car_vel_lin;
 
   return stopped();
 }
