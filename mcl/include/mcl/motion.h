@@ -9,12 +9,9 @@ namespace localize
   // Velocity-based probabilistic model for an Ackermann drive robot
   //
   // The model assumes the robot is driven with linear and angular velocity commands and the resulting motion obeys a
-  // circular motion kinematic constraint (linear motion is described by a circle of infinite radius).
-  // Note that this is a _kinematic_ model, and as such it ignores dynamics which generate important effects such as
-  // tire slip (i.e., a violation) of the circular motion assumption). Ultimately these effects are treated as model
-  // uncertainty and accounted for in the noise parameters.
-  //
-  // Ref: Probabilistic Robotics (Thrun 2006)
+  // circular motion constraint (linear motion is described by a circle of infinite radius).
+  // Note that this is a _kinematic_ model, and as such it does not explicitly model dynamics which generate important
+  // effects such as tire slip. Ultimately these unmodeled dynamics are compensated for in noise parameters.
   class VelModel
   {
   public:

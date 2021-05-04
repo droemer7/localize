@@ -225,7 +225,7 @@ void ParticleEstimateHistogram::calcEstimates()
   // Sort all populated histogram cells by weight, largest (best) first
   std::sort(cells_.begin(), cells_.end(), cellEstimateGreater);
 
-  // Convert histogram cells to particles by averaging all particles in each cell
+  // Convert histogram cells to particle estimates by averaging all particles in each cell
   estimates_.resize(std::min(cells_.size(), NUM_ESTIMATES));
 
   for (size_t i = 0; i < estimates_.size(); ++i) {

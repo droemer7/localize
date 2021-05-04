@@ -67,7 +67,7 @@ MCL::MCL(const unsigned int num_particles_min,
   dist_.populate(samples_, samples_.size());
 }
 
-void MCL::update(const double vel_lin,
+void MCL::motionUpdate(const double vel_lin,
                  const double steering_angle,
                  const double dt
                 )
@@ -78,7 +78,7 @@ void MCL::update(const double vel_lin,
   }
 }
 
-void MCL::update(const RayScan& obs)
+void MCL::sensorUpdate(const RayScan& obs)
 {
   // Cache observation before requesting lock
   sensor_model_.update(obs);
@@ -86,7 +86,7 @@ void MCL::update(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
-    update();
+    sampleUpdate();
   }
 }
 
@@ -113,25 +113,14 @@ ParticleVector MCL::estimates()
   return estimates;
 }
 
-Particle MCL::estimate()
+double MCL::confidence()
 {
-  Particle estimate;
-  ParticleVector estimate_list = estimates();
+  RecursiveLock lock(dist_mtx_);
 
-  if (estimate_list.size() > 0) {
-    estimate = estimate_list[0];  // Estimates are sorted best to worst
-  }
-  return estimate;
+  return dist_.weightAvgFast();
 }
 
-bool MCL::stopped()
-{
-  RecursiveLock lock(vel_lin_mtx_);
-
-  return std::abs(vel_lin_) < SPEED_STOPPED;
-}
-
-void MCL::update()
+void MCL::sampleUpdate()
 {
   RecursiveLock lock(dist_mtx_);
   double num_particles_target = num_particles_min_;
@@ -207,23 +196,11 @@ bool MCL::randomSampleRequired()
   return dist_.weightAvgFast() < WEIGHT_AVG_RANDOM_SAMPLE;
 }
 
-void MCL::save(const std::string filename,
-               const bool sort,
-               const bool overwrite
-              )
+bool MCL::stopped()
 {
-  RecursiveLock lock(dist_mtx_);
-  ParticleVector estimates(dist_.estimates());
-  ParticleVector particles(dist_.count());
+  RecursiveLock lock(vel_lin_mtx_);
 
-  for (size_t i = 0; i < dist_.count(); ++i) {
-    particles[i] = dist_.particle(i);
-  }
-  if (sort) {
-    std::sort(particles.begin(), particles.end(), Greater());
-  }
-  localize::save(estimates, filename, overwrite);
-  localize::save(particles, filename, false);
+  return std::abs(vel_lin_) < SPEED_STOPPED;
 }
 
 bool MCL::stopped(const double vel_lin)

@@ -19,8 +19,6 @@ namespace localize
   // 4) A probability for an unexplainable, random result
   // These are evaluated for the range observed vs. the range expected from the map to determine the probability
   // p(ranges[t] | pose[t], map)
-  //
-  // Ref: Probabilistic Robotics (Thrun 2006)
   class BeamModel
   {
   public:

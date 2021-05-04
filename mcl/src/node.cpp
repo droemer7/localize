@@ -197,7 +197,7 @@ void MCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& msg)
   drive_t_prev_ = msg->header.stamp;
 
   // Update localizer with motion data
-  mcl_ptr_->update(vel, steer_angle, dt);
+  mcl_ptr_->motionUpdate(vel, steer_angle, dt);
 
   // Save duration
   motion_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
@@ -218,7 +218,7 @@ void MCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg)
   ros::Time start = ros::Time::now();
 
   // Update localizer with sensor data
-  mcl_ptr_->update(rayScan(msg));
+  mcl_ptr_->sensorUpdate(rayScan(msg));
 
   // Save duration
   sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;

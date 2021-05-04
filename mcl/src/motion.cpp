@@ -6,7 +6,7 @@ static const double VEL_ANG_N1 = 0.10;          // Angular velocity noise coeffi
 static const double VEL_ANG_N2 = 0.20;          // Angular velocity noise coefficient 2
 static const double TH_N1 = 1.0;                // Final rotation noise coefficient 1
 static const double TH_N2 = 1.0;                // Final rotation noise coefficient 2
-static const double VEL_ANG_BIAS_SCALE = 0.20;  // Decreases angular velocity in relation to scale * linear velocity^2 / radius
+static const double VEL_ANG_BIAS_SCALE = 0.20;  // Slip anticipation: decreases angular velocity in relation to scale * linear velocity^2 / radius
 static const double EPSILON = 1e-6;             // Approximate zero value for calculations
 
 using namespace localize;
@@ -43,8 +43,8 @@ void VelModel::apply(ParticleDistribution& dist,
     double icr_radius = std::sqrt(icr_radius_x * icr_radius_x + icr_radius_y * icr_radius_y);
 
     // Calculate angular velocity
-    vel_ang = std::signbit(tan_steering_angle) ? -1.0 * vel_lin / icr_radius
-                                               :        vel_lin / icr_radius;
+    vel_ang = std::signbit(tan_steering_angle) ? -vel_lin / icr_radius
+                                               :  vel_lin / icr_radius;
     vel_ang_sq = vel_ang * vel_ang;
 
     // Calculate centripetal acceleration

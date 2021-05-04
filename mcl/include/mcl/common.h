@@ -259,7 +259,7 @@ namespace localize
           );
   }
 
-  // Save data to file in CSV format
+  // Save particles to file in CSV format
   inline void save(const ParticleVector& particles,
                    const std::string filename,
                    const bool overwrite = true
@@ -285,7 +285,7 @@ namespace localize
     output.close();
   }
 
-  // Save data to file in CSV format
+  // Save rays to file in CSV format
   inline void save(const std::vector<RaySample>& rays,
                    const std::string filename,
                    const bool overwrite = true

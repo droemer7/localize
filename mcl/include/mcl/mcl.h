@@ -39,34 +39,24 @@ namespace localize
        );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
-    void update(const double vel,
-                const double steering_angle,
-                const double dt
-               );
+    void motionUpdate(const double vel,
+                      const double steering_angle,
+                      const double dt
+                     );
 
     // Apply the sensor model to update particle weights using p(obs[t] | pose[t], map)
-    void update(const RayScan& obs);
+    void sensorUpdate(const RayScan& obs);
 
     // Return the top particle estimates in the sensor's frame - lower indexes are better estimates
     ParticleVector estimates();
 
-    // Return the best particle estimate in the sensor's frame
-    Particle estimate();
-
-    // Indicates if the car velocity is within the stopped threshold based on the last saved value
-    bool stopped();
-
-    // Save particle distribution to file in CSV format
-    void save(const std::string filename,
-              const bool sort = true,
-              const bool overwrite = true
-             );
+    // Return the average confidence of the distribution (not the average confidence of the best estimate)
+    // This value is smoothed over a few time steps to reduce the effect of transient noise
+    double confidence();
 
   private:
     // Update particle distribution by performing resampling (based on particle weights) and/or random sampling
-    // No changes are made if distribution is ok
-    // Source: KLD-Sampling: Adaptive Particle Filters (Fox 2001)
-    void update();
+    void sampleUpdate();
 
     // Return true if distribution should be resampled
     bool resampleRequired();
@@ -74,10 +64,13 @@ namespace localize
     // Return true if random samples should be added to the distribution
     bool randomSampleRequired();
 
-    // Updates the robot velocity with the input value and returns true if it is within the stopped threshold
+    // Return true if the robot velocity is within the stopped threshold based on the last saved value
+    bool stopped();
+
+    // Update the robot velocity with the input value and return true if it is within the stopped threshold
     bool stopped(const double vel);
 
-    // Print statistics about the distribution for debugging
+    // Print statistics about the distribution
     void printStats(const std::string& header) const;
 
   private:
