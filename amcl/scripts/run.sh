@@ -47,13 +47,13 @@ fi
 # CMake flags
 if [ $build == "last" ]
 then
-  cmake_flags=""
+  cmake_flags=()
 elif [ $build == "debug" ]
 then
-  cmake_flags="-DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=-O0"
+  cmake_flags=(-DCMAKE_BUILD_TYPE="Debug" -DCMAKE_CXX_FLAGS="-O0")
 elif [ $build == "release" ]
 then
-  cmake_flags="-DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-O3"
+  cmake_flags=(-DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-march=native -O3")
 else
   echo ""
   echo "$0: Illegal build setting (-b) '$build'"
@@ -65,7 +65,7 @@ fi
 source /opt/ros/noetic/setup.bash
 source ~/sw/ros/master/devel/setup.bash
 roscd && cd ..
-catkin_make $pkg -j4 $cmake_flags
+catkin_make $pkg -j4 "${cmake_flags[@]}"
 
 # ------------------------
 # Run
