@@ -1,6 +1,6 @@
 # Localize
 
-A repository of implementations for localizing a mobile robot, with ROS layers to integrate with the [MuSHR car](https://mushr.io). Currently only Adaptive Monte Carlo Localization is implemented.
+A collection of mobile robot localization algorithms, with ROS layers to integrate with the [MuSHR car](https://mushr.io). Currently only Adaptive Monte Carlo Localization is implemented.
 
 **Author:** Dane Roemer
 
