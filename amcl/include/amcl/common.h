@@ -11,8 +11,6 @@
 
 #include "amcl/util.h"
 
-#include "includes/RangeLib.h"
-
 namespace localize
 {
   class Point;

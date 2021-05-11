@@ -3,7 +3,6 @@
   <name>amcl</name>
   <version>1.0.0</version>
   <description>Adaptive Monte-Carlo Localization</description>
-
   <maintainer email="droemer7@gmail.com">Dane</maintainer>
   <author email="droemer7@gmail.com">Dane</author>
   <license>TODO</license>
@@ -11,7 +10,14 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>roscpp</depend>
+  <depend>tf2</depend>
   <depend>tf2_ros</depend>
+  <depend>range_libc</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>vesc_msgs</depend>
+
+  <exec_depend>map_server</exec_depend>
 </package>

@@ -7,7 +7,7 @@ help()
 {
   echo "
 Options: [-p package] [-b build] [-m mode]
--p package    Package to build: all, <package name> (default: all)
+-p package    Package to build/run: all, <package name> (default: all)
 -b build      Build setting: last, debug, release (default: last)
 -m mode       Run mode: build, sim, real (default: build)
 -h            Help

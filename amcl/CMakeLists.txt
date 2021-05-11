@@ -3,40 +3,45 @@ project(amcl)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  tf2
   tf2_ros
+  range_libc
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
   std_msgs
   vesc_msgs
 )
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES amcl
   CATKIN_DEPENDS
     roscpp
+    tf2
     tf2_ros
+    range_libc
+    geometry_msgs
+    nav_msgs
+    sensor_msgs
     std_msgs
     vesc_msgs
 )
 
-include_directories(
-  /home/dane/sw/lib/range_libc
-  include
-  ${catkin_INCLUDE_DIRS}
+include_directories(include)
+include_directories(${range_libc_INCLUDE_DIRS})
+include_directories(${catkin_INCLUDE_DIRS})
+
+add_executable(amcl
+  src/main.cpp
+  src/node.cpp
+  src/amcl.cpp
+  src/distribution.cpp
+  src/histogram.cpp
+  src/motion.cpp
+  src/sensor.cpp
+  src/common.cpp
 )
 
-# AMCL executable
-add_executable(amcl src/main.cpp
-                    src/node.cpp
-                    src/amcl.cpp
-                    src/distribution.cpp
-                    src/histogram.cpp
-                    src/motion.cpp
-                    src/sensor.cpp
-                    src/common.cpp
-)
-add_dependencies(amcl
-  ${catkin_EXPORTED_TARGETS}
-)
 target_link_libraries(amcl
   ${catkin_LIBRARIES}
 )

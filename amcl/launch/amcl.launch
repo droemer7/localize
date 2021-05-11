@@ -11,7 +11,7 @@
   -->
   <group if="$(arg use_modified_map)">
     <node pkg="map_server" type="map_server" name="map_modified_server"
-          args="map:=/map_modified $(find amcl)/maps/map_modified.yaml"/>
+          args="map:=/map_modified $(find amcl)/maps/modified.yaml"/>
   </group>
 
   <!-- AMCL -->
