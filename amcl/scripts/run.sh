@@ -72,10 +72,10 @@ catkin_make $pkg -j4 "${cmake_flags[@]}"
 # ------------------------
 if [ $mode == "real" ]
 then
-  roslaunch amcl amcl_teleop.launch real:=true
+  roslaunch amcl amcl_teleop.launch mode_real:=true
 elif [ $mode == "sim" ]
 then
-  roslaunch amcl amcl_teleop.launch real:=false
+  roslaunch amcl amcl_teleop.launch mode_real:=false
 elif [ $mode != "build" ]
 then
   echo ""
