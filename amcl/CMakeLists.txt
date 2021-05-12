@@ -27,9 +27,11 @@ catkin_package(
     vesc_msgs
 )
 
-include_directories(include)
-include_directories(${range_libc_INCLUDE_DIRS})
-include_directories(${catkin_INCLUDE_DIRS})
+include_directories(
+  include
+  ${range_libc_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
 
 add_executable(amcl
   src/main.cpp
@@ -42,6 +44,4 @@ add_executable(amcl
   src/common.cpp
 )
 
-target_link_libraries(amcl
-  ${catkin_LIBRARIES}
-)
+target_link_libraries(amcl ${catkin_LIBRARIES})
