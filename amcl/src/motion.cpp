@@ -51,7 +51,7 @@ void VelModel::apply(ParticleDistribution& dist,
 
     // Calculate angular velocity
     vel_ang = std::signbit(tan_steer_angle) ? -vel_lin / icr_radius
-                                               :  vel_lin / icr_radius;
+                                            :  vel_lin / icr_radius;
     vel_ang_sq = vel_ang * vel_ang;
 
     // Calculate centripetal acceleration
