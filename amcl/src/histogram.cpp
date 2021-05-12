@@ -1,12 +1,12 @@
 #include "amcl/histogram.h"
 
 static const size_t NUM_ESTIMATES = 5;                    // Number of pose estimates to provide
-static const double ESTIMATE_MERGE_DXY_MAX = 0.10;        // Maximum x or y delta for two estimates to be combined
-static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 36.0; // Maximum angular delta for two estimates to be combined
+static const double ESTIMATE_MERGE_DXY_MAX = 0.05;        // Maximum x or y delta for two estimates to be combined
+static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 72.0; // Maximum angular delta for two estimates to be combined
 static const double HIST_OCCUPANCY_XY_RES = 0.25;         // Occupancy histogram resolution for x and y position (meters per cell)
 static const double HIST_OCCUPANCY_TH_RES = L_PI / 18.0;  // Occupancy histogram resolution for heading angle (rad per cell)
-static const double HIST_ESTIMATE_XY_RES = 0.25;          // Estimate histogram resolution for x and y position (meters per cell)
-static const double HIST_ESTIMATE_TH_RES = L_PI / 8.0;    // Estimate histogram resolution for heading angle (rad per cell)
+static const double HIST_ESTIMATE_XY_RES = 0.10;          // Estimate histogram resolution for x and y position (meters per cell)
+static const double HIST_ESTIMATE_TH_RES = L_PI / 36.0;   // Estimate histogram resolution for heading angle (rad per cell)
 
 using namespace localize;
 
@@ -198,7 +198,7 @@ void ParticleEstimateHistogram::add(const Particle& particle)
   // Since x and y scale must be equal for an occupancy grid, order of rotating and scaling doesn't matter
   long x_i = pose_map.x_ * xy_scale_;
   long y_i = pose_map.y_ * xy_scale_;
-  long th_i = (pose_map.th_ + L_PI ) * th_scale_;
+  long th_i = (pose_map.th_ + L_PI) * th_scale_;
 
   // Ignore particles out of bounds
   if(   0 <= x_i  && x_i  < x_size_
