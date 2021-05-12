@@ -145,7 +145,6 @@ namespace localize
 
     // Localizer parameters
     std::unique_ptr<AMCL> amcl_ptr_;        // AMCL localizer
-    bool amcl_mode_real_;                   // AMCL localizing real car
     bool amcl_use_modified_map_;            // AMCL will localize within an alternate map (for testing a dynamic environments)
     int amcl_num_particles_min_;            // AMCL minimum number of particles to use
     int amcl_num_particles_max_;            // AMCL maximum number of particles to use

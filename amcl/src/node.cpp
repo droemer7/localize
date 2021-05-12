@@ -63,8 +63,7 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
   // Localizer parameters
   ros::NodeHandle nh;
   map_frame_id_ = nh.param(amcl_node_name + "frame_ids/map", std::string("map"));
-  if (   !getParam(nh, amcl_node_name + "/amcl/mode_real", amcl_mode_real_)
-      || !getParam(nh, amcl_node_name + "/amcl/use_modified_map", amcl_use_modified_map_)
+  if (   !getParam(nh, amcl_node_name + "/amcl/use_modified_map", amcl_use_modified_map_)
       || !getParam(nh, amcl_node_name + "/amcl/num_particles_min", amcl_num_particles_min_)
       || !getParam(nh, amcl_node_name + "/amcl/num_particles_max", amcl_num_particles_max_)
       || !getParam(nh, amcl_node_name + "/amcl/weight_avg_random_sample", amcl_weight_avg_random_sample_)
@@ -266,11 +265,8 @@ void AMCLNode::estimateCb(const ros::TimerEvent& event)
   ParticleVector estimates = amcl_ptr_->estimates();
   Particle estimate = estimates.size() > 0 ? estimates[0] : Particle();
 
-  // Publish transform
-  if (amcl_mode_real_) {
-    publishTf(estimate);
-  }
-  // Publish poses
+  // Publish transform and poses
+  publishTf(estimate);
   publishPose(estimate);
   publishPoseArray(estimates);
 }

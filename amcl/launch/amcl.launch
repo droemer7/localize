@@ -28,7 +28,6 @@
 
     <!-- Node -->
     <node pkg="amcl" type="amcl" name="localizer" output="screen">
-      <param name="amcl/mode_real"                value="$(arg mode_real)"/>
       <param name="amcl/use_modified_map"         value="$(arg use_modified_map)"/>
       <param name="node_names/amcl"               value="localizer"/>
       <param name="node_names/drive"              value="vesc"/>
