@@ -246,6 +246,7 @@ bool AMCL::stopped(const double car_vel_lin)
 void AMCL::printStats(const std::string& header) const
 {
   printf("%s", header.c_str());
+  printf("Sample count = %lu\n", dist_.count());
   printf("Weight average [curr] = %.2e\n", dist_.weightAvgCurr());
   printf("Weight average [fast] = %.2e\n", dist_.weightAvgFast());
   printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());

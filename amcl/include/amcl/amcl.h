@@ -87,7 +87,7 @@ namespace localize
     bool stopped(const double car_vel_lin);
 
     // Print statistics about the distribution
-    void printStats(const std::string& header) const;
+    void printStats(const std::string& header = "") const;
 
   private:
     RecursiveMutex dist_mtx_;         // Particle distribution mutex
