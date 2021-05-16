@@ -211,7 +211,6 @@ void AMCL::sampleUpdate()
     }
     // Update distribution with new sample set
     dist_.update(samples_, s);
-    printStats();
   }
 }
 
@@ -248,7 +247,7 @@ void AMCL::printStats(const std::string& header) const
 {
   printf("%s", header.c_str());
   printf("Sample count = %lu\n", dist_.count());
-  // printf("Weight average [curr] = %.2e\n", dist_.weightAvgCurr());
-  // printf("Weight average [fast] = %.2e\n", dist_.weightAvgFast());
-  // printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());
+  printf("Weight average [curr] = %.2e\n", dist_.weightAvgCurr());
+  printf("Weight average [fast] = %.2e\n", dist_.weightAvgFast());
+  printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());
 }
