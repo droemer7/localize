@@ -22,7 +22,7 @@ The core algorithm is comprised of the following steps:
 
 _Adaptive_ MCL improves upon this algorithm by decreasing the number of particles as they converge to a small region of the state space. The approach utilizes the Kullback-Leibler divergence measure to determine the number of samples required to guarantee the error between the estimated distribution and the true distribution is within some specified bound.
 
-A key assumption in the adaptive KLD-based approach is that the estimated distribution does not completely diverge from the true distribution. In reality, this can and will happen: in symmetric environments (hallways of a hotel or apartment complex) or open spaces, a particle filter will eventually generate an estimate that is arbitrarily incorrect. To recover from this scenario, random poses are added to the distribution as the average likelihood drops and falls below a threshold.
+A key assumption in the adaptive KLD-based approach is that the estimated distribution does not completely diverge from the true distribution. Given enough time though, a particle filter will generate an estimate that is arbitrarily incorrect (this occurs more often in symmetric spaces and large open areas). To recover from such scenarios - or any induced failure - random poses are added to the distribution as the average likelihood drops and falls below a threshold.
 </details>
 
 </br>
@@ -62,7 +62,7 @@ ROS Parameter | Type | Default | Description
 `~node_names/drive` | `string` | `vesc` | The name of the drive node which provides velocity and steering angle data.
 `~node_names/sensor` | `string` | `laser` | The name of the sensor node which provides range measurement data.
 `~frame_ids/map` | `string` | `map` | Map frame ID for publishing transforms.
-`~frame_ids/car_base` | `string` | `car_name/base_link` | Car origin frame ID frame for the pose estimate.
+`~frame_ids/car_base` | `string` | `car_name/base_link` | Car origin frame ID for the pose estimate.
 `~frame_ids/car_wheel_back_left` | `string` | `car_name/back_left/wheel_link` | Car back left wheel frame ID used in the motion model.
 `~amcl/use_modified_map` | `bool` | `false` | Set to load a modified map for AMCL to localize within. See the **Map Configuration** section for more information.
 
