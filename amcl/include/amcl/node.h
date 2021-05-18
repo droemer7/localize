@@ -145,6 +145,7 @@ namespace localize
 
     // Localizer parameters
     std::unique_ptr<AMCL> amcl_ptr_;        // AMCL localizer
+    double amcl_update_rate_;               // AMCL update rate (hz)
     bool amcl_use_modified_map_;            // AMCL will localize within an alternate map (for testing a dynamic environments)
     int amcl_num_particles_min_;            // AMCL minimum number of particles to use
     int amcl_num_particles_max_;            // AMCL maximum number of particles to use

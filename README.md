@@ -72,7 +72,8 @@ ROS Parameter | Type | Default | Description
 
 AMCL Parameter | Type | Default (Sim) | Default (Real) | Description
 ---------------|------|---------------|----------------|------------
-`~amcl/num_particles_min` | `int` | `500` | `500` | Minimum number of particles to use.
+`~amcl/update_rate` | `double` | `60.0` | `60.0` | How often to publish the estimate (hz).
+`~amcl/num_particles_min` | `int` | `1000` | `1000` | Minimum number of particles to use.
 `~amcl/num_particles_max` | `int` | `10000` | `10000` | Maximum number of particles to use. This impacts how many particles can be used during global localization / relocalization. 
 `~amcl/weight_avg_random_sample` | `double` | `1.0e-6` | `1.0e-6` | Particle distribution weight average below which random sampling is enabled.
 `~amcl/weight_rel_dev_resample` | `double` | `0.5` | `0.5` | Relative standard deviation in particle distribution weights above which resampling is performed.

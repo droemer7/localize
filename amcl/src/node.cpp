@@ -63,7 +63,8 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
   // Localizer parameters
   ros::NodeHandle nh;
   map_frame_id_ = nh.param(amcl_node_name + "frame_ids/map", std::string("map"));
-  if (   !getParam(nh, amcl_node_name + "/amcl/use_modified_map", amcl_use_modified_map_)
+  if (   !getParam(nh, amcl_node_name + "/amcl/update_rate", amcl_update_rate_)
+      || !getParam(nh, amcl_node_name + "/amcl/use_modified_map", amcl_use_modified_map_)
       || !getParam(nh, amcl_node_name + "/amcl/num_particles_min", amcl_num_particles_min_)
       || !getParam(nh, amcl_node_name + "/amcl/num_particles_max", amcl_num_particles_max_)
       || !getParam(nh, amcl_node_name + "/amcl/weight_avg_random_sample", amcl_weight_avg_random_sample_)
@@ -191,7 +192,7 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
                                      ros::TransportHints().tcpNoDelay()
                                     );
   // Create timers for estimate and status updates
-  estimate_timer_ = estimate_nh_.createTimer(ros::Duration(0.02),
+  estimate_timer_ = estimate_nh_.createTimer(ros::Duration(1.0 / amcl_update_rate_),
                                              &AMCLNode::estimateCb,
                                              this
                                             );

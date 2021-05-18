@@ -28,6 +28,7 @@
 
     <!-- Node -->
     <node pkg="amcl" type="amcl" name="localizer">
+      <param name="amcl/update_rate"              value="50.0"/>
       <param name="amcl/use_modified_map"         value="$(arg use_modified_map)"/>
       <param name="node_names/amcl"               value="localizer"/>
       <param name="node_names/drive"              value="vesc"/>
