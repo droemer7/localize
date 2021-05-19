@@ -2,8 +2,8 @@ localizer:
   amcl:
     num_particles_min: 1000
     num_particles_max: 10000
-    weight_avg_random_sample: 1.0e-5
-    weight_rel_dev_resample: 0.5
+    weight_avg_random_sample: 1.0e-8
+    weight_rel_dev_resample: 1.0
 
   motion:
     vel_lin_n1: 0.005
@@ -22,4 +22,4 @@ localizer:
     weight_map_obj: 87.00
     weight_rand_effect: 2.00
     weight_uncertainty_factor: 1.10
-    prob_new_obj_reject: 0.75
+    prob_new_obj_reject: 0.70

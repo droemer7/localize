@@ -118,6 +118,7 @@ void AMCL::sensorUpdate(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
+    printStats();
     sampleUpdate();
   }
 }
@@ -249,5 +250,6 @@ void AMCL::printStats(const std::string& header) const
   printf("Sample count = %lu\n", dist_.count());
   printf("Weight average [curr] = %.2e\n", dist_.weightAvgCurr());
   printf("Weight average [fast] = %.2e\n", dist_.weightAvgFast());
-  printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());
+  printf("Weight rel std dev = %.2f\n", dist_.weightRelStdDev());
+  // printf("Weight average ratio = %.2e\n", dist_.weightAvgRatio());
 }
