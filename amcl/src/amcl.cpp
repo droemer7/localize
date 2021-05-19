@@ -1,6 +1,6 @@
 #include "amcl/amcl.h"
 
-static const double CAR_SPEED_STOPPED = 5e-2; // Speed below which the car is stopped (defers updates)
+static const double CAR_SPEED_STOPPED = 1e-2; // Speed below which the car is stopped (defers updates)
 static const double KLD_EPS = 0.02;           // KL distance epsilon
 static const double Z_P_01 = 2.3263478740;    // Z score for P(0.01) of Normal(0,1) distribution
 static const double F_2_9 = 2.0 / 9.0;        // Fraction 2/9
