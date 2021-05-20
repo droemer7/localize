@@ -138,8 +138,8 @@ namespace localize
     const size_t y_size_;     // Size of y dimension (number of elements)
     const size_t th_size_;    // Size of angular dimension (number of elements)
 
-    std::vector<ParticleEstimateHistogramCell> hist_;   // Histogram
-    std::vector<ParticleEstimateHistogramCell*> cells_; // Pointers to populated cells
+    std::vector<ParticleEstimateHistogramCell> hist_;       // Histogram
+    std::vector<ParticleEstimateHistogramCell*> cell_ptrs_; // Pointers to populated cells
 
     ParticleVector estimates_;  // Best estimates
     bool update_estimates_;     // Estimates need to be regenerated on next request because the histogram was modified

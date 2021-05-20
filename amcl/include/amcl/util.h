@@ -300,7 +300,7 @@ namespace localize
   {
     rusage stackusage;
     getrusage(RUSAGE_SELF, &stackusage);
-    printf("AMCL: Memory usage = %ld MB\n", stackusage.ru_maxrss / 1024);
+    printf("AMCL: Memory usage = %ld KB (%ld MB)\n", stackusage.ru_maxrss,  stackusage.ru_maxrss / 1024);
   }
 
 } // namespace localize
