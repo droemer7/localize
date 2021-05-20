@@ -12,7 +12,7 @@ localizer:
     vel_ang_n2: 0.01
     th_n1: 0.01
     th_n2: 0.01
-    vel_ang_bias_scale: 0.02
+    vel_ang_bias_scale: 0.01
 
   sensor:
     range_std_dev: 0.10

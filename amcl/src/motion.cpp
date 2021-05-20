@@ -1,6 +1,6 @@
 #include "amcl/motion.h"
 
-static const double EPSILON = 1e-6; // Approximate zero value for calculations
+static const double EPSILON = 1e-6;
 
 using namespace localize;
 
@@ -61,30 +61,30 @@ void VelModel::apply(ParticleDistribution& dist,
   double vel_lin_std_dev = std::sqrt(vel_lin_n1_ * vel_lin_sq + vel_lin_n2_ * vel_ang_sq);
   double vel_ang_std_dev = std::sqrt(vel_ang_n1_ * vel_lin_sq + vel_ang_n2_ * vel_ang_sq);
   double th_std_dev = std::sqrt(th_n1_ * vel_lin_sq + th_n2_ * vel_ang_sq);
-  double vel_ang_bias_std_dev = std::sqrt(vel_ang_bias_scale_ * acc_center);
-  double vel_ang_bias_sign = std::signbit(vel_ang) ? 1.0 : -1.0;
+  double vel_ang_scale_std_dev = std::sqrt(vel_ang_bias_scale_ * acc_center);
 
   // Per particle quantities
   double vel_lin_noise = 0.0;
   double vel_ang_noise = 0.0;
+  double vel_ang_scale_noise = 0.0;
   double th_noise = 0.0;
-  double vel_ang_bias = 0.0;
   double vel_lin_adj = 0.0;
   double vel_ang_adj = 0.0;
   Point new_point;
 
+  bool printed = false;
+
   // Apply to each particle in the distribution
   for (size_t i = 0; i < dist.count(); ++i) {
     // Calculate noise terms
-    vel_lin_noise = vel_lin_std_dev      > EPSILON ? sampler_.gen(0.0, vel_lin_std_dev)      : 0.0;
-    vel_ang_noise = vel_ang_std_dev      > EPSILON ? sampler_.gen(0.0, vel_ang_std_dev)      : 0.0;
-    th_noise      = th_std_dev           > EPSILON ? sampler_.gen(0.0, th_std_dev)           : 0.0;
-    vel_ang_bias  = vel_ang_bias_std_dev > EPSILON ? sampler_.gen(0.0, vel_ang_bias_std_dev) : 0.0;
-    vel_ang_noise += vel_ang_bias_sign * vel_ang_bias;
+    vel_lin_noise       = vel_lin_std_dev       > EPSILON ? sampler_.gen(0.0, vel_lin_std_dev)       : 0.0;
+    vel_ang_noise       = vel_ang_std_dev       > EPSILON ? sampler_.gen(0.0, vel_ang_std_dev)       : 0.0;
+    vel_ang_scale_noise = vel_ang_scale_std_dev > EPSILON ? sampler_.gen(0.0, vel_ang_scale_std_dev) : 0.0;
+    th_noise            = th_std_dev            > EPSILON ? sampler_.gen(0.0, th_std_dev)            : 0.0;
 
     // Add noise to velocities
     vel_lin_adj = vel_lin + vel_lin_noise;
-    vel_ang_adj = vel_ang + vel_ang_noise;
+    vel_ang_adj = (vel_ang + vel_ang_noise) / (1.0 + std::abs(vel_ang_scale_noise));
 
     // Set initial values for x & y
     new_point.x_ = dist.particle(i).x_;
