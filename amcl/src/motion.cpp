@@ -14,7 +14,6 @@ VelModel::VelModel(const double car_length,
                    const double vel_ang_n2,
                    const double th_n1,
                    const double th_n2,
-                   const double vel_ang_bias_scale,
                    const Map& map
                   ) :
   car_length_(car_length),
@@ -26,7 +25,6 @@ VelModel::VelModel(const double car_length,
   vel_ang_n2_(vel_ang_n2),
   th_n1_(th_n1),
   th_n2_(th_n2),
-  vel_ang_bias_scale_(vel_ang_bias_scale),
   map_(map)
 {}
 
@@ -36,11 +34,8 @@ void VelModel::apply(ParticleDistribution& dist,
                      const double dt
                     )
 {
-  // Calculate angular velocity and centripetal acceleration in the motion model's frame
-  double vel_lin_sq = vel_lin * vel_lin;
+  // Calculate angular velocity in the motion model's frame
   double vel_ang = 0.0;
-  double vel_ang_sq = 0.0;
-  double acc_center = 0.0;
   double tan_steer_angle = std::tan(steer_angle);
 
   if (std::abs(tan_steer_angle) > EPSILON) {
@@ -52,21 +47,18 @@ void VelModel::apply(ParticleDistribution& dist,
     // Calculate angular velocity
     vel_ang = std::signbit(tan_steer_angle) ? -vel_lin / icr_radius
                                             :  vel_lin / icr_radius;
-    vel_ang_sq = vel_ang * vel_ang;
-
-    // Calculate centripetal acceleration
-    acc_center = vel_lin_sq / icr_radius;
   }
   // Calculate noise parameters
+  double vel_lin_sq = vel_lin * vel_lin;
+  double vel_ang_sq = vel_ang * vel_ang;
+
   double vel_lin_std_dev = std::sqrt(vel_lin_n1_ * vel_lin_sq + vel_lin_n2_ * vel_ang_sq);
   double vel_ang_std_dev = std::sqrt(vel_ang_n1_ * vel_lin_sq + vel_ang_n2_ * vel_ang_sq);
   double th_std_dev = std::sqrt(th_n1_ * vel_lin_sq + th_n2_ * vel_ang_sq);
-  double vel_ang_scale_std_dev = std::sqrt(vel_ang_bias_scale_ * acc_center);
 
   // Per particle quantities
   double vel_lin_noise = 0.0;
   double vel_ang_noise = 0.0;
-  double vel_ang_scale_noise = 0.0;
   double th_noise = 0.0;
   double vel_lin_adj = 0.0;
   double vel_ang_adj = 0.0;
@@ -77,14 +69,13 @@ void VelModel::apply(ParticleDistribution& dist,
   // Apply to each particle in the distribution
   for (size_t i = 0; i < dist.count(); ++i) {
     // Calculate noise terms
-    vel_lin_noise       = vel_lin_std_dev       > EPSILON ? sampler_.gen(0.0, vel_lin_std_dev)       : 0.0;
-    vel_ang_noise       = vel_ang_std_dev       > EPSILON ? sampler_.gen(0.0, vel_ang_std_dev)       : 0.0;
-    vel_ang_scale_noise = vel_ang_scale_std_dev > EPSILON ? sampler_.gen(0.0, vel_ang_scale_std_dev) : 0.0;
-    th_noise            = th_std_dev            > EPSILON ? sampler_.gen(0.0, th_std_dev)            : 0.0;
+    vel_lin_noise = vel_lin_std_dev > EPSILON ? sampler_.gen(0.0, vel_lin_std_dev) : 0.0;
+    vel_ang_noise = vel_ang_std_dev > EPSILON ? sampler_.gen(0.0, vel_ang_std_dev) : 0.0;
+    th_noise      = th_std_dev      > EPSILON ? sampler_.gen(0.0, th_std_dev)      : 0.0;
 
     // Add noise to velocities
     vel_lin_adj = vel_lin + vel_lin_noise;
-    vel_ang_adj = (vel_ang + vel_ang_noise) / (1.0 + std::abs(vel_ang_scale_noise));
+    vel_ang_adj = vel_ang + vel_ang_noise;
 
     // Set initial values for x & y
     new_point.x_ = dist.particle(i).x_;

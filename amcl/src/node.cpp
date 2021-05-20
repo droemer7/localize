@@ -75,7 +75,6 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
       || !getParam(nh, amcl_node_name + "/motion/vel_ang_n2", motion_vel_ang_n2_)
       || !getParam(nh, amcl_node_name + "/motion/th_n1", motion_th_n1_)
       || !getParam(nh, amcl_node_name + "/motion/th_n2", motion_th_n2_)
-      || !getParam(nh, amcl_node_name + "/motion/vel_ang_bias_scale", motion_vel_ang_bias_scale_)
       || !getParam(nh, amcl_node_name + "/sensor/range_std_dev", sensor_range_std_dev_)
       || !getParam(nh, amcl_node_name + "/sensor/decay_rate_new_obj", sensor_decay_rate_new_obj_)
       || !getParam(nh, amcl_node_name + "/sensor/weight_no_obj", sensor_weight_no_obj_)
@@ -144,7 +143,6 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
                                              motion_vel_ang_n2_,
                                              motion_th_n1_,
                                              motion_th_n2_,
-                                             motion_vel_ang_bias_scale_,
                                              sensor_range_min_,
                                              sensor_range_max_,
                                              sensor_range_no_obj_,

@@ -33,7 +33,6 @@ namespace localize
          const double motion_vel_ang_n2,                  // Motion model angular velocity noise coefficient 2
          const double motion_th_n1,                       // Motion model final rotation noise coefficient 1
          const double motion_th_n2,                       // Motion model final rotation noise coefficient 2
-         const double motion_vel_ang_bias_scale,          // Motion model slip scale factor: decrease angular velocity according to scale * v^2 / r
          const float sensor_range_min,                    // Sensor min range in meters
          const float sensor_range_max,                    // Sensor max range in meters
          const float sensor_range_no_obj,                 // Sensor range reported when nothing is detected

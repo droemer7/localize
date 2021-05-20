@@ -2,7 +2,7 @@ localizer:
   amcl:
     num_particles_min: 1000
     num_particles_max: 10000
-    weight_avg_random_sample: 1.0e-9
+    weight_avg_random_sample: 1.0e-7
     weight_rel_dev_resample: 1.0
 
   motion:
@@ -12,10 +12,9 @@ localizer:
     vel_ang_n2: 0.50
     th_n1: 0.50
     th_n2: 0.50
-    vel_ang_bias_scale: 0.01
 
   sensor:
-    range_std_dev: 0.10
+    range_std_dev: 0.15
     decay_rate_new_obj: 0.30
     weight_no_obj: 1.00
     weight_new_obj: 10.00

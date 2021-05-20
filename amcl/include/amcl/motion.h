@@ -25,7 +25,6 @@ namespace localize
              const double vel_ang_n2,                         // Model angular velocity noise coefficient 2
              const double th_n1,                              // Model final rotation noise coefficient 1
              const double th_n2,                              // Model final rotation noise coefficient 2
-             const double vel_ang_bias_scale,                 // Model slip scale factor: decrease angular velocity according to scale * v^2 / r
              const Map& map                                   // Map
             );
 
@@ -46,7 +45,6 @@ namespace localize
     const double vel_ang_n2_;                         // Model angular velocity noise coefficient 2
     const double th_n1_;                              // Model final rotation noise coefficient 1
     const double th_n2_;                              // Model final rotation noise coefficient 2
-    const double vel_ang_bias_scale_;                 // Model slip scale factor: decrease angular velocity according to scale * v^2 / r
     const Map& map_;                                  // Map
 
     NormalDistributionSampler<double> sampler_; // Normal distribution sampler

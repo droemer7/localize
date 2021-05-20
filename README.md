@@ -6,7 +6,7 @@ A collection of mobile robot localization algorithms, with ROS layers to integra
 
 </br>
 
-# Adaptive Monte Carlo Localization | AMCL 
+# Adaptive Monte Carlo Localization | AMCL
 
 ## Overview
 Adaptive Monte Carlo Localization (AMCL) is a **particle filter** based technique for localizing a mobile robot using motion control inputs, measurements from a range sensor, and a static map.
@@ -14,7 +14,7 @@ Adaptive Monte Carlo Localization (AMCL) is a **particle filter** based techniqu
 <details><summary><b>Algorithm Details</b></summary>
 
 The core algorithm is comprised of the following steps:
-  
+
 1. **Initialization** - A distribution of particles is generated uniformly and randomly in the map's free space, or in proximity to an initial pose estimate.
 2. **Motion update** - Particles are propagated forward in time using control inputs and a model of the robot's motion.
 3. **Sensor update** - Particle likelihoods are updated using range measurements and a model of the range sensor's behavior.
@@ -72,11 +72,11 @@ ROS Parameter | Type | Default | Description
 
 AMCL Parameter | Type | Default (Sim) | Default (Real) | Description
 ---------------|------|---------------|----------------|------------
-`~amcl/update_rate` | `double` | `60.0` | `60.0` | How often to publish the estimate (hz).
+`~amcl/update_rate` | `double` | `50.0` | `50.0` | How often to publish the estimate (hz).
 `~amcl/num_particles_min` | `int` | `1000` | `1000` | Minimum number of particles to use.
-`~amcl/num_particles_max` | `int` | `10000` | `10000` | Maximum number of particles to use. This impacts how many particles can be used during global localization / relocalization. 
-`~amcl/weight_avg_random_sample` | `double` | `1.0e-6` | `1.0e-6` | Particle distribution weight average below which random sampling is enabled.
-`~amcl/weight_rel_dev_resample` | `double` | `0.5` | `0.5` | Relative standard deviation in particle distribution weights above which resampling is performed.
+`~amcl/num_particles_max` | `int` | `10000` | `10000` | Maximum number of particles to use. This impacts how many particles can be used during global localization / relocalization.
+`~amcl/weight_avg_random_sample` | `double` | `1.0e-7` | `1.0e-7` | Particle distribution weight average below which random sampling is enabled.
+`~amcl/weight_rel_dev_resample` | `double` | `1.0` | `1.0` | Relative standard deviation in particle distribution weights above which resampling is performed.
 
 </br>
 
@@ -84,13 +84,12 @@ AMCL Parameter | Type | Default (Sim) | Default (Real) | Description
 
 Motion Model Parameter | Type | Default (Sim) | Default (Real) | Description
 -----------------------|------|---------------|----------------|------------
-`~motion/vel_lin_n1` | `double` | `0.005` | `0.25` | Increases translational noise as a function of the robot's linear velocity.
-`~motion/vel_lin_n2` | `double` | `0.005` | `0.50` | Increases translational noise as a function of the robot's angular velocity.
+`~motion/vel_lin_n1` | `double` | `0.005` | `0.10` | Increases translational noise as a function of the robot's linear velocity.
+`~motion/vel_lin_n2` | `double` | `0.005` | `0.10` | Increases translational noise as a function of the robot's angular velocity.
 `~motion/vel_ang_n1` | `double` | `0.01` | `0.25` | Increases angular noise (creating a wider 'arc' of x/y locations) as a function of the robot's linear velocity.
 `~motion/vel_ang_n2` | `double` | `0.01` | `0.50` | Increases angular noise (creating a wider 'arc' of x/y locations) as a function of the robot's angular velocity.
-`~motion/th_n1` | `double` | `0.01` | `1.00` | Increases rotational noise as a function of the robot's linear velocity.
-`~motion/th_n2` | `double` | `0.01` | `1.00` | Increases rotational noise as a function of the robot's angular velocity.
-`~motion/vel_ang_bias_scale` | `double` | `0.02` | `0.10` | Decreases angular velocity as a function of the robot's centripetal acceleration. This serves to model tire slip by increasing the effective turning radius as the robot turns more quickly.
+`~motion/th_n1` | `double` | `0.01` | `0.50` | Increases rotational noise as a function of the robot's linear velocity.
+`~motion/th_n2` | `double` | `0.01` | `0.50` | Increases rotational noise as a function of the robot's angular velocity.
 
 </br>
 
@@ -98,14 +97,14 @@ Motion Model Parameter | Type | Default (Sim) | Default (Real) | Description
 
 Sensor Model Parameter | Type | Default (Sim) | Default (Real) | Description
 -----------------------|------|---------------|----------------|------------
-`~sensor/range_std_dev` | `float` | `0.20` | `0.20` | Range measurement standard deviation. Note that this should be significantly larger than the actual standard deviation of the sensor due to the sensitivity of the model to small changes in the pose (as well as imprecision in the map). Too small of a value will lead to many good estimates getting a very low weight (likelihood), and can cause the localization to diverge or fail to converge during global localization.
+`~sensor/range_std_dev` | `float` | `0.15` | `0.15` | Range measurement standard deviation. Note that this should be significantly larger than the actual standard deviation of the sensor due to the sensitivity of the model to small changes in the pose (as well as imprecision in the map). Too small of a value will lead to reasonably good estimates getting a very low weight (likelihood), and can cause the localization to diverge or fail to converge during global localization.
 `~sensor/decay_rate_new_obj` | `float` | `0.30` | `0.30` | Exponential decay rate for the new / unexpected (i.e., unmapped) object probability calculation. Typically expressed as a percentage with a value between 0 and 100.0. Higher values mean that only unexpected detections very close to the robot get a higher weight. Lower values give weight to unexpected detections both near and far away from the robot.
 `~sensor/weight_no_obj` | `double` | `1.00` | `1.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting nothing was detected (i.e., a 'max range measurement'). This value should be very low because AMCL rejects max range measurements unless a wide arc of measurements report a miss.
 `~sensor/weight_new_obj` | `double` | `10.00` | `10.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting a new / unexpected (i.e., unmapped) object.
 `~sensor/weight_map_obj` | `double` | `87.00` | `87.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting an expected (i.e., mapped) object.
 `~sensor/weight_rand_effect` | `double` | `2.00` | `2.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting a random measurement.
 `~sensor/weight_uncertainty_factor` | `double` | `1.10` | `1.10` | Uncertainty factor used to reduce the weight of particle due to the approximate nature of the model. This value must be greater than 1.0.
-`~sensor/prob_new_obj_reject` | `double` | `0.75` | `0.75` | Probability above which a ray is rejected for likely representing a new / unexpected (i.e., unmapped) object.
+`~sensor/prob_new_obj_reject` | `double` | `0.70` | `0.70` | Probability above which a ray is rejected for likely representing a new / unexpected (i.e., unmapped) object.
 
 </br>
 
