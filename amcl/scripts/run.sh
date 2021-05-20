@@ -53,7 +53,7 @@ then
   cmake_flags=(-DCMAKE_BUILD_TYPE="Debug" -DCMAKE_CXX_FLAGS="-O0")
 elif [ $build == "release" ]
 then
-  cmake_flags=(-DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-march=native -O3")
+  cmake_flags=(-DCMAKE_BUILD_TYPE="RelWithDebugInfo" -DCMAKE_CXX_FLAGS="-march=native -O3")
 else
   echo ""
   echo "$0: Illegal build setting (-b) '$build'"
