@@ -14,7 +14,7 @@ localizer:
     th_n2: 0.50
 
   sensor:
-    range_std_dev: 0.15
+    range_std_dev: 0.20
     decay_rate_new_obj: 0.30
     weight_no_obj: 1.00
     weight_new_obj: 10.00
