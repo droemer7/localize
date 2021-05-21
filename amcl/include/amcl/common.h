@@ -32,8 +32,10 @@ namespace localize
   typedef std::vector<RaySample> RaySampleVector;
   typedef std::vector<RayScan> RayScanVector;
 
-  extern const unsigned int SENSOR_TH_SAMPLE_COUNT; // Number of samples per ray scan (count per revolution)
-  extern const std::string DATA_PATH;               // Full path to directory for saving data
+  extern const size_t NUM_ESTIMATES;                  // Number of pose estimates to provide
+  extern const size_t SENSOR_NUM_RAYS_PER_SCAN;       // Number of rays per scan expected (count per revolution)
+  extern const unsigned int SENSOR_RAY_SAMPLE_COUNT;  // Number of ray samples to use per scan (count per revolution)
+  extern const std::string DATA_PATH;                 // Full path to directory for saving data
 
   // 2D point (x, y)
   struct Point

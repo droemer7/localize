@@ -1,6 +1,5 @@
 #include "amcl/histogram.h"
 
-static const size_t NUM_ESTIMATES = 5;                    // Number of pose estimates to provide
 static const double ESTIMATE_MERGE_DXY_MAX = 0.10;        // Maximum x or y delta for two estimates to be combined
 static const double ESTIMATE_MERGE_DTH_MAX = L_PI / 12.0; // Maximum angular delta for two estimates to be combined
 static const double HIST_OCCUPANCY_XY_RES = 0.10;         // Occupancy histogram resolution for x and y position (meters per cell)
@@ -183,12 +182,12 @@ ParticleEstimateHistogram::ParticleEstimateHistogram(const Map& map) :
   y_size_(std::round(map.ySize() * xy_scale_)),
   th_size_(std::round(L_2PI * th_scale_)),
   hist_(x_size_ * y_size_ * th_size_),
-  estimates_(NUM_ESTIMATES),
   update_estimates_(false),
   count_(0)
 {
-  // Reserve space since we will be resizing
+  // Reserve space since we need to start with 0 elements
   cell_ptrs_.reserve(x_size_ * y_size_ * th_size_);
+  estimates_.reserve(NUM_ESTIMATES);
 }
 
 void ParticleEstimateHistogram::add(const Particle& particle)

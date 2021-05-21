@@ -47,13 +47,10 @@ namespace localize
                const bool calc_enable = false
               );
 
-    // Update the latest saved observation by sampling from the input observation
-    void update(const RayScan& obs);
+    // Sample a subset of ranges from the observation
+    void sample(const RayScan& obs);
 
   private:
-    // Generate a subset of ranges sampled from the full scan using the preset angle sample increment
-    RaySampleVector sample(const RayScan& obs, const size_t sample_count);
-
     // Removes the contribution of outliers to the particle weights
     // Outlier weights are those derived from range observations which were likely detecting new / unexpected objects
     void removeOutliers(ParticleDistribution& dist);
@@ -133,8 +130,9 @@ namespace localize
     WeightTable weight_table_new_obj_;  // Model lookup table, new / unexpected object probability
     WeightTable weight_table_;          // Model lookup table, all weight components combined
 
-    RaySampleVector rays_obs_sample_; // Downsampled observations
     ranges::CDDTCast raycaster_;      // Range calculator
+    const size_t ray_sample_count_;   // Number of ray samples to use per scan (count per revolution)
+    RaySampleVector rays_obs_sample_; // Sampled rays from the last scan
 
     RNG rng_;  // Random number engine
     std::uniform_real_distribution<float> th_sample_dist_;  // Distribution of initial sample angle offsets

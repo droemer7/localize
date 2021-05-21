@@ -105,6 +105,7 @@ namespace localize
     BeamModel sensor_model_;  // Sensor model
 
     ParticleDistribution dist_;     // Particle distribution in the sensor frame
+    ParticleVector estimates_;      // Particle estimates
     ParticleVector samples_;        // Sampled particles (temporary storage)
     PoseOccupancyHistogram hist_;   // Histogram for estimating probability distribution complexity
     PoseRandomSampler random_pose_; // Random pose sampler, generates samples in free space based on the map

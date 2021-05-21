@@ -1,7 +1,7 @@
 #include "amcl/sensor.h"
 
 static const double WEIGHT_TABLE_RES = 0.01;      // Lookup table resolution (meters per cell)
-static const unsigned int TH_RAYCAST_COUNT = 314; // Number of angles for raycast approximation (count per revolution)
+static const unsigned int RAYCAST_TH_COUNT = 314; // Number of angles for raycast approximation (count per revolution)
 static const float RANGE_EPSILON = 1e-5;          // Maximum delta between two ranges such that they are still considered 'equal'
 
 using namespace localize;
@@ -40,7 +40,6 @@ BeamModel::BeamModel(const float range_min,
   weight_table_size_(std::round(range_max / WEIGHT_TABLE_RES) + 1.0),
   weight_table_new_obj_(weight_table_size_, std::vector<double>(weight_table_size_)),
   weight_table_(weight_table_size_, std::vector<double>(weight_table_size_)),
-  rays_obs_sample_(SENSOR_TH_SAMPLE_COUNT),
   raycaster_(ranges::OMap(map.xSize(),
                           map.ySize(),
                           map.xOriginWorld(),
@@ -50,10 +49,14 @@ BeamModel::BeamModel(const float range_min,
                           map.data()
                          ),
              range_max / map.scaleWorld(),
-             TH_RAYCAST_COUNT
+             RAYCAST_TH_COUNT
             ),
-  th_sample_dist_(0.0, L_2PI / SENSOR_TH_SAMPLE_COUNT)
+  ray_sample_count_(SENSOR_RAY_SAMPLE_COUNT),
+  th_sample_dist_(0.0, L_2PI / SENSOR_RAY_SAMPLE_COUNT)
 {
+  // Reserve space since we need to start with 0 elements
+  rays_obs_sample_.reserve(ray_sample_count_);
+
   // Precalculate the sensor model and create tables
   precalcWeightedProbs();
 }
@@ -109,34 +112,29 @@ void BeamModel::apply(ParticleDistribution& dist,
                       const bool calc_enable
                      )
 {
-  // Sample and update the observation
-  update(obs);
+  // Sample from the observation
+  sample(obs);
 
   // Calculate particle weights
   apply(dist, calc_enable);
 }
 
-void BeamModel::update(const RayScan& obs)
+void BeamModel::sample(const RayScan& obs)
 {
-  rays_obs_sample_ = sample(obs, SENSOR_TH_SAMPLE_COUNT);
-}
-
-RaySampleVector BeamModel::sample(const RayScan& obs, const size_t sample_count)
-{
-  RaySampleVector rays_obs_sample(sample_count);
+  rays_obs_sample_.resize(ray_sample_count_);
   size_t s = 0;
 
   if (obs.rays_.size() > 0) {
     // Generate a random index to start from so we don't repeat the same direction every time
     // This helps maintain some variability from scan to scan to uphold the Markov assumption of independence
-    size_t o_step_size = std::max(static_cast<size_t>((L_2PI / sample_count) / obs.th_inc_), 1ul);
+    size_t o_step_size = std::max(static_cast<size_t>((L_2PI / ray_sample_count_) / obs.th_inc_), 1ul);
     size_t o_offset = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
     size_t o = o_offset;
     size_t o_start = o;
     float range_o = 0.0;
 
     // Iterate through observations selecting the desired amount of samples
-    while (   s < sample_count
+    while (   s < ray_sample_count_
            && s < obs.rays_.size()
           ) {
       o_start = o;
@@ -158,15 +156,13 @@ RaySampleVector BeamModel::sample(const RayScan& obs, const size_t sample_count)
           break;
         }
       }
-      rays_obs_sample[s].range_ = range_o;
-      rays_obs_sample[s].th_ = obs.rays_[o].th_;
+      rays_obs_sample_[s].range_ = range_o;
+      rays_obs_sample_[s].th_ = obs.rays_[o].th_;
       o = o_step_size * ++s + o_offset;
     }
   }
   // Resize in case for some reason the observation had fewer samples than we wanted
-  rays_obs_sample.resize(s);
-
-  return rays_obs_sample;
+  rays_obs_sample_.resize(s);
 }
 
 void BeamModel::removeOutliers(ParticleDistribution& dist)

@@ -7,7 +7,9 @@
 
 using namespace localize;
 
-const unsigned int localize::SENSOR_TH_SAMPLE_COUNT = 8;
+const size_t localize::NUM_ESTIMATES = 5;
+const size_t localize::SENSOR_NUM_RAYS_PER_SCAN = 720;
+const unsigned int localize::SENSOR_RAY_SAMPLE_COUNT = 8;
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/amcl/data/";
 
 // ========== Point ========== //
@@ -43,7 +45,7 @@ Particle::Particle(const Pose& pose,
   Pose(pose),
   weight_(weight),
   weight_normed_(weight_normed),
-  weights_(SENSOR_TH_SAMPLE_COUNT, 0.0)
+  weights_(SENSOR_RAY_SAMPLE_COUNT, 0.0)
 {}
 
 Particle::Particle(const double x,

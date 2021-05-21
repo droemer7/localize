@@ -35,9 +35,8 @@ namespace localize
   typedef geometry_msgs::PoseArray PoseArrayMsg;
   typedef geometry_msgs::TransformStamped TransformStampedMsg;
 
+  // Convert a particle to a pose message
   PoseMsg poseMsg(const Particle& particle);
-
-  RayScan rayScan(const SensorScanMsg::ConstPtr& msg);
 
   // Retrieve the desired parameter value from the ROS parameter server
   template <class T>
@@ -85,13 +84,13 @@ namespace localize
 
   private:
     // Publish the transform estimated by the localizer
-    void publishTf(const Particle& estimate);
+    void publishTf();
 
     // Publish the best pose estimate from the localizer
-    void publishPose(const Particle& estimate);
+    void publishPose();
 
     // Publish all pose estimates from the localizer
-    void publishPoseArray(const ParticleVector& estimates);
+    void publishPoseArray();
 
     // Print Motion update times (last and worst)
     void printMotionUpdateTime(const double min_msec = 0.0);
@@ -143,8 +142,12 @@ namespace localize
     tf2_ros::TransformListener tf_listener_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
 
+    PoseStampedMsg pose_stamped_msg_;
+    PoseArrayMsg pose_array_msg_;
+
     // Localizer parameters
     std::unique_ptr<AMCL> amcl_ptr_;        // AMCL localizer
+    ParticleVector amcl_estimates_;         // AMCL estimates
     double amcl_update_rate_;               // AMCL update rate (hz)
     bool amcl_use_modified_map_;            // AMCL will localize within an alternate map (for testing a dynamic environments)
     int amcl_num_particles_min_;            // AMCL minimum number of particles to use
@@ -183,6 +186,7 @@ namespace localize
     double sensor_prob_new_obj_reject_;         // Sensor model probability above which a ray is rejected for representing a new / unexpected object
     double sensor_update_time_msec_;            // Sensor update last time (milliseconds)
     double sensor_update_time_worst_msec_;      // Sensor update worst time (milliseconds)
+    RayScan sensor_scan_;                       // Sensor scan data
   };
 
 } // namespace localize

@@ -89,6 +89,9 @@ AMCL::AMCL(const unsigned int amcl_num_particles_min,
   localization_reset_(false),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
+  // Reserve space since we need to start with 0 elements
+  estimates_.reserve(NUM_ESTIMATES);
+
   // Initialize distribution with random samples in the map's free space
   for (size_t i = 0; i < samples_.size(); ++i) {
     samples_[i] = Particle(random_pose_());
@@ -110,8 +113,8 @@ void AMCL::motionUpdate(const double car_vel_lin,
 
 void AMCL::sensorUpdate(const RayScan& obs)
 {
-  // Cache observation before requesting lock
-  sensor_model_.update(obs);
+  // Sample from observation before requesting lock on distribution
+  sensor_model_.sample(obs);
 
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
@@ -123,25 +126,24 @@ void AMCL::sensorUpdate(const RayScan& obs)
 
 ParticleVector AMCL::estimates()
 {
-  ParticleVector estimates;
   {
     RecursiveLock lock(dist_mtx_);
-    estimates = dist_.estimates();
+    estimates_ = dist_.estimates();
   }
   // Transform from sensor frame (AMCL local frame) to the car origin frame
   double th_car_origin_to_map = 0.0;
 
-  for (size_t i = 0; i < estimates.size(); ++i) {
-    th_car_origin_to_map = wrapAngle(estimates[i].th_ + car_origin_to_sensor_frame_th_);
-    estimates[i].x_ += (  std::cos(th_car_origin_to_map) * car_origin_to_sensor_frame_x_
+  for (size_t i = 0; i < estimates_.size(); ++i) {
+    th_car_origin_to_map = wrapAngle(estimates_[i].th_ + car_origin_to_sensor_frame_th_);
+    estimates_[i].x_ += (  std::cos(th_car_origin_to_map) * car_origin_to_sensor_frame_x_
                         - std::sin(th_car_origin_to_map) * car_origin_to_sensor_frame_y_
                        );
-    estimates[i].y_ += (  std::sin(th_car_origin_to_map) * car_origin_to_sensor_frame_x_
+    estimates_[i].y_ += (  std::sin(th_car_origin_to_map) * car_origin_to_sensor_frame_x_
                         + std::cos(th_car_origin_to_map) * car_origin_to_sensor_frame_y_
                        );
-    estimates[i].th_ = th_car_origin_to_map;
+    estimates_[i].th_ = th_car_origin_to_map;
   }
-  return estimates;
+  return estimates_;
 }
 
 double AMCL::confidence()

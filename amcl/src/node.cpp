@@ -22,20 +22,6 @@ PoseMsg localize::poseMsg(const Particle& particle)
   return pose_msg;
 }
 
-RayScan localize::rayScan(const SensorScanMsg::ConstPtr& msg)
-{
-  RayScan ray_scan(msg->ranges.size());
-  ray_scan.th_inc_ = msg->angle_increment;
-  ray_scan.t_inc_ = msg->time_increment;
-  ray_scan.t_dur_ = msg->scan_time;
-
-  for (size_t i = 0; i < ray_scan.rays_.size(); ++i) {
-    ray_scan.rays_[i].range_ = msg->ranges[i];
-    ray_scan.rays_[i].th_ = msg->angle_min + ray_scan.th_inc_ * i;
-  }
-  return ray_scan;
-}
-
 // ========== AMCLNode ========== //
 AMCLNode::AMCLNode(const std::string& amcl_node_name,
                    const std::string& amcl_pose_topic_name,
@@ -60,6 +46,11 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
   sensor_update_time_msec_(0.0),
   sensor_update_time_worst_msec_(0.0)
 {
+  // Reserve space since we need to start with 0 elements
+  pose_array_msg_.poses.reserve(NUM_ESTIMATES);
+  amcl_estimates_.reserve(NUM_ESTIMATES);
+  sensor_scan_.rays_.reserve(SENSOR_NUM_RAYS_PER_SCAN);
+
   // Localizer parameters
   ros::NodeHandle nh;
   map_frame_id_ = nh.param(amcl_node_name + "frame_ids/map", std::string("map"));
@@ -244,13 +235,23 @@ void AMCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& drive_msg)
   drive_steer_servo_pos_ = drive_msg->data;
 }
 
-void AMCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg_sensor)
+void AMCLNode::sensorCb(const SensorScanMsg::ConstPtr& sensor_msg)
 {
   // Start timer
   ros::Time start = ros::Time::now();
 
+  // Convert message so core algorithm does not have any ROS dependencies
+  sensor_scan_.th_inc_ = sensor_msg->angle_increment;
+  sensor_scan_.t_inc_ = sensor_msg->time_increment;
+  sensor_scan_.t_dur_ = sensor_msg->scan_time;
+  sensor_scan_.rays_.resize(sensor_msg->ranges.size());
+
+  for (size_t i = 0; i < sensor_scan_.rays_.size(); ++i) {
+    sensor_scan_.rays_[i].range_ = sensor_msg->ranges[i];
+    sensor_scan_.rays_[i].th_ = sensor_msg->angle_min + sensor_scan_.th_inc_ * i;
+  }
   // Update localizer with sensor data
-  amcl_ptr_->sensorUpdate(rayScan(msg_sensor));
+  amcl_ptr_->sensorUpdate(sensor_scan_);
 
   // Save duration
   sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
@@ -260,14 +261,13 @@ void AMCLNode::sensorCb(const SensorScanMsg::ConstPtr& msg_sensor)
 
 void AMCLNode::estimateCb(const ros::TimerEvent& event)
 {
-  // Get estimates
-  ParticleVector estimates = amcl_ptr_->estimates();
-  Particle estimate = estimates.size() > 0 ? estimates[0] : Particle();
+  // Get updated estimates
+  amcl_estimates_ = amcl_ptr_->estimates();
 
   // Publish transform and poses
-  publishTf(estimate);
-  publishPose(estimate);
-  publishPoseArray(estimates);
+  publishTf();
+  publishPose();
+  publishPoseArray();
 }
 
 void AMCLNode::statusCb(const ros::TimerEvent& event)
@@ -276,11 +276,11 @@ void AMCLNode::statusCb(const ros::TimerEvent& event)
   printSensorUpdateTime(0.5);
 }
 
-void AMCLNode::publishTf(const Particle& estimate)
+void AMCLNode::publishTf()
 {
   // AMCL estimates the transform from the car base to the map frame. In order to complete the transform tree, we
   // need to publish the missing map to odom frame transformation.
-  if (estimate.weight_normed_ > 0.0) {
+  if (amcl_estimates_.size() > 0) {
     try {
       // Get the latest transform of the odometry frame relative to the car base frame
       TransformStampedMsg tf_odom_to_base = tf_buffer_.lookupTransform(car_base_frame_id_,
@@ -289,17 +289,17 @@ void AMCLNode::publishTf(const Particle& estimate)
                                                                       );
       // Rotate the odometry to car base x & y translations into the map frame
       // Then, map to odom = base to map [in map] + odom to base [in map]
-      double tf_map_to_odom_x = (  estimate.x_
-                                 + (  tf_odom_to_base.transform.translation.x * std::cos(estimate.th_)
-                                    - tf_odom_to_base.transform.translation.y * std::sin(estimate.th_)
+      double tf_map_to_odom_x = (  amcl_estimates_[0].x_
+                                 + (  tf_odom_to_base.transform.translation.x * std::cos(amcl_estimates_[0].th_)
+                                    - tf_odom_to_base.transform.translation.y * std::sin(amcl_estimates_[0].th_)
                                    )
                                 );
-      double tf_map_to_odom_y = (  estimate.y_
-                                 + (  tf_odom_to_base.transform.translation.x * std::sin(estimate.th_)
-                                    + tf_odom_to_base.transform.translation.y * std::cos(estimate.th_)
+      double tf_map_to_odom_y = (  amcl_estimates_[0].y_
+                                 + (  tf_odom_to_base.transform.translation.x * std::sin(amcl_estimates_[0].th_)
+                                    + tf_odom_to_base.transform.translation.y * std::cos(amcl_estimates_[0].th_)
                                    )
                                 );
-      double tf_map_to_odom_th = estimate.th_ + tf2::getYaw(tf_odom_to_base.transform.rotation);
+      double tf_map_to_odom_th = amcl_estimates_[0].th_ + tf2::getYaw(tf_odom_to_base.transform.rotation);
 
       // Convert map to odom angle to quaternion orientation
       tf2::Quaternion tf_map_to_odom_orient;
@@ -327,35 +327,34 @@ void AMCLNode::publishTf(const Particle& estimate)
   }
 }
 
-void AMCLNode::publishPose(const Particle& estimate)
+void AMCLNode::publishPose()
 {
-  if (estimate.weight_normed_ > 0.0) {
-    // Create pose message
-    PoseStampedMsg pose_msg;
-    pose_msg.header.stamp = ros::Time::now();
-    pose_msg.header.frame_id = map_frame_id_;
-    pose_msg.pose = poseMsg(estimate);
+  if (amcl_estimates_.size() > 0) {
+    // Construct pose message
+    pose_stamped_msg_.header.stamp = ros::Time::now();
+    pose_stamped_msg_.header.frame_id = map_frame_id_;
+    pose_stamped_msg_.pose = poseMsg(amcl_estimates_[0]);
 
     // Publish pose
-    pose_pub_.publish(pose_msg);
+    pose_pub_.publish(pose_stamped_msg_);
   }
 }
 
-void AMCLNode::publishPoseArray(const ParticleVector& estimates)
+void AMCLNode::publishPoseArray()
 {
-  if (estimates.size() > 0) {
-    // Create pose array message
-    PoseArrayMsg pose_array_msg;
-    pose_array_msg.header.stamp = ros::Time::now();
-    pose_array_msg.header.frame_id = map_frame_id_;
+  if (amcl_estimates_.size() > 0) {
+    // Construct pose array message
+    pose_array_msg_.header.stamp = ros::Time::now();
+    pose_array_msg_.header.frame_id = map_frame_id_;
+    pose_array_msg_.poses.resize(amcl_estimates_.size());
 
-    for (size_t i = 0; i < estimates.size(); ++i) {
-      if (estimates[i].weight_normed_ > 0.0) {
-        pose_array_msg.poses.push_back(poseMsg(estimates[i]));
+    for (size_t i = 0; i < amcl_estimates_.size(); ++i) {
+      if (amcl_estimates_[i].weight_normed_ > 0.0) {
+        pose_array_msg_.poses[i] = poseMsg(amcl_estimates_[i]);
       }
     }
     // Publish pose array
-    pose_array_pub_.publish(pose_array_msg);
+    pose_array_pub_.publish(pose_array_msg_);
   }
 }
 
