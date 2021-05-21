@@ -23,7 +23,7 @@ ParticleDistribution::ParticleDistribution(const size_t max_count,
   sample_sum_(0.0),
   sample_sum_target_(0.0),
   hist_(map),
-  prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
+  prob_(0.0, 1.0)
 {
   if (max_count > 0) {
     particles_.resize(max_count);
@@ -84,11 +84,15 @@ size_t ParticleDistribution::count() const
 const Particle& ParticleDistribution::sample()
 {
   // If we've reached the end, wrap back around
-  if (sample_s_ + 1 >= count_) {
+  if (   sample_s_ + 1 >= count_
+      || sample_sum_target_ >= 1.0
+     ) {
     resetSampler();
   }
-  // Sum weights until we reach the target
-  while (sample_sum_ < sample_sum_target_) {
+  // Sum weights until target is reached
+  while (   sample_sum_ < sample_sum_target_
+         && sample_s_ + 1 < count_
+        ) {
     sample_sum_ += particles_[++sample_s_].weight_normed_;
   }
   // Increase target for the next sample
@@ -103,7 +107,7 @@ void ParticleDistribution::resetSampler()
 
   if (count_ > 0) {
     sample_step_ = 1.0 / count_;
-    sample_sum_target_ = prob_(rng_.engine()) * sample_step_;
+    sample_sum_target_ = prob_(rng_.engine()) / count_;
     sample_sum_ = particles_[0].weight_normed_;
   }
   else {

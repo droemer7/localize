@@ -95,7 +95,7 @@ namespace localize
     ParticleEstimateHistogram hist_;  // Histogram for generating locally averaged pose estimates
 
     RNG rng_; // Random number generator
-    std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1])
+    std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1))
   };
 
 } // namespace localize
