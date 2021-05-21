@@ -27,7 +27,7 @@ int main(int argc, char** argv)
     // Run localizer node until ROS is shutdown
     ros::waitForShutdown();
   }
-  catch (std::runtime_error & except) {
+  catch (std::exception & except) {
     ROS_FATAL("AMCL: %s", except.what());
 
     return 1;
