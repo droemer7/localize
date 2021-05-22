@@ -1,6 +1,6 @@
 # Localize
 
-A collection of mobile robot localization algorithms, with ROS layers to integrate with the [MuSHR car](https://mushr.io). Currently only Adaptive Monte Carlo Localization is implemented.
+A collection of mobile robot localization algorithms, integrated with ROS and the [MuSHR car](https://mushr.io). Currently only Adaptive Monte Carlo Localization is implemented.
 
 **Author:** Dane Roemer
 
@@ -97,7 +97,7 @@ Motion Model Parameter | Type | Default (Sim) | Default (Real) | Description
 
 Sensor Model Parameter | Type | Default (Sim) | Default (Real) | Description
 -----------------------|------|---------------|----------------|------------
-`~sensor/range_std_dev` | `float` | `0.15` | `0.15` | Range measurement standard deviation. Note that this should be significantly larger than the actual standard deviation of the sensor due to the sensitivity of the model to small changes in the pose (as well as imprecision in the map). Too small of a value will lead to reasonably good estimates getting a very low weight (likelihood), and can cause the localization to diverge or fail to converge during global localization.
+`~sensor/range_std_dev` | `float` | `0.20` | `0.20` | Range measurement standard deviation. Note that this should be significantly larger than the actual standard deviation of the sensor due to the sensitivity of the model to small changes in the pose (as well as imprecision in the map). Too small of a value will lead to reasonably good estimates getting a very low weight (likelihood), and can lead to instability in the localization estimate.
 `~sensor/decay_rate_new_obj` | `float` | `0.30` | `0.30` | Exponential decay rate for the new / unexpected (i.e., unmapped) object probability calculation. Typically expressed as a percentage with a value between 0 and 100.0. Higher values mean that only unexpected detections very close to the robot get a higher weight. Lower values give weight to unexpected detections both near and far away from the robot.
 `~sensor/weight_no_obj` | `double` | `1.00` | `1.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting nothing was detected (i.e., a 'max range measurement'). This value should be very low because AMCL rejects max range measurements unless a wide arc of measurements report a miss.
 `~sensor/weight_new_obj` | `double` | `10.00` | `10.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting a new / unexpected (i.e., unmapped) object.
