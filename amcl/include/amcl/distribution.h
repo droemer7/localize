@@ -87,15 +87,17 @@ namespace localize
     double weight_std_dev_;           // Particle weight standard deviation
     double weight_relative_std_dev_;  // Particle weight relative standard deviation
 
-    size_t sample_s_;          // Sample index
-    double sample_step_;       // Sample step size, this is 1 / size(distribution)
-    double sample_sum_;        // Current weight sum
-    double sample_sum_target_; // Target for weight sum
+    size_t sample_i_;                       // Sample index
+    double sample_weight_with_correction_;  // Sample weight with correction from last sum iteration (for compensated summation)
+    double sample_weight_sum_correction_;   // Sample weight sum correction term (for compensated summation)
+    double sample_weight_sum_;              // Current sample weight sum
+    double sample_weight_step_;             // Sample weight step size - this is 1.0 / count()
+    double sample_weight_sum_target_;       // Target weight sum for next sample
 
     ParticleEstimateHistogram hist_;  // Histogram for generating locally averaged pose estimates
 
     RNG rng_; // Random number generator
-    std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities (reals in [0, 1))
+    std::uniform_real_distribution<double> prob_; // Distribution to generate a random probabilities in [0, 1)
   };
 
 } // namespace localize

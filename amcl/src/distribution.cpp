@@ -18,10 +18,12 @@ ParticleDistribution::ParticleDistribution(const size_t max_count,
   weight_var_(0.0),
   weight_std_dev_(0.0),
   weight_relative_std_dev_(0.0),
-  sample_s_(0),
-  sample_step_(0.0),
-  sample_sum_(0.0),
-  sample_sum_target_(0.0),
+  sample_i_(0),
+  sample_weight_with_correction_(0.0),
+  sample_weight_sum_correction_(0.0),
+  sample_weight_sum_(0.0),
+  sample_weight_step_(0.0),
+  sample_weight_sum_target_(0.0),
   hist_(map),
   prob_(0.0, 1.0)
 {
@@ -84,47 +86,68 @@ size_t ParticleDistribution::count() const
 const Particle& ParticleDistribution::sample()
 {
   // If we've reached the end, wrap back around
-  if (   sample_s_ + 1 >= count_
-      || sample_sum_target_ >= 1.0
+  if (   sample_i_ + 1 >= count_
+      || sample_weight_sum_target_ >= 1.0
      ) {
     resetSampler();
   }
-  // Sum weights until target is reached
-  while (   sample_sum_ < sample_sum_target_
-         && sample_s_ + 1 < count_
+  // Sum weights until target is reached, using compensated summation (Kahan's algorithm) to reduce rounding error
+  //
+  // Note if we sum all normalized weights and still don't reach the target, this is because we rng'd very close to 1.0
+  // _and_ the normalized weights summed up to less than 1.0. This is extraordinarily rare using compensated summation
+  // on the normalized weights.
+  //
+  // If this does happen, we will return the final particle regardless of its weight. There is no impact because the
+  // sampling algorithm is expected to return low likelihood particles occasionally anyway.
+  double sample_weight_sum_temp = 0.0;
+
+  while (   sample_weight_sum_ < sample_weight_sum_target_
+         && sample_i_ + 1 < count_
         ) {
-    sample_sum_ += particles_[++sample_s_].weight_normed_;
+    sample_weight_with_correction_ = particles_[++sample_i_].weight_normed_ - sample_weight_sum_correction_;
+    sample_weight_sum_temp = sample_weight_sum_ + sample_weight_with_correction_;
+    sample_weight_sum_correction_ = (sample_weight_sum_temp - sample_weight_sum_) - sample_weight_with_correction_;
+    sample_weight_sum_ = sample_weight_sum_temp;
   }
   // Increase target for the next sample
-  sample_sum_target_ += sample_step_;
+  sample_weight_sum_target_ += sample_weight_step_;
 
-  return particles_[sample_s_];
+  return particles_[sample_i_];
 }
 
 void ParticleDistribution::resetSampler()
 {
-  sample_s_ = 0;
+  sample_i_ = 0;
+  sample_weight_with_correction_ = 0.0;
+  sample_weight_sum_correction_ = 0.0;
 
   if (count_ > 0) {
-    sample_step_ = 1.0 / count_;
-    sample_sum_target_ = prob_(rng_.engine()) / count_;
-    sample_sum_ = particles_[0].weight_normed_;
+    sample_weight_step_ = 1.0 / count_;
+    sample_weight_sum_target_ = prob_(rng_.engine()) / count_;
+    sample_weight_sum_ = particles_[0].weight_normed_;
   }
   else {
-    sample_step_ = 0.0;
-    sample_sum_target_ = 0.0;
-    sample_sum_ = 0.0;
+    sample_weight_step_ = 0.0;
+    sample_weight_sum_target_ = 0.0;
+    sample_weight_sum_ = 0.0;
   }
 }
 
 void ParticleDistribution::calcWeightStats()
 {
   if (count_ > 0) {
-    // Calculate weight sum
+    // Calculate weight sum using compensated summation (Kahan's algorithm) to reduce rounding error
+    // The worst error is O(double) for numbers of particles less than 1e16
     weight_sum_ = 0.0;
+    double weight_with_correction = 0.0;
+    double weight_sum_temp = 0.0;
+    double weight_sum_correction = 0.0;
 
     for (size_t i = 0; i < count_; ++i) {
-      weight_sum_ += particles_[i].weight_;
+      weight_with_correction = particles_[i].weight_ - weight_sum_correction;
+      weight_sum_temp = weight_sum_ + weight_with_correction;
+      weight_sum_correction = (weight_sum_temp - weight_sum_) - weight_with_correction;
+      weight_sum_ = weight_sum_temp;
     }
     // Calculate and update weight averages
     weight_avg_curr_ = weight_sum_ / count_;
@@ -132,20 +155,28 @@ void ParticleDistribution::calcWeightStats()
     weight_avg_slow_.update(weight_avg_curr_);
     weight_avg_fast_.update(weight_avg_curr_);
 
-    // Reinitialize weight variance, normalizer and histogram
+    // Calculate weight variance
     weight_var_ = 0.0;
     double weight_normalizer = weight_sum_ > 0.0 ? 1.0 / weight_sum_ : 0.0;
     double weight_diff = 0.0;
+    double weight_diff_sq_with_correction = 0.0;
+    double weight_diff_sq_sum_temp = 0.0;
+    double weight_diff_sq_sum_correction = 0.0;
+    double weight_diff_sq_sum = 0.0;
 
     for (size_t i = 0; i < count_; ++i) {
       // Normalize weight
       particles_[i].weight_normed_ = particles_[i].weight_ * weight_normalizer;
 
-      // Calculate weight variance sum
+      // Shift weight to mean and calculate sum of squares
+      // Again use compensated summation (Kahan's algorithm) to reduce rounding error
       weight_diff = particles_[i].weight_ - weight_avg_curr_;
-      weight_var_ += weight_diff * weight_diff;
+      weight_diff_sq_with_correction = weight_diff * weight_diff - weight_diff_sq_sum_correction;
+      weight_diff_sq_sum_temp = weight_diff_sq_sum + weight_diff_sq_with_correction;
+      weight_diff_sq_sum_correction = (weight_diff_sq_sum_temp - weight_diff_sq_sum) - weight_diff_sq_with_correction;
+      weight_diff_sq_sum = weight_diff_sq_sum_temp;
     }
-    weight_var_ /= count_;
+    weight_var_ = weight_diff_sq_sum / count_;
 
     // Calculate standard deviation
     weight_std_dev_ = std::sqrt(weight_var_);
