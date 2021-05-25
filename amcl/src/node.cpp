@@ -238,7 +238,7 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
 void AMCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& drive_msg)
 {
   // Start timer
-  ros::Time start = ros::Time::now();
+  Time start = Clock::now();
 
   // Calculate velocity and steering angle
   double vel = (drive_msg->state.speed - drive_vel_to_erpm_offset_) / drive_vel_to_erpm_gain_;
@@ -257,7 +257,7 @@ void AMCLNode::driveVelCb(const DriveStateStampedMsg::ConstPtr& drive_msg)
   amcl_ptr_->motionUpdate(vel, steer_angle, dt);
 
   // Save duration
-  motion_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  motion_update_time_msec_ = durationMsec(start, Clock::now());
   motion_update_time_worst_msec_ = motion_update_time_msec_ > motion_update_time_worst_msec_?
                                    motion_update_time_msec_ : motion_update_time_worst_msec_;
 }
@@ -272,7 +272,7 @@ void AMCLNode::driveSteerCb(const DriveSteerMsg::ConstPtr& drive_msg)
 void AMCLNode::sensorCb(const SensorScanMsg::ConstPtr& sensor_msg)
 {
   // Start timer
-  ros::Time start = ros::Time::now();
+  Time start = Clock::now();
 
   // Convert message so core algorithm does not have any ROS dependencies
   sensor_scan_.th_inc_ = sensor_msg->angle_increment;
@@ -288,7 +288,7 @@ void AMCLNode::sensorCb(const SensorScanMsg::ConstPtr& sensor_msg)
   amcl_ptr_->sensorUpdate(sensor_scan_);
 
   // Save duration
-  sensor_update_time_msec_ = (ros::Time::now() - start).toSec() * 1000.0;
+  sensor_update_time_msec_ = durationMsec(start, Clock::now());
   sensor_update_time_worst_msec_ = sensor_update_time_msec_ > sensor_update_time_worst_msec_?
                                    sensor_update_time_msec_ : sensor_update_time_worst_msec_;
 }
@@ -306,7 +306,7 @@ void AMCLNode::estimateCb(const ros::TimerEvent& event)
 
 void AMCLNode::statusCb(const ros::TimerEvent& event)
 {
-  printMotionUpdateTime(0.01);
+  printMotionUpdateTime(0.05);
   printSensorUpdateTime(0.5);
 }
 
