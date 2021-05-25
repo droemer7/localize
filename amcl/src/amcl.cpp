@@ -119,7 +119,6 @@ void AMCL::sensorUpdate(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
-    printStats();
     sampleUpdate();
   }
 }
