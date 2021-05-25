@@ -2,8 +2,8 @@ localizer:
   amcl:
     num_particles_min: 1000
     num_particles_max: 10000
-    weight_avg_random_sample: 1.0e-10
-    weight_rel_dev_resample: 0.50
+    weight_avg_random_sample: 1.0e-12
+    weight_rel_dev_resample: 1.00
 
   motion:
     vel_lin_n1: 0.005
