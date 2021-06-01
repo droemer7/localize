@@ -1,3 +1,5 @@
+
+
 # Localize
 
 A collection of mobile robot localization algorithms, integrated with ROS and the [MuSHR car](https://mushr.io). Currently only Adaptive Monte Carlo Localization is implemented.
@@ -32,6 +34,18 @@ A key assumption in the adaptive KLD-based approach is that the estimated distri
 * **Path Tracking** - Estimates are provided at a rate of 50 Hz.
 * **Global Localization** - Localization within the map with no prior estimate.
 * **Failure Recovery** - Automatic recovery in the event of global localization failure.
+
+</br>
+
+## Demonstration
+
+The video below shows AMCL running on the robot. 
+
+The performance of the laser limits the quality of the estimate. In particular, when the car rotates, the laser often warps what should be a straight line into an arc. This results in chattering in the heading estimate as AMCL compares the measurements with the map. The backlash in the robot's steering mechanism (the car is using a hobby RC car servo which has low precision) also contributes to a noisier motion model which requires more particles to represent accurately.
+
+Note that RViz and the video itself are at 30fps. 
+
+https://user-images.githubusercontent.com/45929033/120374473-6ea09000-c2ce-11eb-8144-2e7277aafe50.mp4
 
 </br>
 
