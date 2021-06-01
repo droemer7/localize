@@ -46,7 +46,8 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
   amcl_update_rate_(0.0),
   amcl_use_modified_map_(false),
   amcl_num_particles_min_(0),
-  amcl_num_particles_max_(0),
+  amcl_num_particles_max_local_(0),
+  amcl_num_particles_max_global_(0),
   amcl_weight_avg_random_sample_(0.0),
   amcl_weight_rel_dev_resample_(0.0),
 
@@ -91,7 +92,8 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
   if (   !getParam(nh, amcl_node_name + "/amcl/update_rate", amcl_update_rate_)
       || !getParam(nh, amcl_node_name + "/amcl/use_modified_map", amcl_use_modified_map_)
       || !getParam(nh, amcl_node_name + "/amcl/num_particles_min", amcl_num_particles_min_)
-      || !getParam(nh, amcl_node_name + "/amcl/num_particles_max", amcl_num_particles_max_)
+      || !getParam(nh, amcl_node_name + "/amcl/num_particles_max_local", amcl_num_particles_max_local_)
+      || !getParam(nh, amcl_node_name + "/amcl/num_particles_max_global", amcl_num_particles_max_global_)
       || !getParam(nh, amcl_node_name + "/amcl/weight_avg_random_sample", amcl_weight_avg_random_sample_)
       || !getParam(nh, amcl_node_name + "/amcl/weight_rel_dev_resample", amcl_weight_rel_dev_resample_)
       || !getParam(nh, amcl_node_name + "/motion/vel_lin_n1", motion_vel_lin_n1_)
@@ -153,7 +155,8 @@ AMCLNode::AMCLNode(const std::string& amcl_node_name,
   }
   // Construct localizer before starting threads
   amcl_ptr_ = std::unique_ptr<AMCL>(new AMCL(amcl_num_particles_min_,
-                                             amcl_num_particles_max_,
+                                             amcl_num_particles_max_local_,
+                                             amcl_num_particles_max_global_,
                                              amcl_weight_avg_random_sample_,
                                              amcl_weight_rel_dev_resample_,
                                              car_length_,

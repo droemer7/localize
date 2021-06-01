@@ -9,7 +9,8 @@ using namespace localize;
 
 // ========== AMCL ========== //
 AMCL::AMCL(const unsigned int amcl_num_particles_min,
-           const unsigned int amcl_num_particles_max,
+           const unsigned int amcl_num_particles_max_local,
+           const unsigned int amcl_num_particles_max_global,
            const double amcl_weight_avg_random_sample,
            const double amcl_weight_rel_dev_resample,
            const double car_length,
@@ -44,6 +45,9 @@ AMCL::AMCL(const unsigned int amcl_num_particles_min,
            const std::vector<int8_t>& map_data
           ) :
   num_particles_min_(amcl_num_particles_min),
+  num_particles_max_local_(amcl_num_particles_max_local),
+  num_particles_max_global_(amcl_num_particles_max_global),
+  num_particles_max_curr_(amcl_num_particles_max_global),
   weight_avg_random_sample_(amcl_weight_avg_random_sample),
   weight_rel_dev_resample_(amcl_weight_rel_dev_resample),
   car_origin_to_sensor_frame_x_(car_origin_to_sensor_frame_x),
@@ -82,11 +86,11 @@ AMCL::AMCL(const unsigned int amcl_num_particles_min,
                 sensor_prob_new_obj_reject,
                 map_
                ),
-  dist_(amcl_num_particles_max, map_),
-  samples_(amcl_num_particles_max),
+  dist_(amcl_num_particles_max_global, map_),
+  samples_(amcl_num_particles_max_global),
   hist_(map_),
   random_pose_(map_),
-  localization_reset_(false),
+  relocalized_(false),
   prob_(0.0, std::nextafter(1.0, std::numeric_limits<double>::max()))
 {
   // Reserve space since we need to start with 0 elements
@@ -119,6 +123,7 @@ void AMCL::sensorUpdate(const RayScan& obs)
   if (!stopped()) {
     RecursiveLock lock(dist_mtx_);
     sensor_model_.apply(dist_);
+    printStats();
     sampleUpdate();
   }
 }
@@ -164,9 +169,10 @@ void AMCL::sampleUpdate()
   // If random sampling was performed on the last update, we relocalized the car and can no longer compare the new
   // distribution with any time-smoothed weight average 'history' from the old distribution.
   // To handle this, reset the distribution's weight average history.
-  if (localization_reset_) {
+  if (relocalized_) {
     dist_.resetWeightAvgHistory();
-    localization_reset_ = false;
+    relocalized_ = false;
+    num_particles_max_curr_ = num_particles_max_local_;
   }
   // Random sample probability is based on the short term vs. long term weight average: the worse the short term
   // is compared to the long term, the more random samples are added
@@ -179,7 +185,7 @@ void AMCL::sampleUpdate()
     hist_.reset();
 
     // Generate samples until we reach the target or max
-    while (   s < samples_.size()
+    while (   s < num_particles_max_curr_
            && s < num_particles_target
           ) {
       // Generate a new random particle and apply the sensor model to update its weight
@@ -188,7 +194,8 @@ void AMCL::sampleUpdate()
          ) {
         samples_[s] = Particle(random_pose_());
         sensor_model_.apply(samples_[s]);
-        localization_reset_ = true;
+        relocalized_ = true;
+        num_particles_max_curr_ = num_particles_max_global_;
       }
       // Draw a particle from the current distribution with probability proportional to its weight
       else {

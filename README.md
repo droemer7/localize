@@ -39,7 +39,7 @@ A key assumption in the adaptive KLD-based approach is that the estimated distri
 
 ## Demonstration
 
-The video below shows AMCL running on the robot. 
+The video below shows AMCL running on the robot.
 
 The performance of the laser limits the quality of the estimate. In particular, when the car rotates, the laser often warps what should be a straight line into an arc. This results in inaccuracies in the heading estimate as AMCL compares the measurements with the map. The backlash in the robot's steering mechanism (the car is using a hobby RC car servo which has low precision) also contributes to this chattering as it requires a noisier motion model to represent correctly - and in turn, more particles.
 
@@ -88,7 +88,8 @@ AMCL Parameter | Type | Default (Sim) | Default (Real) | Description
 ---------------|------|---------------|----------------|------------
 `~amcl/update_rate` | `double` | `50.0` | `50.0` | How often to publish the estimate (hz).
 `~amcl/num_particles_min` | `int` | `1000` | `1000` | Minimum number of particles to use.
-`~amcl/num_particles_max` | `int` | `10000` | `10000` | Maximum number of particles to use. This impacts how many particles can be used during global localization / relocalization.
+`~amcl/num_particles_max_local` | `int` | `3500` | `3500` | Maximum number of particles to use during local tracking.
+`~amcl/num_particles_max_global` | `int` | `20000` | `20000` | Maximum number of particles to use during global localization / relocalization.
 `~amcl/weight_avg_random_sample` | `double` | `1.0e-8` | `1.0e-8` | Particle distribution weight average below which random sampling is enabled.
 `~amcl/weight_rel_dev_resample` | `double` | `0.50` | `0.50` | Relative standard deviation in particle distribution weights above which resampling is performed.
 
@@ -113,10 +114,10 @@ Sensor Model Parameter | Type | Default (Sim) | Default (Real) | Description
 -----------------------|------|---------------|----------------|------------
 `~sensor/range_std_dev` | `float` | `0.20` | `0.20` | Range measurement standard deviation. Note that this should be significantly larger than the actual standard deviation of the sensor due to the sensitivity of the model to small changes in the pose (as well as imprecision in the map). Too small of a value will lead to many reasonably good estimates getting a very low weight, and this can lead to instability in the localization estimate.
 `~sensor/decay_rate_new_obj` | `float` | `0.30` | `0.30` | Exponential decay rate for the new / unexpected (i.e., unmapped) object probability calculation. Typically expressed as a percentage with a value between 0 and 100.0. Higher values mean that only unexpected detections very close to the robot get a higher weight. Lower values give weight to unexpected detections both near and far away from the robot.
-`~sensor/weight_no_obj` | `double` | `1.00` | `1.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting nothing was detected (i.e., a 'max range measurement'). This value should be very low because AMCL rejects max range measurements unless a wide arc of measurements report a miss.
+`~sensor/weight_no_obj` | `double` | `2.00` | `2.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting nothing was detected (i.e., a 'max range measurement'). This value should be very low because AMCL rejects max range measurements unless a wide arc of measurements report a miss.
 `~sensor/weight_new_obj` | `double` | `10.00` | `10.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting a new / unexpected (i.e., unmapped) object.
 `~sensor/weight_map_obj` | `double` | `87.00` | `87.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting an expected (i.e., mapped) object.
-`~sensor/weight_rand_effect` | `double` | `2.00` | `2.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting a random measurement.
+`~sensor/weight_rand_effect` | `double` | `1.00` | `1.00` | Proportion (0 to 100) of the particle's final weight that is due to the sensor reporting a random measurement.
 `~sensor/weight_uncertainty_factor` | `double` | `1.10` | `1.10` | Uncertainty factor used to reduce the weight of particle due to the approximate nature of the model. This value must be greater than 1.0.
 `~sensor/prob_new_obj_reject` | `double` | `0.50` | `0.50` | Probability above which a ray is rejected for likely representing a new / unexpected (i.e., unmapped) object.
 

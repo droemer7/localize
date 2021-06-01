@@ -150,8 +150,9 @@ namespace localize
     ParticleVector amcl_estimates_;         // AMCL estimates
     double amcl_update_rate_;               // AMCL update rate (hz)
     bool amcl_use_modified_map_;            // AMCL will localize within an alternate map (for testing a dynamic environments)
-    int amcl_num_particles_min_;            // AMCL minimum number of particles to use
-    int amcl_num_particles_max_;            // AMCL maximum number of particles to use
+    int amcl_num_particles_min_;            // AMCL minimum number of particles
+    int amcl_num_particles_max_local_;      // AMCL maximum number of particles during local tracking
+    int amcl_num_particles_max_global_;     // AMCL maximum number of particles during global localization
     double amcl_weight_avg_random_sample_;  // AMCL weight average below which random sampling is enabled
     double amcl_weight_rel_dev_resample_;   // AMCL weight relative standard deviation above which resampling is performed
 
