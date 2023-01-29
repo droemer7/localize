@@ -20,7 +20,7 @@
   </group>
 
   <!-- AMCL -->
-  <include file="$(find amcl)/launch/amcl.launch">
+  <include file="$(find amcl)/launch/amcl_solo.launch">
     <arg name="car_name"         value="$(arg car_name)"/>
     <arg name="mode_real"        value="$(arg mode_real)"/>
     <arg name="use_modified_map" value="$(arg use_modified_map)"/>
