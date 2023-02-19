@@ -1,5 +1,8 @@
 # Data logging
 data
 
+# Range Libc library (keep separate from this repo so it can track its upstream repo)
+range_libc
+
 # VS Code
 .vscode
