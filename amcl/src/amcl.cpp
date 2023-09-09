@@ -8,9 +8,9 @@ static const double F_2_9 = 2.0 / 9.0;        // Fraction 2/9
 using namespace localize;
 
 // ========== AMCL ========== //
-AMCL::AMCL(const unsigned int amcl_num_particles_min,
-           const unsigned int amcl_num_particles_max_local,
-           const unsigned int amcl_num_particles_max_global,
+AMCL::AMCL(const int amcl_num_particles_min,
+           const int amcl_num_particles_max_local,
+           const int amcl_num_particles_max_global,
            const double amcl_weight_avg_random_sample,
            const double amcl_weight_rel_dev_resample,
            const double car_length,
@@ -36,8 +36,8 @@ AMCL::AMCL(const unsigned int amcl_num_particles_min,
            const double sensor_weight_rand_effect,
            const double sensor_weight_uncertainty_factor,
            const double sensor_prob_new_obj_reject,
-           const unsigned int map_x_size,
-           const unsigned int map_y_size,
+           const int map_x_size,
+           const int map_y_size,
            const double map_x_origin_world,
            const double map_y_origin_world,
            const double map_th_world,
@@ -97,7 +97,7 @@ AMCL::AMCL(const unsigned int amcl_num_particles_min,
   estimates_.reserve(NUM_ESTIMATES);
 
   // Initialize distribution with random samples in the map's free space
-  for (size_t i = 0; i < samples_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(samples_.size()); ++i) {
     samples_[i] = Particle(random_pose_());
   }
   // Populate the distribution with the sample set
@@ -137,7 +137,7 @@ ParticleVector AMCL::estimates()
   // Transform from sensor frame (AMCL local frame) to the car origin frame
   double th_car_origin_to_map = 0.0;
 
-  for (size_t i = 0; i < estimates_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(estimates_.size()); ++i) {
     th_car_origin_to_map = wrapAngle(estimates_[i].th_ + car_origin_to_sensor_frame_th_);
     estimates_[i].x_ += (  std::cos(th_car_origin_to_map) * car_origin_to_sensor_frame_x_
                         - std::sin(th_car_origin_to_map) * car_origin_to_sensor_frame_y_
@@ -163,8 +163,8 @@ void AMCL::sampleUpdate()
   double num_particles_target = num_particles_min_;
   double chi_sq_term_1 = 0.0;
   double chi_sq_term_2 = 0.0;
-  size_t hist_count = 0;
-  size_t s = 0;
+  int hist_count = 0;
+  int s = 0;
 
   // If random sampling was performed on the last update, we relocalized the car and can no longer compare the new
   // distribution with any time-smoothed weight average 'history' from the old distribution.
@@ -253,7 +253,7 @@ bool AMCL::stopped(const double car_vel_lin)
 void AMCL::printStats(const std::string& header) const
 {
   printf("%s", header.c_str());
-  printf("Sample count = %lu | Weight Avg [fast] = %.2e | Weight Relative Std. Dev = %.2f\n",
+  printf("Sample count = %i | Weight Avg [fast] = %.2e | Weight Relative Std. Dev = %.2f\n",
          dist_.count(), dist_.weightAvgFast(), dist_.weightRelStdDev()
         );
 }

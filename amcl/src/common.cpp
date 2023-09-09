@@ -7,9 +7,9 @@
 
 using namespace localize;
 
-const size_t localize::NUM_ESTIMATES = 5;
-const size_t localize::SENSOR_NUM_RAYS_PER_SCAN = 720;
-const unsigned int localize::SENSOR_RAY_SAMPLE_COUNT = 8;
+const int localize::NUM_ESTIMATES = 5;
+const int localize::SENSOR_NUM_RAYS_PER_SCAN = 720;
+const int localize::SENSOR_RAY_SAMPLE_COUNT = 8;
 const std::string localize::DATA_PATH = "/home/dane/sw/ros/master/src/localize/amcl/data/";
 
 // ========== Point ========== //
@@ -110,13 +110,13 @@ RayScan::RayScan(const RayVector& rays,
   t_dur_(t_dur)
 {}
 
-RayScan::RayScan(size_t num_rays) :
+RayScan::RayScan(int num_rays) :
   RayScan(RayVector(num_rays))
 {}
 
 // ========== Map ========== //
-Map::Map(const unsigned int x_size,
-         const unsigned int y_size,
+Map::Map(const int x_size,
+         const int y_size,
          const double x_origin_world,
          const double y_origin_world,
          const double th_world,
@@ -140,14 +140,14 @@ bool Map::occupied(const Point& point) const
           || point.x_ >= x_size_
           || point.y_ < 0.0
           || point.y_ >= y_size_
-          || data_[static_cast<size_t>(point.y_) * x_size_ + static_cast<size_t>(point.x_)]
+          || data_[static_cast<int>(point.y_) * x_size_ + static_cast<int>(point.x_)]
          );
 }
 
-unsigned int Map::xSize() const
+int Map::xSize() const
 { return x_size_; }
 
-unsigned int Map::ySize() const
+int Map::ySize() const
 { return y_size_; }
 
 double Map::xOriginWorld() const

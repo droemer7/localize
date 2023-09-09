@@ -10,15 +10,15 @@ namespace localize
   {
   public:
     // Constructors
-    ParticleDistribution(const size_t max_count, // Number of particles for which to reserve space
-                         const Map& map          // Map
+    ParticleDistribution(const int max_count,   // Number of particles for which to reserve space
+                         const Map& map         // Map
                         );
 
     // Populate distribution with new particle set
-    void populate(const ParticleVector& particles, const size_t count = 0);
+    void populate(const ParticleVector& particles, const int count = 0);
 
     // Populate distribution with new particle set and update statistics and reset sampler
-    void update(const ParticleVector& particles, const size_t count = 0);
+    void update(const ParticleVector& particles, const int count = 0);
 
     // Update statistics and reset sampler
     void update();
@@ -27,10 +27,10 @@ namespace localize
     const ParticleVector& estimates();
 
     // Reference to a particle in the distribution
-    Particle& particle(const size_t i);
+    Particle& particle(const int i);
 
     // Number of particles in use - in general less than particle vector size
-    size_t count() const;
+    int count() const;
 
     // Samples a particle (with replacement) from the distribution with probability proportional to its weight
     const Particle& sample();
@@ -76,7 +76,7 @@ namespace localize
 
   private:
     ParticleVector particles_;  // Particles in distribution
-    size_t count_;              // Number of particles in use - in general less than particle vector size
+    int count_;                 // Number of particles in use - in general less than particle vector size
 
     double weight_sum_;               // Sum of particle weights
     double weight_avg_curr_;          // Current weight average, no smoothing
@@ -87,7 +87,7 @@ namespace localize
     double weight_std_dev_;           // Particle weight standard deviation
     double weight_relative_std_dev_;  // Particle weight relative standard deviation
 
-    size_t sample_i_;                       // Sample index
+    int sample_i_;                          // Sample index
     double sample_weight_with_correction_;  // Sample weight with correction from last sum iteration (for compensated summation)
     double sample_weight_sum_correction_;   // Sample weight sum correction term (for compensated summation)
     double sample_weight_sum_;              // Current sample weight sum

@@ -57,12 +57,12 @@ void PoseOccupancyHistogram::reset()
   }
 }
 
-size_t PoseOccupancyHistogram::count() const
+int PoseOccupancyHistogram::count() const
 { return count_; }
 
-std::vector<bool>::reference PoseOccupancyHistogram::cell(const size_t x_i,
-                                                          const size_t y_i,
-                                                          const size_t th_i
+std::vector<bool>::reference PoseOccupancyHistogram::cell(const int x_i,
+                                                          const int y_i,
+                                                          const int th_i
                                                          )
 { return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i]; }
 
@@ -131,7 +131,7 @@ void ParticleEstimateHistogramCell::add(const Particle& particle)
   ++count_;
 }
 
-size_t ParticleEstimateHistogramCell::count() const
+int ParticleEstimateHistogramCell::count() const
 { return count_; }
 
 namespace localize
@@ -147,8 +147,8 @@ namespace localize
 
       // Calculate average angle
       // First average the top half plane (positive) angles and bottom half plane (negative) angles
-      size_t th_top_count = cell.th_top_count_;
-      size_t th_bot_count = cell.count_ - th_top_count;
+      int th_top_count = cell.th_top_count_;
+      int th_bot_count = cell.count_ - th_top_count;
       double th_top_avg = th_top_count > 0 ? cell.th_top_sum_ / th_top_count : 0.0;
       double th_bot_avg = th_bot_count > 0 ? cell.th_bot_sum_ / th_bot_count : 0.0;
 
@@ -228,9 +228,9 @@ void ParticleEstimateHistogram::calcEstimates()
   std::sort(cell_ptrs_.begin(), cell_ptrs_.end(), cellEstimateGreater);
 
   // Convert histogram cells to particle estimates by averaging all particles in each cell
-  estimates_.resize(std::min(cell_ptrs_.size(), NUM_ESTIMATES));
+  estimates_.resize(std::min(static_cast<int>(cell_ptrs_.size()), NUM_ESTIMATES));
 
-  for (size_t i = 0; i < estimates_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(estimates_.size()); ++i) {
     estimates_[i] = particle(*cell_ptrs_[i]);
   }
   // Make another pass and average estimates if they are close to each other
@@ -238,11 +238,11 @@ void ParticleEstimateHistogram::calcEstimates()
   ParticleEstimateHistogramCell cell_default;
   Particle particle_default;
 
-  for (size_t i = 0; i < estimates_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(estimates_.size()); ++i) {
     bool update_estimate = false;
 
     if (cell_ptrs_[i]->count() > 0) {
-      for (size_t j = i + 1; j < estimates_.size(); ++j) {
+      for (int j = i + 1; j < static_cast<int>(estimates_.size()); ++j) {
         // Compute deltas and determine if estimates are sufficiently close to each other to be merged
         if (   cell_ptrs_[j]->count() > 0
             && std::abs(estimates_[i].x_ - estimates_[j].x_) < ESTIMATE_MERGE_DXY_MAX
@@ -268,7 +268,7 @@ void ParticleEstimateHistogram::calcEstimates()
   std::sort(estimates_.begin(), estimates_.end(), Greater());
 
   // Ignore zero weight estimates
-  for (size_t i = 0; i < estimates_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(estimates_.size()); ++i) {
     if (estimates_[i].weight_normed_ <= 0.0) {
       estimates_.resize(i);
       break;
@@ -295,12 +295,12 @@ void ParticleEstimateHistogram::reset()
   std::fill(estimates_.begin(), estimates_.end(), Particle());
 }
 
-ParticleEstimateHistogramCell& ParticleEstimateHistogram::cell(const size_t x_i,
-                                                               const size_t y_i,
-                                                               const size_t th_i
+ParticleEstimateHistogramCell& ParticleEstimateHistogram::cell(const int x_i,
+                                                               const int y_i,
+                                                               const int th_i
                                                               )
 { return hist_[x_i * y_size_ * th_size_ + y_i * th_size_ + th_i]; }
 
-size_t ParticleEstimateHistogram::count() const
+int ParticleEstimateHistogram::count() const
 { return count_; }
 // ========== ParticleEstimateHistogram ========== //

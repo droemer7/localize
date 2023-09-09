@@ -60,7 +60,7 @@ namespace localize
     float repairRange(const float range) const;
 
     // Converts the range value to a corresponding index in the table
-    size_t tableIndex(const float range) const;
+    int tableIndex(const float range) const;
 
     // Retrieve from the model lookup table the weighted probability of the observed range being the result of a new
     // (unexpected) object, given the 'true' range determined from the map
@@ -126,12 +126,12 @@ namespace localize
     // Values are weights that would be given by the model given ranges
     // observed by the sensor and ranges calculated by raycasting on the map
     const double weight_table_res_;     // Model table resolution (meters per cell)
-    const size_t weight_table_size_;    // Model table size
+    const int weight_table_size_;       // Model table size
     WeightTable weight_table_new_obj_;  // Model lookup table, new / unexpected object probability
     WeightTable weight_table_;          // Model lookup table, all weight components combined
 
     ranges::CDDTCast raycaster_;      // Range calculator
-    const size_t ray_sample_count_;   // Number of ray samples to use per scan (count per revolution)
+    const int ray_sample_count_;      // Number of ray samples to use per scan (count per revolution)
     RaySampleVector rays_obs_sample_; // Sampled rays from the last scan
 
     RNG rng_;  // Random number engine

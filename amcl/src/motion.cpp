@@ -64,10 +64,8 @@ void VelModel::apply(ParticleDistribution& dist,
   double vel_ang_adj = 0.0;
   Point new_point;
 
-  bool printed = false;
-
   // Apply to each particle in the distribution
-  for (size_t i = 0; i < dist.count(); ++i) {
+  for (int i = 0; i < dist.count(); ++i) {
     // Calculate noise terms
     vel_lin_noise = vel_lin_std_dev > EPSILON ? sampler_.gen(0.0, vel_lin_std_dev) : 0.0;
     vel_ang_noise = vel_ang_std_dev > EPSILON ? sampler_.gen(0.0, vel_ang_std_dev) : 0.0;

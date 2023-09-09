@@ -7,7 +7,7 @@ static const double WEIGHT_AVG_FAST_RATE = 0.75;   // Weight average smoothing r
 using namespace localize;
 
 // ========== ParticleDistribution ========== //
-ParticleDistribution::ParticleDistribution(const size_t max_count,
+ParticleDistribution::ParticleDistribution(const int max_count,
                                            const Map& map
                                           ) :
   count_(0),
@@ -32,7 +32,7 @@ ParticleDistribution::ParticleDistribution(const size_t max_count,
   }
 }
 
-void ParticleDistribution::populate(const ParticleVector& particles, const size_t count)
+void ParticleDistribution::populate(const ParticleVector& particles, const int count)
 {
   // If count is 0 (specified or not), use particles input as is
   if (count == 0) {
@@ -40,7 +40,7 @@ void ParticleDistribution::populate(const ParticleVector& particles, const size_
     particles_.resize(count_);
   }
   // Resize particle vector, but only if it needs to be bigger
-  else if (count > particles_.size()) {
+  else if (count > static_cast<int>(particles_.size())) {
     count_ = count;
     particles_.resize(count_);
   }
@@ -49,12 +49,12 @@ void ParticleDistribution::populate(const ParticleVector& particles, const size_
     count_ = count;
   }
   // Copy particles over based on count
-  for (size_t i = 0; i < count_; ++i) {
+  for (int i = 0; i < count_; ++i) {
     particles_[i] = particles[i];
   }
 }
 
-void ParticleDistribution::update(const ParticleVector& particles, const size_t count)
+void ParticleDistribution::update(const ParticleVector& particles, const int count)
 {
   populate(particles, count);
   calcWeightStats();
@@ -71,16 +71,16 @@ const ParticleVector& ParticleDistribution::estimates()
 {
   hist_.reset();
 
-  for (size_t i = 0; i < count_; ++i) {
+  for (int i = 0; i < count_; ++i) {
     hist_.add(particles_[i]);
   }
   return hist_.estimates();
 }
 
-Particle& ParticleDistribution::particle(const size_t i)
+Particle& ParticleDistribution::particle(const int i)
 { return particles_[i]; }
 
-size_t ParticleDistribution::count() const
+int ParticleDistribution::count() const
 { return count_; }
 
 const Particle& ParticleDistribution::sample()
@@ -143,7 +143,7 @@ void ParticleDistribution::calcWeightStats()
     double weight_sum_temp = 0.0;
     double weight_sum_correction = 0.0;
 
-    for (size_t i = 0; i < count_; ++i) {
+    for (int i = 0; i < count_; ++i) {
       weight_with_correction = particles_[i].weight_ - weight_sum_correction;
       weight_sum_temp = weight_sum_ + weight_with_correction;
       weight_sum_correction = (weight_sum_temp - weight_sum_) - weight_with_correction;
@@ -164,7 +164,7 @@ void ParticleDistribution::calcWeightStats()
     double weight_diff_sq_sum_correction = 0.0;
     double weight_diff_sq_sum = 0.0;
 
-    for (size_t i = 0; i < count_; ++i) {
+    for (int i = 0; i < count_; ++i) {
       // Normalize weight
       particles_[i].weight_normed_ = particles_[i].weight_ * weight_normalizer;
 

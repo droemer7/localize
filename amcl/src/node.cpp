@@ -283,7 +283,7 @@ void AMCLNode::sensorCb(const SensorScanMsg::ConstPtr& sensor_msg)
   sensor_scan_.t_dur_ = sensor_msg->scan_time;
   sensor_scan_.rays_.resize(sensor_msg->ranges.size());
 
-  for (size_t i = 0; i < sensor_scan_.rays_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(sensor_scan_.rays_.size()); ++i) {
     sensor_scan_.rays_[i].range_ = sensor_msg->ranges[i];
     sensor_scan_.rays_[i].th_ = sensor_msg->angle_min + sensor_scan_.th_inc_ * i;
   }
@@ -385,7 +385,7 @@ void AMCLNode::publishPoseArray()
     pose_array_msg_.header.frame_id = map_frame_id_;
     pose_array_msg_.poses.resize(amcl_estimates_.size());
 
-    for (size_t i = 0; i < amcl_estimates_.size(); ++i) {
+    for (int i = 0; i < static_cast<int>(amcl_estimates_.size()); ++i) {
       if (amcl_estimates_[i].weight_normed_ > 0.0) {
         pose_array_msg_.poses[i] = poseMsg(amcl_estimates_[i]);
       }

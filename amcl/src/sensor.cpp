@@ -1,7 +1,7 @@
 #include "amcl/sensor.h"
 
 static const double WEIGHT_TABLE_RES = 0.01;      // Lookup table resolution (meters per cell)
-static const unsigned int RAYCAST_TH_COUNT = 314; // Number of angles for raycast approximation (count per revolution)
+static const int RAYCAST_TH_COUNT = 314; // Number of angles for raycast approximation (count per revolution)
 static const float RANGE_EPSILON = 1e-5;          // Maximum delta between two ranges such that they are still considered 'equal'
 
 using namespace localize;
@@ -68,7 +68,7 @@ void BeamModel::apply(Particle& particle, const bool calc_enable)
   double weight = 1.0;
   float range_map = 0.0;
 
-  for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(rays_obs_sample_.size()); ++i) {
     // Calculate range from the map
     range_map = raycaster_.calc_range(particle.x_,
                                       particle.y_,
@@ -97,7 +97,7 @@ void BeamModel::apply(Particle& particle, const bool calc_enable)
 void BeamModel::apply(ParticleDistribution& dist, const bool calc_enable)
 {
   // Calculate particle weights
-  for (size_t i = 0; i < dist.count(); ++i) {
+  for (int i = 0; i < dist.count(); ++i) {
     apply(dist.particle(i));
   }
   // Remove the contribution of outliers to the particle weights
@@ -122,20 +122,20 @@ void BeamModel::apply(ParticleDistribution& dist,
 void BeamModel::sample(const RayScan& obs)
 {
   rays_obs_sample_.resize(ray_sample_count_);
-  size_t s = 0;
+  int s = 0;
 
   if (obs.rays_.size() > 0) {
     // Generate a random index to start from so we don't repeat the same direction every time
     // This helps maintain some variability from scan to scan to uphold the Markov assumption of independence
-    size_t o_step_size = std::max(static_cast<size_t>((L_2PI / ray_sample_count_) / obs.th_inc_), 1ul);
-    size_t o_offset = std::min(static_cast<size_t>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1ul);
-    size_t o = o_offset;
-    size_t o_start = o;
+    int o_step_size = std::max(static_cast<int>((L_2PI / ray_sample_count_) / obs.th_inc_), 1);
+    int o_offset = std::min(static_cast<int>(th_sample_dist_(rng_.engine()) / obs.th_inc_), o_step_size - 1);
+    int o = o_offset;
+    int o_start = o;
     float range_o = 0.0;
 
     // Iterate through observations selecting the desired amount of samples
     while (   s < ray_sample_count_
-           && s < obs.rays_.size()
+           && s < static_cast<int>(obs.rays_.size())
           ) {
       o_start = o;
       range_o = repairRange(obs.rays_[o].range_);
@@ -170,7 +170,7 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   // Calculate probabilities and pair them with their index
   IndexedWeightVector outlier_probs(rays_obs_sample_.size());
 
-  for (size_t i = 0; i < rays_obs_sample_.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(rays_obs_sample_.size()); ++i) {
     outlier_probs[i].index_ = i;
 
     if (rays_obs_sample_[i].weight_sum_ > 0.0) {
@@ -186,11 +186,11 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   // Evaluate the sorted probabilities and remove the largest outliers, up to half at most
   // Observed ranges and their corresponding weights are considered outliers if they appear likely to be due to a
   // new / unexpected object
-  size_t i = 0;
-  size_t reject_count = 0;
+  int i = 0;
+  int reject_count = 0;
 
-  while (   i < outlier_probs.size()
-         && reject_count < outlier_probs.size() / 2  // Only reject half at most
+  while (   i < static_cast<int>(outlier_probs.size())
+         && reject_count < static_cast<int>(outlier_probs.size()) / 2  // Only reject half at most
         ) {
     if (outlier_probs[i].val_ > prob_new_obj_reject_) {
       ++reject_count;
@@ -202,10 +202,10 @@ void BeamModel::removeOutliers(ParticleDistribution& dist)
   }
   // Recalculate weights, undoing the outlier contributions
   if (outlier_probs.size() > 0) {
-    for (size_t i = 0; i < dist.count(); ++i) {
+    for (int i = 0; i < dist.count(); ++i) {
 
       // Remove weight for each rejected index
-      for (size_t j = 0; j < reject_count; ++j) {
+      for (int j = 0; j < reject_count; ++j) {
         double& weight_partial = dist.particle(i).weights_[outlier_probs[j].index_];
         weight_partial = std::pow(weight_partial, weight_uncertainty_factor_);
 
@@ -226,7 +226,7 @@ float BeamModel::repairRange(float range) const
          range_no_obj_ : range;
 }
 
-size_t BeamModel::tableIndex(const float range) const
+int BeamModel::tableIndex(const float range) const
 {
   return range / weight_table_res_;
 }
@@ -316,10 +316,10 @@ void BeamModel::precalcWeightedProbs()
   double range_obs = 0.0;
   double range_map = 0.0;
 
-  for (size_t i = 0; i < weight_table_size_; ++i) {
+  for (int i = 0; i < weight_table_size_; ++i) {
     range_obs = weight_table_res_ * i;
 
-    for (size_t j = 0; j < weight_table_size_; ++j) {
+    for (int j = 0; j < weight_table_size_; ++j) {
       range_map = weight_table_res_ * j;
       weight_table_new_obj_[i][j] = calcWeightedProbNewObj(range_obs, range_map);
       weight_table_[i][j] = calcWeightedProb(range_obs, range_map);

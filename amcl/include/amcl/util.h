@@ -98,7 +98,7 @@ namespace localize
       IndexedValue()
     { val_ = val; }
 
-    IndexedValue(const T val, const size_t index) :
+    IndexedValue(const T val, const int index) :
       IndexedValue()
     {
       val_ = val;
@@ -143,7 +143,7 @@ namespace localize
     { return val_; }
 
     T val_;
-    size_t index_;
+    int index_;
   };
 
   // Applies exponential smoothing to a changing value

@@ -20,25 +20,25 @@ namespace localize
     void reset();
 
     // Histogram occupancy count
-    size_t count() const;
+    int count() const;
 
   private:
     // Reference a cell by index
-    std::vector<bool>::reference cell(const size_t x_i,
-                                      const size_t y_i,
-                                      const size_t th_i
+    std::vector<bool>::reference cell(const int x_i,
+                                      const int y_i,
+                                      const int th_i
                                      );
   private:
     const Map& map_;          // Map the histogram represents
 
     const double xy_scale_;   // Scale of histogram x and y dimensions relative to map frame (cells per map pixel)
     const double th_scale_;   // Scale of histogram angular dimension (cells per rad)
-    const size_t x_size_;     // Size of x dimension (number of elements)
-    const size_t y_size_;     // Size of y dimension (number of elements)
-    const size_t th_size_;    // Size of angular dimension (number of elements)
+    const int x_size_;        // Size of x dimension (number of elements)
+    const int y_size_;        // Size of y dimension (number of elements)
+    const int th_size_;       // Size of angular dimension (number of elements)
 
     std::vector<bool> hist_;  // Histogram
-    size_t count_;            // Histogram occupancy count
+    int count_;               // Histogram occupancy count
   };
 
   class ParticleEstimateHistogramCell
@@ -81,7 +81,7 @@ namespace localize
     void add(const Particle& particle);
 
     // Cell particle count
-    size_t count() const;
+    int count() const;
 
     // Convert cell to a particle by computing the average of all particles added to the cell
     friend Particle particle(const ParticleEstimateHistogramCell& cell);
@@ -91,9 +91,9 @@ namespace localize
     double y_sum_;              // Sum of particle y positions
     double th_top_sum_;         // Sum of particle angles in the top half plane of (-pi, pi]
     double th_bot_sum_;         // Sum of particle angles in the bottom half plane of (-pi, pi]
-    size_t th_top_count_;       // Count of angles in the top half plane (-pi, 0.0) of the (-pi, pi] space
+    int th_top_count_;          // Count of angles in the top half plane (-pi, 0.0) of the (-pi, pi] space
     double weight_normed_sum_;  // Sum of particle normalized weights for this cell
-    size_t count_;              // Count of particles in this cell
+    int count_;                 // Count of particles in this cell
   };
 
   // Compare estimate histogram cells by weight, descending
@@ -121,29 +121,29 @@ namespace localize
     void reset();
 
     // Histogram occupancy count (not the number of estimates)
-    size_t count() const;
+    int count() const;
 
   private:
     // Reference a cell by index
-    ParticleEstimateHistogramCell& cell(const size_t x_i,
-                                        const size_t y_i,
-                                        const size_t th_i
+    ParticleEstimateHistogramCell& cell(const int x_i,
+                                        const int y_i,
+                                        const int th_i
                                        );
   private:
     const Map& map_;          // Map the histogram represents
 
     const double xy_scale_;   // Scale of histogram x and y dimensions relative to map frame (cells per map pixel)
     const double th_scale_;   // Scale of histogram angular dimension (cells per rad)
-    const size_t x_size_;     // Size of x dimension (number of elements)
-    const size_t y_size_;     // Size of y dimension (number of elements)
-    const size_t th_size_;    // Size of angular dimension (number of elements)
+    const int x_size_;        // Size of x dimension (number of elements)
+    const int y_size_;        // Size of y dimension (number of elements)
+    const int th_size_;       // Size of angular dimension (number of elements)
 
     std::vector<ParticleEstimateHistogramCell> hist_;       // Histogram
     std::vector<ParticleEstimateHistogramCell*> cell_ptrs_; // Pointers to populated cells
 
     ParticleVector estimates_;  // Best estimates
     bool update_estimates_;     // Estimates need to be regenerated on next request because the histogram was modified
-    size_t count_;              // Histogram occupancy count
+    int count_;                 // Histogram occupancy count
   };
 
 } // namespace localize

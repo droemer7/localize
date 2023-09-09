@@ -32,10 +32,10 @@ namespace localize
   typedef std::vector<RaySample> RaySampleVector;
   typedef std::vector<RayScan> RayScanVector;
 
-  extern const size_t NUM_ESTIMATES;                  // Number of pose estimates to provide
-  extern const size_t SENSOR_NUM_RAYS_PER_SCAN;       // Number of rays per scan expected (count per revolution)
-  extern const unsigned int SENSOR_RAY_SAMPLE_COUNT;  // Number of ray samples to use per scan (count per revolution)
-  extern const std::string DATA_PATH;                 // Full path to directory for saving data
+  extern const int NUM_ESTIMATES;             // Number of pose estimates to provide
+  extern const int SENSOR_NUM_RAYS_PER_SCAN;  // Number of rays per scan expected (count per revolution)
+  extern const int SENSOR_RAY_SAMPLE_COUNT;   // Number of ray samples to use per scan (count per revolution)
+  extern const std::string DATA_PATH;         // Full path to directory for saving data
 
   // 2D point (x, y)
   struct Point
@@ -145,7 +145,7 @@ namespace localize
                      float t_dur = 0.0                    // Scan duration (sec)
                     );
 
-    explicit RayScan(size_t num_rays);
+    explicit RayScan(int num_rays);
 
     RayVector rays_;  // Vector of rays data
     float th_inc_;    // Angle increment between ray elements (angle per index)
@@ -158,8 +158,8 @@ namespace localize
   {
   public:
     // Constructor
-    Map(const unsigned int x_size,      // Length of x axis (width) (pixels)
-        const unsigned int y_size,      // Length of y axis (height) (pixels)
+    Map(const int x_size,               // Length of x axis (width) (pixels)
+        const int y_size,               // Length of y axis (height) (pixels)
         const double x_origin_world,    // X translation of origin (cell 0,0) relative to world frame (meters)
         const double y_origin_world,    // Y translation of origin (cell 0,0) relative to world frame (meters)
         const double th_world,          // Angle relative to world frame (rad)
@@ -171,10 +171,10 @@ namespace localize
     bool occupied(const Point& point) const;
 
     // Length of x axis (pixels)
-    unsigned int xSize() const;
+    int xSize() const;
 
     // Length of y axis (pixels)
-    unsigned int ySize() const;
+    int ySize() const;
 
     // X translation of origin (cell 0,0) relative to world frame (meters)
     double xOriginWorld() const;
@@ -198,8 +198,8 @@ namespace localize
     const std::vector<bool>& data() const;
 
   private:
-    const unsigned int x_size_;     // Length of x axis (pixels)
-    const unsigned int y_size_;     // Length of y axis (pixels)
+    const int x_size_;              // Length of x axis (pixels)
+    const int y_size_;              // Length of y axis (pixels)
     const double x_origin_world_;   // X translation of origin (cell 0,0) relative to world frame (meters)
     const double y_origin_world_;   // Y translation of origin (cell 0,0) relative to world frame (meters)
     const double th_world_;         // Angle relative to world frame

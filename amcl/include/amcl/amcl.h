@@ -17,41 +17,41 @@ namespace localize
   {
   public:
     // Constructors
-    AMCL(const unsigned int amcl_num_particles_min,        // AMCL minimum number of particles
-         const unsigned int amcl_num_particles_max_local,  // AMCL maximum number of particles during local tracking
-         const unsigned int amcl_num_particles_max_global, // AMCL maximum number of particles during global localization
-         const double amcl_weight_avg_random_sample,       // AMCL weight average below which random sampling is enabled
-         const double amcl_weight_rel_dev_resample,        // AMCL weight relative standard deviation above which resampling is performed
-         const double car_length,                          // Car length
-         const double car_origin_to_sensor_frame_x,        // Car origin to sensor frame x translation
-         const double car_origin_to_sensor_frame_y,        // Car origin to sensor frame y translation
-         const double car_origin_to_sensor_frame_th,       // Car origin to sensor frame rotation
-         const double car_back_center_to_sensor_frame_x,   // Car back center to sensor frame x translation
-         const double car_back_center_to_sensor_frame_y,   // Car back center to sensor frame y translation
-         const double motion_vel_lin_n1,                   // Motion model linear velocity noise coefficient 1
-         const double motion_vel_lin_n2,                   // Motion model linear velocity noise coefficient 2
-         const double motion_vel_ang_n1,                   // Motion model angular velocity noise coefficient 1
-         const double motion_vel_ang_n2,                   // Motion model angular velocity noise coefficient 2
-         const double motion_th_n1,                        // Motion model final rotation noise coefficient 1
-         const double motion_th_n2,                        // Motion model final rotation noise coefficient 2
-         const float sensor_range_min,                     // Sensor min range in meters
-         const float sensor_range_max,                     // Sensor max range in meters
-         const float sensor_range_no_obj,                  // Sensor range reported when nothing is detected
-         const float sensor_range_std_dev,                 // Sensor model range measurement standard deviation
-         const float sensor_decay_rate_new_obj,            // Sensor model decay rate for new / unexpected object probability
-         const double sensor_weight_no_obj,                // Sensor model weight for no object detected probability
-         const double sensor_weight_new_obj,               // Sensor model weight for new / unexpected object probability
-         const double sensor_weight_map_obj,               // Sensor model weight for mapped / expected object probability
-         const double sensor_weight_rand_effect,           // Sensor model weight for random effect probability
-         const double sensor_weight_uncertainty_factor,    // Sensor model weight uncertainty factor (extra noise added to final weight)
-         const double sensor_prob_new_obj_reject,          // Sensor model probability above which a ray is rejected for representing a new / unexpected object
-         const unsigned int map_x_size,                    // Map length of x axis (width) (pixels)
-         const unsigned int map_y_size,                    // Map length of y axis (height) (pixels)
-         const double map_x_origin_world,                  // Map x translation of origin (cell 0,0) relative to world frame (meters)
-         const double map_y_origin_world,                  // Map y translation of origin (cell 0,0) relative to world frame (meters)
-         const double map_th_world,                        // Map angle relative to world frame (read)
-         const double map_scale_world,                     // Map scale relative to world frame (meters per pixel)
-         const std::vector<int8_t>& map_data               // Map occupancy data in 1D row-major order, -1: Unknown, 0: Free, 100: Occupied
+    AMCL(const int amcl_num_particles_min,                // AMCL minimum number of particles
+         const int amcl_num_particles_max_local,          // AMCL maximum number of particles during local tracking
+         const int amcl_num_particles_max_global,         // AMCL maximum number of particles during global localization
+         const double amcl_weight_avg_random_sample,      // AMCL weight average below which random sampling is enabled
+         const double amcl_weight_rel_dev_resample,       // AMCL weight relative standard deviation above which resampling is performed
+         const double car_length,                         // Car length
+         const double car_origin_to_sensor_frame_x,       // Car origin to sensor frame x translation
+         const double car_origin_to_sensor_frame_y,       // Car origin to sensor frame y translation
+         const double car_origin_to_sensor_frame_th,      // Car origin to sensor frame rotation
+         const double car_back_center_to_sensor_frame_x,  // Car back center to sensor frame x translation
+         const double car_back_center_to_sensor_frame_y,  // Car back center to sensor frame y translation
+         const double motion_vel_lin_n1,                  // Motion model linear velocity noise coefficient 1
+         const double motion_vel_lin_n2,                  // Motion model linear velocity noise coefficient 2
+         const double motion_vel_ang_n1,                  // Motion model angular velocity noise coefficient 1
+         const double motion_vel_ang_n2,                  // Motion model angular velocity noise coefficient 2
+         const double motion_th_n1,                       // Motion model final rotation noise coefficient 1
+         const double motion_th_n2,                       // Motion model final rotation noise coefficient 2
+         const float sensor_range_min,                    // Sensor min range in meters
+         const float sensor_range_max,                    // Sensor max range in meters
+         const float sensor_range_no_obj,                 // Sensor range reported when nothing is detected
+         const float sensor_range_std_dev,                // Sensor model range measurement standard deviation
+         const float sensor_decay_rate_new_obj,           // Sensor model decay rate for new / unexpected object probability
+         const double sensor_weight_no_obj,               // Sensor model weight for no object detected probability
+         const double sensor_weight_new_obj,              // Sensor model weight for new / unexpected object probability
+         const double sensor_weight_map_obj,              // Sensor model weight for mapped / expected object probability
+         const double sensor_weight_rand_effect,          // Sensor model weight for random effect probability
+         const double sensor_weight_uncertainty_factor,   // Sensor model weight uncertainty factor (extra noise added to final weight)
+         const double sensor_prob_new_obj_reject,         // Sensor model probability above which a ray is rejected for representing a new / unexpected object
+         const int map_x_size,                            // Map length of x axis (width) (pixels)
+         const int map_y_size,                            // Map length of y axis (height) (pixels)
+         const double map_x_origin_world,                 // Map x translation of origin (cell 0,0) relative to world frame (meters)
+         const double map_y_origin_world,                 // Map y translation of origin (cell 0,0) relative to world frame (meters)
+         const double map_th_world,                       // Map angle relative to world frame (read)
+         const double map_scale_world,                    // Map scale relative to world frame (meters per pixel)
+         const std::vector<int8_t>& map_data              // Map occupancy data in 1D row-major order, -1: Unknown, 0: Free, 100: Occupied
         );
 
     // Apply the motion model to update particle locations using p(x[t] | u[t], x[t-1])
@@ -93,10 +93,10 @@ namespace localize
     RecursiveMutex dist_mtx_;         // Particle distribution mutex
     RecursiveMutex car_vel_lin_mtx_;  // Linear velocity mutex
 
-    const size_t num_particles_min_;              // Minimum number of particles
-    const size_t num_particles_max_local_;        // Maximum number of particles during local tracking
-    const size_t num_particles_max_global_;       // Maximum number of particles during global localization
-    size_t num_particles_max_curr_;               // Maximum number of particles currently allowed
+    const int num_particles_min_;                 // Minimum number of particles
+    const int num_particles_max_local_;           // Maximum number of particles during local tracking
+    const int num_particles_max_global_;          // Maximum number of particles during global localization
+    int num_particles_max_curr_;                  // Maximum number of particles currently allowed
     const double weight_avg_random_sample_;       // Weight average below which random sampling is enabled
     const double weight_rel_dev_resample_;        // Weight relative standard deviation above which resampling is performed
     const double car_origin_to_sensor_frame_x_;   // Car origin to sensor frame x translation
