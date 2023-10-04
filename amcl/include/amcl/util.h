@@ -22,13 +22,12 @@ namespace localize
   template <class T> struct IndexedValue;
   template <class T> struct SmoothedValue;
 
-  typedef std::chrono::high_resolution_clock Clock;
-  typedef std::chrono::_V2::system_clock::time_point Time;
-  typedef std::chrono::duration<double> Duration;
-
-  typedef IndexedValue<double> IndexedWeight;
-  typedef std::vector<IndexedWeight> IndexedWeightVector;
-  typedef SmoothedValue<double> SmoothedWeight;
+  using Clock = std::chrono::high_resolution_clock;
+  using Time = std::chrono::_V2::system_clock::time_point;
+  using Duration = std::chrono::duration<double>;
+  using IndexedWeight = IndexedValue<double>;
+  using IndexedWeightVector = std::vector<IndexedWeight>;
+  using SmoothedWeight = SmoothedValue<double>;
 
   inline double durationMsec(const Time& start, const Time& end)
   { return std::chrono::duration_cast<Duration>(end - start).count() * 1000.0; }

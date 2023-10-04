@@ -8,7 +8,7 @@
 
 namespace localize
 {
-  typedef std::vector<std::vector<double>> WeightTable;
+  using WeightTable = std::vector<std::vector<double>>;
 
   // Beam-based probabilistic model for a range sensor
   //

@@ -20,17 +20,16 @@ namespace localize
   class RaySample;
   class RayScan;
 
-  typedef std::mutex Mutex;
-  typedef std::recursive_mutex RecursiveMutex;
-  typedef std::lock_guard<std::mutex> Lock;
-  typedef std::lock_guard<std::recursive_mutex> RecursiveLock;
-
-  typedef std::vector<Point> PointVector;
-  typedef std::vector<Pose> PoseVector;
-  typedef std::vector<Particle> ParticleVector;
-  typedef std::vector<Ray> RayVector;
-  typedef std::vector<RaySample> RaySampleVector;
-  typedef std::vector<RayScan> RayScanVector;
+  using Mutex = std::mutex;
+  using RecursiveMutex = std::recursive_mutex;
+  using Lock = std::lock_guard<std::mutex>;
+  using RecursiveLock = std::lock_guard<std::recursive_mutex>;
+  using PointVector = std::vector<Point>;
+  using PoseVector = std::vector<Pose>;
+  using ParticleVector = std::vector<Particle>;
+  using RayVector = std::vector<Ray>;
+  using RaySampleVector = std::vector<RaySample>;
+  using RayScanVector = std::vector<RayScan>;
 
   extern const int NUM_ESTIMATES;             // Number of pose estimates to provide
   extern const int SENSOR_NUM_RAYS_PER_SCAN;  // Number of rays per scan expected (count per revolution)

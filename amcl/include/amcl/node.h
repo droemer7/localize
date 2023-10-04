@@ -26,14 +26,14 @@
 
 namespace localize
 {
-  typedef vesc_msgs::VescStateStamped DriveStateStampedMsg;
-  typedef std_msgs::Float64 DriveSteerMsg;
-  typedef sensor_msgs::LaserScan SensorScanMsg;
-  typedef nav_msgs::OccupancyGrid OccupancyGridMsg;
-  typedef geometry_msgs::Pose PoseMsg;
-  typedef geometry_msgs::PoseStamped PoseStampedMsg;
-  typedef geometry_msgs::PoseArray PoseArrayMsg;
-  typedef geometry_msgs::TransformStamped TransformStampedMsg;
+  using DriveStateStampedMsg = vesc_msgs::VescStateStamped;
+  using DriveSteerMsg = std_msgs::Float64;
+  using SensorScanMsg = sensor_msgs::LaserScan;
+  using OccupancyGridMsg = nav_msgs::OccupancyGrid;
+  using PoseMsg = geometry_msgs::Pose;
+  using PoseStampedMsg = geometry_msgs::PoseStamped;
+  using PoseArrayMsg = geometry_msgs::PoseArray;
+  using TransformStampedMsg = geometry_msgs::TransformStamped;
 
   // Convert a particle to a pose message
   PoseMsg poseMsg(const Particle& particle);
