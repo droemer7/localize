@@ -1,3 +1,6 @@
+// Copyright (c) 2021-2023 Dane Roemer droemer7@gmail.com
+// Distributed under the terms of the MIT License
+
 #include "amcl/distribution.h"
 
 static const double WEIGHT_AVG_CREEP_RATE = 0.01;  // Weight average smoothing rate, very slow

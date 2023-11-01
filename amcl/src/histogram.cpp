@@ -1,3 +1,6 @@
+// Copyright (c) 2021-2023 Dane Roemer droemer7@gmail.com
+// Distributed under the terms of the MIT License
+
 #include "amcl/histogram.h"
 
 static const double ESTIMATE_MERGE_DXY_MAX = 0.10;        // Maximum x or y delta for two estimates to be combined

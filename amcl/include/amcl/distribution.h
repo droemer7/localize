@@ -1,3 +1,6 @@
+// Copyright (c) 2021-2023 Dane Roemer droemer7@gmail.com
+// Distributed under the terms of the MIT License
+
 #ifndef DISTRIBUTION_H
 #define DISTRIBUTION_H
 

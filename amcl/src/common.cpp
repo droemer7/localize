@@ -1,3 +1,6 @@
+// Copyright (c) 2021-2023 Dane Roemer droemer7@gmail.com
+// Distributed under the terms of the MIT License
+
 #include <algorithm>
 #include <chrono>
 #include <limits>

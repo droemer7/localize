@@ -1,8 +1,11 @@
+// Copyright (c) 2021-2023 Dane Roemer droemer7@gmail.com
+// Distributed under the terms of the MIT License
+
 #include "amcl/sensor.h"
 
-static const double WEIGHT_TABLE_RES = 0.01;      // Lookup table resolution (meters per cell)
-static const int RAYCAST_TH_COUNT = 314; // Number of angles for raycast approximation (count per revolution)
-static const float RANGE_EPSILON = 1e-5;          // Maximum delta between two ranges such that they are still considered 'equal'
+static const double WEIGHT_TABLE_RES = 0.01;  // Lookup table resolution (meters per cell)
+static const int RAYCAST_TH_COUNT = 314;      // Number of angles for raycast approximation (count per revolution)
+static const float RANGE_EPSILON = 1e-5;      // Maximum delta between two ranges such that they are still considered 'equal'
 
 using namespace localize;
 
