@@ -2,7 +2,9 @@
 
 # Localize
 
-Adaptive Monte Carlo Localization integrated with ROS and the [MuSHR car](https://mushr.io). Initially there were thoughts of implementing other algorithms in this repository, but that is not likely to happen given priorities on other projects.
+Adaptive Monte Carlo Localization integrated with ROS and the [MuSHR car](https://mushr.io).
+
+_Note: Initially there were thoughts of implementing other algorithms in this repository, but that is not likely to happen given priorities on other projects._
 
 </br>
 
